@@ -9,6 +9,8 @@
   background: var(--bg-card); cursor: pointer;
   transition: all 0.2s; display: flex; flex-direction: column;
   overflow: hidden; position: relative;
+  padding: 0 !important; 
+  align-items: stretch !important;
 }
 .char-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
 
