@@ -36,17 +36,14 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
       {/* 배경 그라디언트 */}
       <div className="lobby-bg" />
 
-      {/* 상단 바 */}
+      {/* 상단 재화 바 */}
       <div className="lobby-header">
-        <div className="lobby-header-left">
-          <span className="lobby-title">대충 가챠겜</span>
-        </div>
-        <div className="lobby-header-right">
+        <div className="lobby-header-resources">
           <span className="lobby-res">⚡{user.stamina || 0}</span>
           <span className="lobby-res gold">🪙{(user.gold || 0).toLocaleString()}</span>
           <span className="lobby-res diamond">💎{(user.currency || 0).toLocaleString()}</span>
-          <button className="lobby-settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
         </div>
+        <button className="lobby-settings-btn" onClick={() => setShowSettings(!showSettings)}>⚙️</button>
       </div>
 
       {/* 설정 드롭다운 */}

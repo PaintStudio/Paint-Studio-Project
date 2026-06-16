@@ -22,7 +22,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState([]);
   const [missions, setMissions] = useState([]);
-  const [showMissions, setShowMissions] = useState(false);
 
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now();
@@ -111,55 +110,11 @@ export default function App() {
     { key: 'social', label: '소셜', icon: '💬' },
   ];
 
-  const staminaVal = user.stamina || 0;
-  const goldVal = (user.gold || 0).toLocaleString();
-  const diamondVal = (user.currency || 0).toLocaleString();
-  const hasPending = missions.filter(m => m.completed && !m.claimed).length > 0;
-
-  // 현재 페이지가 로비가 아닐 때만 헤더 표시
-  const showHeader = page !== 'lobby';
+  const isLobby = page === 'lobby';
 
   return (
     <div className="app">
-      {showHeader && (
-        <header className="app-header">
-          <div className="header-left">
-            <h1 className="app-title" onClick={() => navigate('lobby')}>대충 가챠겜</h1>
-          </div>
-          <div className="header-right">
-            <span className="resource">⚡{staminaVal}</span>
-            <span className="resource gold">🪙{goldVal}</span>
-            <span className="currency">💎{diamondVal}</span>
-            <button className="btn-mission-toggle" onClick={() => { setShowMissions(!showMissions); loadMissions(); }}>
-              📋{hasPending ? '!' : ''}
-            </button>
-          </div>
-        </header>
-      )}
-
-      {showMissions && showHeader && (
-        <div className="mission-panel">
-          <h3>데일리 미션</h3>
-          {missions.map(m => (
-            <div key={m.id} className={'mission-item' + (m.completed ? ' done' : '')}>
-              <div className="mission-info">
-                <span>{m.label}</span>
-                <span className="mission-progress">{m.current}/{m.target}</span>
-              </div>
-              <div className="mission-reward">
-                {m.rewardType === 'diamond' ? '💎' : '🪙'}{m.rewardAmount}
-              </div>
-              {m.completed && !m.claimed && (
-                <button className="btn-claim" onClick={() => claimMission(m.id)}>수령</button>
-              )}
-              {m.claimed && <span className="claimed-badge">완료</span>}
-            </div>
-          ))}
-          {missions.length === 0 && <p className="empty-msg">출석 체크를 먼저 해주세요</p>}
-        </div>
-      )}
-
-      <main className={`main-content ${page === 'lobby' ? 'main-lobby' : ''}`}>
+      <main className={`main-content ${isLobby ? 'main-lobby' : ''}`}>
         {page === 'lobby' && (
           <LobbyPage
             user={user}

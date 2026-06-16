@@ -1,7 +1,7 @@
 .growth-page { display: flex; flex-direction: column; gap: 16px; }
 .growth-page h2 { font-size: 1.2rem; }
 /* 캐릭터 카드 그리드 */
-.char-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.char-card-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; padding: 0 16px; }
 
 .char-card {
   aspect-ratio: 1 / 1.4;

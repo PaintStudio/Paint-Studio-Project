@@ -7,32 +7,30 @@
   height: 100dvh; color: var(--text-muted);
 }
 
-/* 배경 - 이미지 또는 그라디언트 */
+/* 배경 - 이미지 + 그라디언트 폴백 */
 .lobby-bg {
   position: absolute; inset: 0; z-index: 0;
   background: linear-gradient(180deg, #0a0a1a 0%, #0f1a2e 40%, #1a1a3e 100%);
-  background: url('/uploads/lobby-bg.png') center/cover no-repeat;
+  background: url('/uploads/lobby-bg.png') center/cover no-repeat, linear-gradient(180deg, #0a0a1a 0%, #0f1a2e 40%, #1a1a3e 100%);
 }
 
-/* 상단 바 */
+/* 상단 재화 바 - 반투명 배경 */
 .lobby-header {
   position: relative; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top));
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top));
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
 }
-.lobby-header-left { display: flex; align-items: center; }
-.lobby-title {
-  font-size: 1.1rem; font-weight: 900;
-  background: linear-gradient(90deg, var(--accent), #ff8800);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+.lobby-header-resources {
+  display: flex; align-items: center; gap: 10px;
 }
-.lobby-header-right { display: flex; align-items: center; gap: 10px; }
 .lobby-res { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
 .lobby-res.gold { color: #f39c12; }
 .lobby-res.diamond { color: var(--gold); }
 .lobby-settings-btn {
   background: none; font-size: 1.1rem; padding: 4px;
-  border: 1px solid var(--border); border-radius: 6px; opacity: 0.7;
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; opacity: 0.7;
 }
 .lobby-settings-btn:hover { opacity: 1; border-color: var(--accent); }
 
@@ -51,15 +49,14 @@
 .lobby-settings-menu button:last-child { border-bottom: none; }
 .lobby-settings-menu button:hover { background: var(--bg-card-hover); }
 
-/* 메인 영역 - 캐릭터 좌측 + 사이드 우측 */
+/* 메인 영역 */
 .lobby-main-area {
   position: relative; z-index: 5;
   flex: 1; display: flex; align-items: flex-end;
   padding: 0 16px 16px;
-  min-height: 60vh;
 }
 
-/* 캐릭터 영역 - 좌측 하단 정렬 */
+/* 캐릭터 영역 - 좌측 하단 */
 .lobby-character-area {
   flex: 1; display: flex; align-items: flex-end;
 }
@@ -68,12 +65,13 @@
 }
 .lobby-char-ld {
   max-height: 55vh; max-width: 60vw; object-fit: contain;
+  background: transparent;
   filter: drop-shadow(0 0 30px rgba(233, 69, 96, 0.3));
   animation: lobbyFloat 4s ease-in-out infinite;
 }
 .lobby-char-fallback {
   width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
-  border: 3px solid var(--accent);
+  border: 3px solid var(--accent); background: transparent;
   filter: drop-shadow(0 0 20px rgba(233, 69, 96, 0.3));
 }
 .lobby-char-placeholder {
