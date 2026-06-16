@@ -1,0 +1,234 @@
+/**
+ * 턴 노트 기반 전투 엔진
+ * 
+ * 핵심 메커니즘:
+ * - 각 캐릭터는 turn_notes (행동 자원)를 가짐
+ * - 모든 행동(공격/방어/궁극기 등)은 턴 노트 소비
+ * - 자기 턴에 노트 남으면 계속 행동 가능 / 아껴서 턴 종료 가능
+ * - 공격 받으면 방어 리액션 가능 (턴 노트 소비)
+ * - 방어 못하면 +50% 추가 피해 (무방비 패널티)
+ * - 턴 사이클 종료 시 모든 노트 풀 회복
+ */
+
+const gameConfig = require('../gameConfig.json');
+
+// gameConfig에서 속성 상성 테이블 생성
+const ELEMENT_CHART = {};
+for (const [key, val] of Object.entries(gameConfig.elements)) {
+  ELEMENT_CHART[key] = { strong: val.strong, weak: val.weak };
+}
+
+const elemMults = gameConfig.elementMultipliers;
+function getElementMultiplier(atkElem, defElem) {
+  const chart = ELEMENT_CHART[atkElem] || ELEMENT_CHART.neutral;
+  if (chart.strong === defElem) {
+    return (defElem === 'light' || defElem === 'dark') ? elemMults.lightDark : elemMults.normal;
+  }
+  if (chart.weak === defElem) {
+    return (defElem === 'light' || defElem === 'dark') ? elemMults.lightDarkResist : elemMults.normalResist;
+  }
+  return 1.0;
+}
+
+const growthCfg = gameConfig.growth;
+
+// 레벨/각성에 따른 스탯 계산 (순수 base stat 기반, 레어도 배율 없음)
+function calcStats(char, level, awakening) {
+  const lvlMult = 1 + (level - 1) * growthCfg.statGrowthPerLevel;
+  const awkMult = 1 + awakening * growthCfg.statGrowthPerAwakening;
+  return {
+    hp:  Math.round(char.base_hp  * lvlMult * awkMult),
+    atk: Math.round(char.base_atk * lvlMult * awkMult),
+    def: Math.round(char.base_def * lvlMult * awkMult),
+    spd: Math.round(char.base_spd * (1 + (level - 1) * growthCfg.spdGrowthPerLevel)),
+  };
+}
+
+/**
+ * 전투 유닛 생성
+ * @param {Object} charData - 캐릭터 데이터
+ * @param {number} level
+ * @param {number} awakening
+ * @param {boolean} isEnemy
+ * @param {Array} equippedSkills - 장착된 스킬 배열 [{name, type, cost, power, element, target, defense_mult, extra}]
+ */
+function createUnit(charData, level = 1, awakening = 0, isEnemy = false, equippedSkills = []) {
+  const stats = isEnemy
+    ? { hp: charData.hp, atk: charData.atk, def: charData.def, spd: charData.spd }
+    : calcStats(charData, level, awakening);
+
+  const turnNotes = charData.turn_notes || (isEnemy ? 3 : 4);
+
+  return {
+    id: charData.id || charData.name,
+    name: charData.name,
+    element: charData.element || 'neutral',
+    rarity: charData.rarity || 'N',
+    isEnemy,
+    isBoss: charData.isBoss || false,
+    // 전투 스탯
+    maxHp: stats.hp,
+    hp: stats.hp,
+    atk: stats.atk,
+    def: stats.def,
+    spd: stats.spd,
+    // 턴 노트
+    maxNotes: turnNotes,
+    notes: turnNotes,
+    // 스킬
+    skills: isEnemy ? (charData.skills || []) : equippedSkills,
+    // 상태
+    buffs: [],
+    debuffs: [],
+    alive: true,
+  };
+}
+
+// 버프/디버프 적용된 최종 스탯
+function getEffectiveStat(unit, statName) {
+  let base = unit[statName];
+  for (const b of unit.buffs) {
+    if (b.stat === statName) base = Math.round(base * (1 + b.amount));
+  }
+  for (const d of unit.debuffs) {
+    if (d.stat === statName) base = Math.round(base * (1 - d.amount));
+  }
+  return Math.max(1, base);
+}
+
+const battleCfg = gameConfig.battle;
+
+// 데미지 계산
+function calcDamage(attacker, defender, power, skillElement) {
+  const atk = getEffectiveStat(attacker, 'atk');
+  const def = getEffectiveStat(defender, 'def');
+  const baseDmg = atk * power;
+  const defReduction = baseDmg * (100 / (100 + def));
+  const elemMult = getElementMultiplier(skillElement || attacker.element, defender.element);
+  const variance = battleCfg.varianceMin + Math.random() * (battleCfg.varianceMax - battleCfg.varianceMin);
+  const crit = Math.random() < battleCfg.critRate ? battleCfg.critMultiplier : 1.0;
+  return {
+    damage: Math.round(defReduction * elemMult * variance * crit),
+    isCrit: crit > 1,
+    elemMult,
+  };
+}
+
+// 데미지 계산 (DEF 무시 버전)
+function calcDamageIgnoreDef(attacker, power, skillElement, defenderElement) {
+  const atk = getEffectiveStat(attacker, 'atk');
+  const baseDmg = atk * power;
+  const elemMult = getElementMultiplier(skillElement || attacker.element, defenderElement);
+  const variance = battleCfg.varianceMin + Math.random() * (battleCfg.varianceMax - battleCfg.varianceMin);
+  const crit = Math.random() < battleCfg.critRate ? battleCfg.critMultiplier : 1.0;
+  return {
+    damage: Math.round(baseDmg * elemMult * variance * crit),
+    isCrit: crit > 1,
+    elemMult,
+  };
+}
+
+/**
+ * 전투 셋업 정보 생성 (클라이언트에 전달)
+ * 실제 전투는 클라이언트에서 인터랙티브로 진행
+ */
+function createBattleSetup(partyUnits, enemyUnits) {
+  return {
+    party: partyUnits.map(u => serializeUnit(u)),
+    enemies: enemyUnits.map(u => serializeUnit(u)),
+    elementChart: ELEMENT_CHART,
+  };
+}
+
+function serializeUnit(u) {
+  return {
+    id: u.id, name: u.name, element: u.element, rarity: u.rarity,
+    isEnemy: u.isEnemy, isBoss: u.isBoss,
+    maxHp: u.maxHp, hp: u.hp, atk: u.atk, def: u.def, spd: u.spd,
+    maxNotes: u.maxNotes, notes: u.notes,
+    skills: u.skills.map(s => ({
+      name: s.name, type: s.type, cost: s.cost, power: s.power || 0,
+      element: s.element || u.element, target: s.target,
+      defense_mult: s.defense_mult || 0,
+      extra: typeof s.extra === 'string' ? JSON.parse(s.extra || '{}') : (s.extra || {}),
+    })),
+    buffs: u.buffs, debuffs: u.debuffs, alive: u.alive,
+  };
+}
+
+/**
+ * 전투 결과 검증 (서버 사이드 - 기본 검증만)
+ * 친구 내수용이니 빡빡한 검증은 안 하고, 기본 무결성만 체크
+ */
+function validateBattleResult(battleLog, partyCount, enemyCount) {
+  if (!battleLog || !Array.isArray(battleLog.actions)) return false;
+  if (typeof battleLog.result !== 'string') return false;
+  if (!['victory', 'defeat', 'timeout'].includes(battleLog.result)) return false;
+  if (typeof battleLog.totalDamage !== 'number') return false;
+  if (typeof battleLog.turnCycles !== 'number') return false;
+  return true;
+}
+
+/**
+ * 적 AI - 단순 턴 노트 관리
+ * @param {Object} enemy - 적 유닛
+ * @param {Array} targets - 공격 대상 (아군)
+ * @returns {Array} 행동 목록 [{skill, targetIndex}]
+ */
+function enemyAI(enemy, targets) {
+  const actions = [];
+  let remainingNotes = enemy.notes;
+  const attackSkills = enemy.skills.filter(s => s.type === 'attack');
+  const defenseSkills = enemy.skills.filter(s => s.type === 'defense');
+
+  // 단순 AI: 노트의 60~80%를 공격에 쓰고 나머지는 방어용으로 남김
+  const offenseBudget = Math.ceil(remainingNotes * (0.6 + Math.random() * 0.2));
+  let spent = 0;
+
+  while (spent < offenseBudget && attackSkills.length > 0) {
+    // 예산 내에서 쓸 수 있는 가장 강한 스킬 선택
+    const affordable = attackSkills.filter(s => s.cost <= (offenseBudget - spent));
+    if (affordable.length === 0) break;
+
+    // 50% 확률로 강한 스킬, 50% 확률로 랜덤
+    affordable.sort((a, b) => b.power - a.power);
+    const skill = Math.random() < 0.5 ? affordable[0] : affordable[Math.floor(Math.random() * affordable.length)];
+
+    const livingTargets = targets.filter(t => t.alive);
+    if (livingTargets.length === 0) break;
+
+    const targetIndex = Math.floor(Math.random() * livingTargets.length);
+    actions.push({ skill, targetIndex, targetId: livingTargets[targetIndex].id });
+    spent += skill.cost;
+  }
+
+  return { actions, notesReserved: remainingNotes - spent };
+}
+
+/**
+ * 적 방어 AI 결정
+ * @param {Object} enemy - 방어할 적 유닛
+ * @param {Object} incomingAttack - 날아오는 공격 정보
+ * @returns {Object|null} 방어 스킬 또는 null (방어 안 함)
+ */
+function enemyDefenseAI(enemy, incomingAttack) {
+  if (enemy.notes <= 0) return null;
+
+  const defenseSkills = enemy.skills.filter(s => s.type === 'defense' && s.cost <= enemy.notes);
+  if (defenseSkills.length === 0) return null;
+
+  // 70% 확률로 방어 시도 (노트 남아있으면)
+  if (Math.random() < 0.7) {
+    // 가장 경제적인 방어 선택
+    defenseSkills.sort((a, b) => a.cost - b.cost);
+    return defenseSkills[0];
+  }
+  return null;
+}
+
+module.exports = {
+  createUnit, calcStats, getElementMultiplier, calcDamage, calcDamageIgnoreDef,
+  createBattleSetup, validateBattleResult, serializeUnit,
+  enemyAI, enemyDefenseAI, getEffectiveStat,
+  ELEMENT_CHART,
+};

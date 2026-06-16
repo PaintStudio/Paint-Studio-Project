@@ -1,0 +1,138 @@
+.battle-page { display: flex; flex-direction: column; gap: 8px; min-height: 70vh; }
+
+.battle-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; background: var(--bg-secondary); border-radius: 8px;
+  font-weight: 600;
+}
+.cycle-info { font-size: 0.8rem; color: var(--text-muted); }
+.turn-info { font-size: 0.95rem; color: var(--accent); }
+
+/* 유닛 영역 */
+.battle-enemies, .battle-party {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+.battle-enemies { margin-bottom: 8px; }
+.battle-party { margin-top: 8px; }
+
+.battle-unit {
+  padding: 8px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg-card); min-width: 100px; max-width: 140px; flex: 1;
+  text-align: center; transition: all 0.2s; position: relative;
+}
+.battle-unit.active { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+.battle-unit.dead { opacity: 0.3; }
+.battle-unit.targetable { cursor: pointer; border-color: #e74c3c; }
+.battle-unit.targetable:hover { background: rgba(231, 76, 60, 0.15); }
+
+.unit-name { font-size: 0.75rem; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hp-bar { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; margin: 2px 0; }
+.hp-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+.ally-hp { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+.enemy-hp { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.hp-text { font-size: 0.6rem; color: var(--text-muted); }
+
+.notes-display { font-size: 0.6rem; margin-top: 2px; }
+.notes-num { color: var(--text-muted); margin-left: 2px; }
+
+.buffs { font-size: 0.55rem; color: #2ecc71; }
+.debuffs { font-size: 0.55rem; color: #e74c3c; }
+
+/* 방어 리액션 */
+.defense-prompt {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+  z-index: 200; animation: fadeIn 0.2s ease;
+}
+.defense-prompt-inner {
+  background: var(--bg-card); border: 2px solid #e74c3c; border-radius: 16px;
+  padding: 20px; max-width: 360px; width: 90%; text-align: center;
+}
+.defense-prompt-inner h3 { color: #e74c3c; margin-bottom: 8px; }
+.defense-prompt-inner p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px; }
+.defense-options { display: flex; flex-direction: column; gap: 8px; }
+.btn-defense {
+  padding: 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+  background: linear-gradient(135deg, #2980b9, #3498db); color: white;
+  transition: transform 0.1s;
+}
+.btn-defense:hover { transform: scale(1.02); }
+.btn-no-defense {
+  padding: 10px; border-radius: 8px; font-size: 0.85rem;
+  background: var(--bg-secondary); color: #e74c3c; border: 1px solid #e74c3c;
+}
+.defense-notes-info { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+
+/* 스킬 패널 */
+.skill-panel {
+  background: var(--bg-secondary); border-radius: 12px; padding: 12px;
+  border: 1px solid var(--border);
+}
+.skill-panel-header {
+  display: flex; justify-content: space-between; margin-bottom: 8px;
+  font-size: 0.85rem; font-weight: 600;
+}
+.notes-remain { color: var(--accent); }
+
+.skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-bottom: 8px; }
+
+.btn-skill {
+  padding: 8px; border-radius: 8px; text-align: left;
+  background: var(--bg-card); border: 1px solid var(--border);
+  transition: all 0.15s; position: relative;
+}
+.btn-skill:hover:not(.disabled) { border-color: var(--accent); }
+.btn-skill.selected { border-color: var(--accent); background: rgba(99, 102, 241, 0.15); }
+.btn-skill.disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-skill.attack { border-left: 3px solid #e74c3c; }
+.btn-skill.defense { border-left: 3px solid #3498db; }
+.btn-skill.ultimate { border-left: 3px solid var(--gold); }
+.btn-skill.heal { border-left: 3px solid #2ecc71; }
+.btn-skill.buff { border-left: 3px solid #f39c12; }
+.btn-skill.debuff { border-left: 3px solid #9b59b6; }
+
+.skill-name-btn { display: block; font-size: 0.8rem; font-weight: 600; }
+.skill-meta { display: block; font-size: 0.65rem; color: var(--text-muted); }
+.skill-elem { position: absolute; top: 4px; right: 6px; font-size: 0.7rem; }
+
+.target-hint {
+  text-align: center; font-size: 0.8rem; color: #e74c3c;
+  padding: 4px; animation: pulse 1s infinite;
+}
+
+.btn-end-turn {
+  width: 100%; padding: 10px; border-radius: 8px;
+  background: var(--bg-card); color: var(--text-secondary);
+  border: 1px solid var(--border); font-size: 0.85rem;
+  transition: all 0.15s;
+}
+.btn-end-turn:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* 전투 결과 */
+.battle-result-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+  z-index: 200; animation: fadeIn 0.3s ease;
+}
+.battle-result {
+  text-align: center; padding: 30px 40px; border-radius: 16px;
+  background: var(--bg-card); border: 2px solid var(--border);
+}
+.battle-result.victory { border-color: var(--gold); }
+.battle-result.victory h2 { color: var(--gold); font-size: 1.8rem; }
+.battle-result.defeat { border-color: #e74c3c; }
+.battle-result.defeat h2 { color: #e74c3c; }
+.battle-result p { font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px; }
+
+/* 로그 */
+.battle-log {
+  max-height: 150px; overflow-y: auto; padding: 8px;
+  background: rgba(0,0,0,0.3); border-radius: 8px;
+  font-family: monospace; font-size: 0.7rem; color: var(--text-muted);
+}
+.log-entry { padding: 1px 0; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

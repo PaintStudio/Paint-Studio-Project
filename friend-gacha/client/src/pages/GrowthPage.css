@@ -1,0 +1,141 @@
+.growth-page { display: flex; flex-direction: column; gap: 16px; }
+.growth-page h2 { font-size: 1.2rem; }
+/* 캐릭터 카드 그리드 */
+.char-card-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+
+.char-card {
+  aspect-ratio: 1 / 1.4;
+  border-radius: 12px; border: 2px solid #666;
+  background: var(--bg-card); cursor: pointer;
+  transition: all 0.2s; display: flex; flex-direction: column;
+  overflow: hidden; position: relative;
+}
+.char-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+.char-card-inner {
+  flex: 1; position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+
+.char-card-elem {
+  position: absolute; top: 5px; left: 6px; z-index: 2;
+  font-size: 0.9rem; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+}
+
+.char-card-level {
+  position: absolute; bottom: 4px; right: 6px; z-index: 2;
+  font-size: 0.6rem; color: var(--text-muted);
+  background: rgba(0,0,0,0.5); padding: 1px 5px; border-radius: 6px;
+}
+
+.char-card-img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.char-card-initial {
+  font-size: 2rem; font-weight: 900; color: var(--text-muted);
+}
+
+/* 하단 이름 바 */
+.char-card-bottom {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 6px;
+  background: rgba(0,0,0,0.4);
+}
+.char-card-rarity {
+  font-size: 0.65rem; font-weight: 800;
+  flex-shrink: 0;
+}
+.char-card-name {
+  font-size: 0.75rem; font-weight: 700; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.rarity-inline { font-size: 0.75rem; font-weight: 700; }
+.rarity-inline.ssr { color: var(--gold); }
+.rarity-inline.sr { color: var(--purple); }
+.rarity-inline.r { color: #3b82f6; }
+.rarity-inline.n { color: var(--text-muted); }
+
+.btn-back {
+  background: none; color: var(--text-secondary); font-size: 0.85rem;
+  padding: 4px 0; text-align: left;
+}
+.btn-back:hover { color: var(--accent); }
+
+/* 디테일 */
+.growth-detail { display: flex; flex-direction: column; gap: 16px; }
+.growth-card {
+  display: flex; align-items: center; gap: 16px; padding: 20px;
+  border-radius: 14px; border: 2px solid var(--border);
+}
+.growth-avatar {
+  width: 64px; height: 64px; border-radius: 50%; border: 3px solid;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); font-size: 1.6rem; font-weight: 700;
+  position: relative; flex-shrink: 0;
+}
+.growth-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.growth-elem { position: absolute; bottom: -2px; right: -4px; font-size: 1rem; }
+.growth-info h2 { font-size: 1.2rem; }
+.growth-title { font-size: 0.8rem; color: var(--text-secondary); }
+.growth-level { font-size: 0.85rem; color: var(--text-primary); font-weight: 500; margin-top: 2px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);
+}
+.stat-label { font-size: 0.7rem; color: var(--text-muted); }
+.stat-value { font-size: 1.1rem; font-weight: 700; }
+
+.exp-section { display: flex; flex-direction: column; gap: 4px; }
+.exp-bar { height: 8px; background: var(--bg-card); border-radius: 4px; overflow: hidden; }
+.exp-fill { height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); border-radius: 4px; transition: width 0.3s; }
+.exp-text { font-size: 0.75rem; color: var(--text-muted); text-align: right; }
+
+/* 스킬 섹션 */
+.skill-section { display: flex; flex-direction: column; gap: 8px; }
+.skill-section-header { display: flex; justify-content: space-between; align-items: center; }
+.skill-section-header h3 { font-size: 0.95rem; color: var(--text-secondary); }
+.btn-manage-skills {
+  background: var(--bg-card); color: var(--accent); padding: 4px 10px;
+  border-radius: 6px; font-size: 0.75rem; border: 1px solid var(--accent);
+}
+
+.equipped-skills { display: flex; flex-direction: column; gap: 6px; }
+.skill-item {
+  display: flex; flex-direction: column; gap: 2px; padding: 10px;
+  background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+.skill-name { font-size: 0.85rem; font-weight: 600; }
+.skill-desc { font-size: 0.75rem; color: var(--text-muted); }
+.skill-cost { font-size: 0.7rem; color: var(--text-secondary); font-weight: 500; }
+.skill-type-badge {
+  font-size: 0.6rem; padding: 1px 5px; border-radius: 3px;
+  background: var(--bg-secondary); color: var(--text-muted); margin-left: 4px;
+}
+
+/* 스킬 매니저 */
+.skill-manager {
+  background: var(--bg-secondary); border-radius: 10px; padding: 12px;
+  border: 1px solid var(--border);
+}
+.skill-manager h3 { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
+.skill-pool-grid { display: flex; flex-direction: column; gap: 6px; }
+.skill-pool-item {
+  padding: 8px; background: var(--bg-card); border-radius: 8px;
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.skill-pool-item:hover { border-color: var(--accent); }
+.skill-pool-item.equipped { opacity: 0.5; border-color: var(--accent); }
+
+.action-section { display: flex; flex-direction: column; gap: 8px; }
+.action-section h3 { font-size: 0.95rem; color: var(--text-secondary); }
+.levelup-buttons { display: flex; gap: 8px; }
+.awaken-list { display: flex; flex-direction: column; gap: 6px; }
+.awaken-btn { text-align: left; }
+
+.growth-quote { font-style: italic; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+.growth-desc { font-size: 0.8rem; color: var(--text-muted); text-align: center; }

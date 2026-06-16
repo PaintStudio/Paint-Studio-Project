@@ -1,0 +1,16 @@
+.feed-page { display: flex; flex-direction: column; gap: 16px; }
+.feed-page h2 { font-size: 1.2rem; }
+.feed-list { display: flex; flex-direction: column; gap: 8px; }
+.feed-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+}
+.feed-avatar {
+  width: 40px; height: 40px; border-radius: 50%; border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); font-weight: 700; flex-shrink: 0;
+}
+.feed-content { display: flex; flex-direction: column; gap: 2px; }
+.feed-user { font-weight: 600; font-size: 0.85rem; }
+.feed-text { font-size: 0.8rem; color: var(--text-secondary); }
+.feed-time { font-size: 0.7rem; color: var(--text-muted); }

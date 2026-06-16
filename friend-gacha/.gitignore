@@ -1,0 +1,5 @@
+node_modules/
+dist/
+data/gacha.db
+.env
+*.log

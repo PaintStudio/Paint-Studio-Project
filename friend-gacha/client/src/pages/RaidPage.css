@@ -1,0 +1,33 @@
+.raid-page { display: flex; flex-direction: column; gap: 20px; }
+
+.raid-boss-card {
+  background: linear-gradient(135deg, var(--bg-card), #1c1c3a);
+  border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center;
+}
+.raid-boss-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; }
+.raid-boss-header h2 { font-size: 1.3rem; }
+.raid-elem { font-size: 1.5rem; }
+
+.raid-hp-section { margin-bottom: 8px; }
+.raid-hp-bar { height: 16px; background: var(--bg-primary); border-radius: 8px; overflow: hidden; }
+.raid-hp-fill { height: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c); border-radius: 8px; transition: width 0.5s; }
+.raid-hp-text { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; display: block; }
+.raid-attempts { font-size: 0.85rem; color: var(--text-secondary); }
+
+.raid-rankings { display: flex; flex-direction: column; gap: 8px; }
+.raid-rankings h3 { font-size: 1rem; }
+.raid-rank-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+}
+.raid-rank-item.is-me { border-color: var(--accent); background: var(--bg-card-hover); }
+.raid-rank-num { font-weight: 700; min-width: 30px; color: var(--text-secondary); }
+.raid-rank-name { flex: 1; font-size: 0.9rem; }
+.raid-rank-dmg { font-weight: 600; color: var(--accent); font-size: 0.85rem; }
+
+.raid-damage-report {
+  text-align: center; padding: 12px; font-size: 1.1rem; font-weight: 700;
+  color: var(--accent); margin-top: 8px;
+}
+
+.raid-party { display: flex; flex-direction: column; gap: 12px; }

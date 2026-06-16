@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+:root {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: #16213e;
+  --bg-card-hover: #1c2a4a;
+  --accent: #e94560;
+  --accent-glow: #e9456088;
+  --gold: #ffd700;
+  --gold-glow: #ffd70066;
+  --purple: #a855f7;
+  --purple-glow: #a855f766;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --text-primary: #eee;
+  --text-secondary: #999;
+  --text-muted: #666;
+  --border: #2a2a4a;
+
+  --rarity-N: #888;
+  --rarity-R: #3b82f6;
+  --rarity-SR: #a855f7;
+  --rarity-SSR: #ffd700;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+input {
+  font-family: inherit;
+  outline: none;
+}
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* 등급 색상 클래스 */
+.rarity-N { color: var(--rarity-N); }
+.rarity-R { color: var(--rarity-R); }
+.rarity-SR { color: var(--rarity-SR); }
+.rarity-SSR { color: var(--rarity-SSR); }
+
+.rarity-border-N { border-color: var(--rarity-N); }
+.rarity-border-R { border-color: var(--rarity-R); }
+.rarity-border-SR { border-color: var(--rarity-SR); }
+.rarity-border-SSR { border-color: var(--rarity-SSR); }
+
+.rarity-bg-N { background: linear-gradient(135deg, #88888820, #88888808); }
+.rarity-bg-R { background: linear-gradient(135deg, #3b82f620, #3b82f608); }
+.rarity-bg-SR { background: linear-gradient(135deg, #a855f720, #a855f708); }
+.rarity-bg-SSR { background: linear-gradient(135deg, #ffd70030, #ffd70010); }

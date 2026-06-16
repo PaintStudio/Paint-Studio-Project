@@ -1,0 +1,23 @@
+.ranking-page { display: flex; flex-direction: column; gap: 16px; }
+.ranking-page h2 { font-size: 1.2rem; }
+.ranking-list { display: flex; flex-direction: column; gap: 8px; }
+.ranking-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; background: var(--bg-card); border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.ranking-item.is-me { border-color: var(--accent); background: var(--bg-card-hover); }
+
+.rank-num { font-size: 1rem; min-width: 32px; text-align: center; }
+.rank-1 { font-size: 1.3rem; }
+.rank-2 { font-size: 1.2rem; }
+.rank-3 { font-size: 1.1rem; }
+
+.rank-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0;
+}
+.rank-info { display: flex; flex-direction: column; gap: 2px; }
+.rank-name { font-weight: 600; font-size: 0.95rem; }
+.rank-stats { font-size: 0.75rem; color: var(--text-secondary); }
