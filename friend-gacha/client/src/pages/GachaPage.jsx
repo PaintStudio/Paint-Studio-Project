@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { getSocket } from '../utils/socket';
 import CharacterCard from '../components/CharacterCard';
@@ -15,19 +15,32 @@ function getRarityStyle(rarity) {
 
 export default function GachaPage({ user, onPull, addToast }) {
   const [pulling, setPulling] = useState(false);
-  const [phase, setPhase] = useState('idle'); // idle, charging, reveal, results
+  const [phase, setPhase] = useState('idle');
   const [results, setResults] = useState([]);
   const [currentReveal, setCurrentReveal] = useState(0);
+  const [banners, setBanners] = useState([]);
+  const [selectedBanner, setSelectedBanner] = useState(null);
+
+  useEffect(() => {
+    api.banners().then(d => {
+      setBanners(d.banners || []);
+      if (d.banners?.length > 0) setSelectedBanner(d.banners[0]);
+    }).catch(() => {});
+  }, []);
+
+  const banner = selectedBanner;
+  const rates = banner?.rates || gameConfig.gacha.rates;
 
   const doPull = async (multi) => {
     setPulling(true);
     setPhase('charging');
 
     try {
-      const data = multi ? await api.pull10() : await api.pull();
+      const data = multi
+        ? await api.pull10(banner?.id)
+        : await api.pull(banner?.id);
       const pullResults = multi ? data.results : [data.result];
 
-      // 소켓으로 결과 브로드캐스트
       const socket = getSocket();
       pullResults.forEach(r => {
         if (r.rarity === 'CR' || r.rarity === 'SSR' || r.rarity === 'SR') {
@@ -35,13 +48,11 @@ export default function GachaPage({ user, onPull, addToast }) {
         }
       });
 
-      // 연출 시작
       setTimeout(() => {
         setResults(pullResults);
         setCurrentReveal(0);
         setPhase('reveal');
       }, 1500);
-
     } catch (err) {
       addToast(err.message, 'error');
       setPhase('idle');
@@ -57,9 +68,7 @@ export default function GachaPage({ user, onPull, addToast }) {
     }
   };
 
-  const skipToResults = () => {
-    setPhase('results');
-  };
+  const skipToResults = () => setPhase('results');
 
   const finish = () => {
     setPhase('idle');
@@ -69,7 +78,6 @@ export default function GachaPage({ user, onPull, addToast }) {
     onPull();
   };
 
-  // 충전 연출
   if (phase === 'charging') {
     return (
       <div className="gacha-stage">
@@ -83,19 +91,16 @@ export default function GachaPage({ user, onPull, addToast }) {
     );
   }
 
-  // 한 장씩 공개
   if (phase === 'reveal' && results.length > 0) {
     const current = results[currentReveal];
     const r = current.rarity;
     return (
       <div className="gacha-stage" onClick={nextReveal}>
         <div className={`reveal-bg rarity-glow-${r}`} />
-        <div className={`reveal-card animate-in`}>
+        <div className="reveal-card animate-in">
           <CharacterCard character={current.character} rarity={r} isNew={current.isNew} />
         </div>
-        <div className="reveal-counter">
-          {currentReveal + 1} / {results.length}
-        </div>
+        <div className="reveal-counter">{currentReveal + 1} / {results.length}</div>
         <p className="tap-hint">탭하여 다음</p>
         {results.length > 1 && (
           <button className="btn-skip" onClick={(e) => { e.stopPropagation(); skipToResults(); }}>
@@ -106,7 +111,6 @@ export default function GachaPage({ user, onPull, addToast }) {
     );
   }
 
-  // 전체 결과
   if (phase === 'results') {
     return (
       <div className="gacha-results">
@@ -130,15 +134,36 @@ export default function GachaPage({ user, onPull, addToast }) {
     );
   }
 
-  // 메인 가챠 화면
   return (
     <div className="gacha-main">
+      {banners.length > 1 && (
+        <div className="banner-selector">
+          {banners.map(b => (
+            <button key={b.id}
+              className={'banner-tab' + (banner?.id === b.id ? ' active' : '')}
+              onClick={() => setSelectedBanner(b)}>
+              {b.name}
+              {b.type === 'limited' && <span className="limited-dot" />}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="gacha-banner">
-        <div className="banner-bg" />
-        <h2 className="banner-title">가챠</h2>
-        <p className="banner-sub">「돌려」</p>
+        {banner?.image ? (
+          <img src={banner.image} alt={banner.name} className="banner-img" />
+        ) : (
+          <div className="banner-bg" />
+        )}
+        <div className="banner-overlay">
+          <h2 className="banner-title">{banner?.name || '가챠'}</h2>
+          {banner?.description && <p className="banner-sub">{banner.description}</p>}
+          {banner?.type === 'limited' && banner.endDate && (
+            <p className="banner-period">{banner.endDate}까지</p>
+          )}
+        </div>
         <div className="banner-rates">
-          {Object.entries(gameConfig.gacha.rates).reverse().map(([r, rate]) => (
+          {Object.entries(rates).reverse().map(([r, rate]) => (
             <span key={r} style={getRarityStyle(r)} className="rate-badge">
               {r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
             </span>

@@ -1,0 +1,35 @@
+{
+  "banners": [
+    {
+      "id": "permanent",
+      "name": "상시 가챠",
+      "type": "permanent",
+      "description": "모든 캐릭터가 등장하는 상시 가챠",
+      "image": "/uploads/banners/banner_permanent.png",
+      "characterPool": "all",
+      "featuredCharIds": [],
+      "rates": null,
+      "featuredRateUp": 0,
+      "active": true,
+      "startDate": null,
+      "endDate": null
+    },
+    {
+      "id": "YukariPickup",
+      "name": "명명백백한 황혼의 왕",
+      "type": "limited",
+      "description": "",
+      "image": "/uploads/banners/banner_YukariPickup.png",
+      "characterPool": "all",
+      "featuredCharIds": [
+        1,
+        4
+      ],
+      "rates": null,
+      "featuredRateUp": 0.5,
+      "active": true,
+      "startDate": "2026-06-17",
+      "endDate": "2026-06-23"
+    }
+  ]
+}

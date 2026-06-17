@@ -5,9 +5,7 @@ import LoginPage from './pages/LoginPage';
 import LobbyPage from './pages/LobbyPage';
 import GachaPage from './pages/GachaPage';
 import CollectionPage from './pages/CollectionPage';
-import TradePage from './pages/TradePage';
-import FeedPage from './pages/FeedPage';
-import RankingPage from './pages/RankingPage';
+import SocialPage from './pages/SocialPage';
 import StagePage from './pages/StagePage';
 import RaidPage from './pages/RaidPage';
 import GrowthPage from './pages/GrowthPage';
@@ -137,11 +135,7 @@ export default function App() {
             : <StagePage user={user} onRefresh={refreshUser} addToast={addToast} />
         )}
         {page === 'gacha' && <GachaPage user={user} onPull={() => { refreshUser(); loadMissions(); }} addToast={addToast} />}
-        {page === 'social' && (
-          subPage === 'trade' ? <TradePage user={user} addToast={addToast} />
-            : subPage === 'ranking' ? <RankingPage currentUserId={user.id} />
-            : <FeedPage />
-        )}
+        {page === 'social' && <SocialPage user={user} addToast={addToast} onRefresh={refreshUser} />}
         {page === 'admin' && <AdminPage />}
       </main>
 
@@ -156,13 +150,6 @@ export default function App() {
         <div className="sub-tabs">
           <button className={`sub-tab ${subPage !== 'raid' ? 'active' : ''}`} onClick={() => setSubPage(null)}>스테이지</button>
           <button className={`sub-tab ${subPage === 'raid' ? 'active' : ''}`} onClick={() => setSubPage('raid')}>레이드</button>
-        </div>
-      )}
-      {page === 'social' && (
-        <div className="sub-tabs">
-          <button className={`sub-tab ${!subPage ? 'active' : ''}`} onClick={() => setSubPage(null)}>피드</button>
-          <button className={`sub-tab ${subPage === 'trade' ? 'active' : ''}`} onClick={() => setSubPage('trade')}>교환</button>
-          <button className={`sub-tab ${subPage === 'ranking' ? 'active' : ''}`} onClick={() => setSubPage('ranking')}>랭킹</button>
         </div>
       )}
 

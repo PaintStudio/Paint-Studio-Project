@@ -12,30 +12,58 @@ for (const [k, v] of Object.entries(gameConfig.origins)) {
   ORIGIN_COLORS[k] = v.color;
 }
 
-function getRarityStyle(rarity) {
-  if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
-  return { color: RARITY_COLORS[rarity] || '#888' };
-}
+const RARITY_COLORS = {};
+for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
 
-function getRarityBorderStyle(rarity) {
-  if (rarity === 'CR') return { borderImage: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff) 1' };
-  return { borderColor: RARITY_COLORS[rarity] || '#888' };
-}
 const SKILL_TYPE_LABELS = {};
 const SKILL_TYPE_COLORS = {};
 for (const [k, v] of Object.entries(gameConfig.skillTypes)) {
   SKILL_TYPE_LABELS[k] = v.label;
   SKILL_TYPE_COLORS[k] = v.color;
 }
-const RARITY_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
+
+function getRarityStyle(rarity) {
+  if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
+  return { color: RARITY_COLORS[rarity] || '#888' };
+}
+
+function SkillTypeBadge({ type }) {
+  return (
+    <span className="skill-type-badge" style={{ background: SKILL_TYPE_COLORS[type] || '#666' }}>
+      {SKILL_TYPE_LABELS[type] || type}
+    </span>
+  );
+}
+
+function SkillCard({ skill, equipped, onAction, actionLabel }) {
+  return (
+    <div className={`sk-card ${equipped ? 'sk-equipped' : ''}`} onClick={onAction}>
+      <div className="sk-card-header">
+        <SkillTypeBadge type={skill.type} />
+        <span className="sk-card-name">{skill.name}{equipped !== undefined && equipped && ' ✓'}</span>
+      </div>
+      {skill.description && <p className="sk-card-desc">{skill.description}</p>}
+      <div className="sk-card-footer">
+        <span className="sk-card-cost">
+          ♪ {skill.cost}
+          {skill.power > 0 ? ` · ${Math.round(skill.power * 100)}%` : ''}
+          {skill.defense_mult > 0 ? ` · 방어${Math.round(skill.defense_mult * 100)}%` : ''}
+        </span>
+        {actionLabel && <button className="sk-card-action" onClick={(e) => { e.stopPropagation(); onAction(); }}>{actionLabel}</button>}
+      </div>
+    </div>
+  );
+}
+
+const POOL_PAGE_SIZE = 6; // 2열 x 3행
 
 export default function GrowthPage({ user, onRefresh, addToast }) {
   const [characters, setCharacters] = useState([]);
   const [selected, setSelected] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [showSkillManager, setShowSkillManager] = useState(false);
   const [dupes, setDupes] = useState([]);
+  const [activeTab, setActiveTab] = useState('skills');
+  const [poolPage, setPoolPage] = useState(0);
 
   useEffect(() => { loadChars(); }, []);
 
@@ -50,7 +78,6 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
     try {
       const data = await api.charDetail(invId);
       setDetail(data);
-      // 같은 캐릭터 중복 찾기
       const d = characters.filter(c => c.character_id === data.characterId && c.inventory_id !== invId);
       setDupes(d);
     } catch (err) { addToast(err.message, 'error'); }
@@ -58,7 +85,8 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
 
   const selectChar = (c) => {
     setSelected(c.inventory_id);
-    setShowSkillManager(false);
+    setActiveTab('skills');
+    setPoolPage(0);
     loadDetail(c.inventory_id);
   };
 
@@ -86,11 +114,20 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
     try {
       await api.equipSkill(selected, skillId, slot);
       loadDetail(selected);
+      setPoolPage(0);
       addToast('스킬 장착!', 'trade');
     } catch (err) { addToast(err.message, 'error'); }
   };
 
-  // 캐릭터 목록
+  const unequipSkill = async (slot) => {
+    try {
+      await api.unequipSkill(selected, slot);
+      loadDetail(selected);
+      addToast('스킬 해제', 'trade');
+    } catch (err) { addToast(err.message, 'error'); }
+  };
+
+  // ========== 캐릭터 목록 ==========
   if (!detail) {
     return (
       <div className="growth-page">
@@ -121,125 +158,152 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
     );
   }
 
+  // ========== 캐릭터 상세 ==========
   const d = detail;
   const rarityColor = RARITY_COLORS[d.rarity] || '#888';
 
+  // 스킬 풀 페이지네이션
+  const totalPoolPages = Math.max(1, Math.ceil(d.skillPool.length / POOL_PAGE_SIZE));
+  const pagedPool = d.skillPool.slice(poolPage * POOL_PAGE_SIZE, (poolPage + 1) * POOL_PAGE_SIZE);
+
   return (
-    <div className="growth-page">
+    <div className="growth-page detail-view">
       <button className="btn-back" onClick={() => { setDetail(null); setSelected(null); }}>← 목록</button>
 
-      {/* 캐릭터 카드 */}
-      <div className="growth-card" style={{ borderColor: rarityColor }}>
-        <div className="growth-avatar" style={{ borderColor: rarityColor }}>
-          {(d.imageLd || d.imageUrl)
-            ? <img src={d.imageLd || d.imageUrl} alt={d.name} className="growth-avatar-img" />
-            : d.name[0]}
-          <span className="growth-elem">{ELEM_ICONS[d.element]}</span>
-        </div>
-        <div className="growth-info">
-          <h2>{d.name} <span className={`rarity-inline ${d.rarity.toLowerCase()}`} style={getRarityStyle(d.rarity)}>[{d.rarity}]</span></h2>
-          <div className="growth-title">{d.title}</div>
-          <div className="growth-level">Lv.{d.level}/{d.maxLevel} · 각성 {d.awakening}/5 · 🎵{d.turnNotes}</div>
-          {d.origin && <div className="growth-origin" style={{ color: ORIGIN_COLORS[d.origin] }}>근원: {ORIGIN_LABELS[d.origin] || d.origin}</div>}
-        </div>
-      </div>
-
-      {/* 스탯 */}
-      <div className="stat-grid">
-        <div className="stat-item"><span className="stat-label">HP</span><span className="stat-value">{d.stats.hp}</span></div>
-        <div className="stat-item"><span className="stat-label">ATK</span><span className="stat-value">{d.stats.atk}</span></div>
-        <div className="stat-item"><span className="stat-label">DEF</span><span className="stat-value">{d.stats.def}</span></div>
-        <div className="stat-item"><span className="stat-label">SPD</span><span className="stat-value">{d.stats.spd}</span></div>
-      </div>
-
-      {/* 경험치 */}
-      <div className="exp-section">
-        <div className="exp-bar">
-          <div className="exp-fill" style={{ width: `${d.exp / d.nextLevelExp * 100}%` }} />
-        </div>
-        <div className="exp-text">{d.exp}/{d.nextLevelExp} EXP</div>
-      </div>
-
-      {/* 장착 스킬 */}
-      <div className="skill-section">
-        <div className="skill-section-header">
-          <h3>장착 스킬</h3>
-          <button className="btn-manage-skills" onClick={() => setShowSkillManager(!showSkillManager)}>
-            {showSkillManager ? '닫기' : '스킬 관리'}
-          </button>
-        </div>
-        <div className="equipped-skills">
-          {d.equippedSkills.map((s, i) => (
-            <div key={i} className="skill-item" style={{ borderLeftColor: SKILL_TYPE_COLORS[s.type] || '#666' }}>
-              <div className="skill-name">{s.name} <span className="skill-type-badge">{SKILL_TYPE_LABELS[s.type]}</span></div>
-              <div className="skill-desc">{s.description}</div>
-              <div className="skill-cost">🎵{s.cost}{s.power > 0 ? ` · ${Math.round(s.power * 100)}%` : ''}{s.defense_mult > 0 ? ` · 방어${Math.round(s.defense_mult * 100)}%` : ''}</div>
+      <div className="detail-layout">
+        {/* ====== 좌측 ====== */}
+        <div className="detail-left">
+          <div className="detail-left-inner">
+            <div className="detail-illust" style={{ borderColor: rarityColor }}>
+              {(d.imageLd || d.imageBust || d.imageUrl)
+                ? <img src={d.imageLd || d.imageBust || d.imageUrl} alt={d.name} className="detail-illust-img" />
+                : <span className="detail-illust-placeholder">일러스트</span>}
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* 스킬 관리 */}
-      {showSkillManager && (
-        <div className="skill-manager">
-          <h3>스킬 풀 (슬롯 클릭으로 장착)</h3>
-          <div className="skill-pool-grid">
-            {d.skillPool.map(s => {
-              const isEquipped = d.equippedSkills.some(es => es.id === s.id);
-              return (
-                <div key={s.id} className={`skill-pool-item ${isEquipped ? 'equipped' : ''}`}
-                  onClick={() => {
-                    if (!isEquipped) {
-                      const nextSlot = d.equippedSkills.length;
-                      equipSkill(s.id, nextSlot);
-                    }
-                  }}>
-                  <div className="skill-name">{s.name} {isEquipped ? '✓' : ''}</div>
-                  <div className="skill-desc">{s.description}</div>
-                  <div className="skill-cost" style={{ color: SKILL_TYPE_COLORS[s.type] }}>
-                    {SKILL_TYPE_LABELS[s.type]} · 🎵{s.cost}
-                  </div>
+            <div className="detail-meta-row">
+              <span className="detail-rarity-badge" style={getRarityStyle(d.rarity)}>{d.rarity}</span>
+              <span className="detail-elem-icon">{ELEM_ICONS[d.element]}</span>
+              {d.origin && <span className="detail-origin-text" style={{ color: ORIGIN_COLORS[d.origin] }}>{ORIGIN_LABELS[d.origin]}</span>}
+            </div>
+
+            <div className="detail-name-block">
+              <h2 className="detail-char-name">{d.name}</h2>
+              {d.title && <p className="detail-char-title">{d.title}</p>}
+            </div>
+
+            <div className="detail-badge-row">
+              <span className="detail-badge">Lv.{d.level}/{d.maxLevel}</span>
+              <span className="detail-badge">{d.awakening}/5 ★</span>
+              <span className="detail-badge">🎵 {d.turnNotes}</span>
+            </div>
+
+            <div className="detail-exp-line">{d.exp}/{d.nextLevelExp} EXP</div>
+
+            <div className="detail-stat-grid">
+              <div className="detail-stat"><span className="ds-label">HP</span><span className="ds-value">{d.stats.hp}</span></div>
+              <div className="detail-stat"><span className="ds-label">ATK</span><span className="ds-value">{d.stats.atk}</span></div>
+              <div className="detail-stat"><span className="ds-label">DEF</span><span className="ds-value">{d.stats.def}</span></div>
+              <div className="detail-stat"><span className="ds-label">SPD</span><span className="ds-value">{d.stats.spd}</span></div>
+            </div>
+
+            {d.quote && <div className="detail-quote">"{d.quote}"</div>}
+
+            <button className="btn-representative" onClick={async () => {
+              try {
+                await api.setRepresentative(selected);
+                addToast(`${d.name}을(를) 대표 캐릭터로 설정!`, 'trade');
+              } catch (err) { addToast(err.message, 'error'); }
+            }}>⭐ 대표 캐릭터로 설정</button>
+          </div>
+        </div>
+
+        {/* ====== 우측 ====== */}
+        <div className="detail-right">
+          <div className="detail-tabs">
+            <button className={`detail-tab ${activeTab === 'skills' ? 'active' : ''}`} onClick={() => setActiveTab('skills')}>스킬</button>
+            <button className={`detail-tab ${activeTab === 'growth' ? 'active' : ''}`} onClick={() => setActiveTab('growth')}>육성</button>
+          </div>
+
+          <div className="detail-tab-content">
+            {/* === 스킬 탭 === */}
+            {activeTab === 'skills' && (
+              <div className="tab-skills">
+                <h3 className="tab-section-title">장착 스킬</h3>
+                <div className="equipped-list">
+                  {d.equippedSkills.map((s, i) => (
+                    <SkillCard key={i} skill={s} actionLabel="해제"
+                      onAction={() => unequipSkill(i)} />
+                  ))}
+                  {d.equippedSkills.length === 0 && <p className="empty-msg">장착된 스킬이 없습니다</p>}
                 </div>
-              );
-            })}
+
+                <div className="pool-header">
+                  <h3 className="tab-section-title">스킬 풀</h3>
+                  {totalPoolPages > 1 && (
+                    <div className="pool-pager">
+                      <button className="pool-arrow" disabled={poolPage <= 0} onClick={() => setPoolPage(p => p - 1)}>‹</button>
+                      <span className="pool-page-num">{poolPage + 1}/{totalPoolPages}</span>
+                      <button className="pool-arrow" disabled={poolPage >= totalPoolPages - 1} onClick={() => setPoolPage(p => p + 1)}>›</button>
+                    </div>
+                  )}
+                </div>
+                <div className="pool-grid">
+                  {pagedPool.map(s => {
+                    const isEquipped = d.equippedSkills.some(es => es.id === s.id);
+                    return (
+                      <SkillCard key={s.id} skill={s} equipped={isEquipped}
+                        onAction={() => {
+                          if (!isEquipped) equipSkill(s.id, d.equippedSkills.length);
+                        }} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* === 육성 탭 === */}
+            {activeTab === 'growth' && (
+              <div className="tab-growth">
+                <h3 className="tab-section-title">레벨업</h3>
+                <p className="growth-hint">골드를 소모하여 경험치를 획득합니다. (보유: {user.gold?.toLocaleString() || 0} 🪙)</p>
+                <div className="levelup-buttons">
+                  <button className="btn-levelup" onClick={() => doLevelUp(1000)} disabled={user.gold < 1000}>
+                    <span className="levelup-amount">1,000</span><span className="levelup-unit">🪙</span>
+                  </button>
+                  <button className="btn-levelup" onClick={() => doLevelUp(3000)} disabled={user.gold < 3000}>
+                    <span className="levelup-amount">3,000</span><span className="levelup-unit">🪙</span>
+                  </button>
+                  <button className="btn-levelup" onClick={() => doLevelUp(5000)} disabled={user.gold < 5000}>
+                    <span className="levelup-amount">5,000</span><span className="levelup-unit">🪙</span>
+                  </button>
+                </div>
+
+                <div className="growth-exp-area">
+                  <div className="growth-exp-bar">
+                    <div className="growth-exp-fill" style={{ width: `${d.exp / d.nextLevelExp * 100}%` }} />
+                  </div>
+                  <span className="growth-exp-text">Lv.{d.level} — {d.exp}/{d.nextLevelExp} EXP</span>
+                </div>
+
+                <h3 className="tab-section-title">각성 ({d.awakening}/5)</h3>
+                {dupes.length > 0 ? (
+                  <>
+                    <p className="growth-hint">동일 캐릭터를 소모하여 각성합니다.</p>
+                    <div className="awaken-list">
+                      {dupes.map(dup => (
+                        <button key={dup.inventory_id} className="btn-awaken" onClick={() => doAwaken(dup.inventory_id)}>
+                          {dup.name} Lv.{dup.level} 소모
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="growth-hint">각성에 필요한 중복 캐릭터가 없습니다.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* 레벨업 */}
-      <div className="action-section">
-        <h3>레벨업 (골드 → 경험치)</h3>
-        <div className="levelup-buttons">
-          <button className="btn-secondary" onClick={() => doLevelUp(1000)} disabled={user.gold < 1000}>1K 🪙</button>
-          <button className="btn-secondary" onClick={() => doLevelUp(3000)} disabled={user.gold < 3000}>3K 🪙</button>
-          <button className="btn-secondary" onClick={() => doLevelUp(5000)} disabled={user.gold < 5000}>5K 🪙</button>
-        </div>
-      </div>
-
-      {/* 각성 */}
-      {dupes.length > 0 && (
-        <div className="action-section">
-          <h3>각성 (중복 캐릭터 소모)</h3>
-          <div className="awaken-list">
-            {dupes.map(d => (
-              <button key={d.inventory_id} className="btn-secondary awaken-btn" onClick={() => doAwaken(d.inventory_id)}>
-                {d.name} Lv.{d.level} 소모하여 각성
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {d.quote && <div className="growth-quote">"{d.quote}"</div>}
-      {d.description && <div className="growth-desc">{d.description}</div>}
-
-      <div className="action-section">
-        <button className="btn-secondary" style={{ width: '100%' }} onClick={async () => {
-          try {
-            await api.setRepresentative(selected);
-            addToast(`${d.name}을(를) 대표 캐릭터로 설정!`, 'trade');
-          } catch (err) { addToast(err.message, 'error'); }
-        }}>⭐ 대표 캐릭터로 설정</button>
       </div>
     </div>
   );

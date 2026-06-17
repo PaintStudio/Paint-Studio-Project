@@ -60,6 +60,8 @@ export default function AdminPage() {
   const [editing, setEditing] = useState(null); // 'new' | char object
   const [editingSkill, setEditingSkill] = useState(null);
   const [msg, setMsg] = useState('');
+  const [banners, setBanners] = useState([]);
+  const [editingBanner, setEditingBanner] = useState(null);
 
   const showMsg = (m) => { setMsg(m); setTimeout(() => setMsg(''), 2500); };
 
@@ -101,7 +103,14 @@ export default function AdminPage() {
     setCharSkills(d.skills || []);
   }, []);
 
-  useEffect(() => { if (authed) { loadChars(); loadSkills(); } }, [authed]);
+  const loadBanners = useCallback(async () => {
+    try {
+      const d = await req('/banners');
+      setBanners(d.banners || []);
+    } catch {}
+  }, []);
+
+  useEffect(() => { if (authed) { loadChars(); loadSkills(); loadBanners(); } }, [authed]);
 
   // ====== 캐릭터 편집 폼 ======
   const CharForm = ({ initial, onSave, onCancel }) => {
@@ -250,6 +259,266 @@ export default function AdminPage() {
     loadCharDetail(charId);
   };
 
+  // ====== 배너 핸들러 ======
+  const saveBanner = async (form) => {
+    if (editingBanner && editingBanner.id && editingBanner._isEdit) {
+      await req('/banners/' + editingBanner.id, { method: 'PUT', body: form });
+      showMsg('배너 수정 완료');
+    } else {
+      await req('/banners', { method: 'POST', body: form });
+      showMsg('배너 생성 완료');
+    }
+    setEditingBanner(null);
+    loadBanners();
+  };
+
+  const deleteBanner = async (id) => {
+    if (!confirm('배너를 삭제하시겠습니까?')) return;
+    await req('/banners/' + id, { method: 'DELETE' });
+    showMsg('배너 삭제 완료');
+    loadBanners();
+  };
+
+  const toggleBannerActive = async (banner) => {
+    await req('/banners/' + banner.id, { method: 'PUT', body: { active: !banner.active } });
+    loadBanners();
+  };
+
+  const uploadBannerImage = async (bannerId, file) => {
+    const buf = await file.arrayBuffer();
+    await fetch(API + '/banners/' + bannerId + '/image', {
+      method: 'POST',
+      headers: { 'Content-Type': file.type, 'X-Admin-Key': adminKey },
+      body: buf,
+    });
+    showMsg('배너 이미지 업로드 완료');
+    loadBanners();
+  };
+
+  // 배너 편집 폼
+  const BannerForm = ({ initial, onSave, onCancel }) => {
+    const isEdit = initial && initial._isEdit;
+    const [form, setForm] = useState({
+      id: initial?.id || '',
+      name: initial?.name || '',
+      type: initial?.type || 'limited',
+      description: initial?.description || '',
+      characterPool: initial?.characterPool || 'all',
+      featuredCharIds: initial?.featuredCharIds || [],
+      featuredRateUp: initial?.featuredRateUp ?? 0.5,
+      startDate: initial?.startDate || '',
+      endDate: initial?.endDate || '',
+      rates: initial?.rates || null,
+    });
+    const set = (k, v) => setForm({ ...form, [k]: v });
+
+    const [poolMode, setPoolMode] = useState(form.characterPool === 'all' ? 'all' : 'select');
+
+    return (
+      <div className="admin-form">
+        <h3>{isEdit ? '배너 수정' : '새 배너'}</h3>
+        <div className="form-grid">
+          <label>ID{!isEdit && <input value={form.id} onChange={e => set('id', e.target.value)} placeholder="영문 slug" />}{isEdit && <input value={form.id} disabled />}</label>
+          <label>이름<input value={form.name} onChange={e => set('name', e.target.value)} /></label>
+          <label>타입<select value={form.type} onChange={e => set('type', e.target.value)}>
+            <option value="permanent">상시</option>
+            <option value="limited">한정</option>
+          </select></label>
+          <label>픽업 확률<input type="number" step="0.05" min="0" max="1" value={form.featuredRateUp} onChange={e => set('featuredRateUp', +e.target.value)} /></label>
+          <label>시작일<input type="date" value={form.startDate || ''} onChange={e => set('startDate', e.target.value || null)} /></label>
+          <label>종료일<input type="date" value={form.endDate || ''} onChange={e => set('endDate', e.target.value || null)} /></label>
+        </div>
+        <label className="form-wide">설명<input value={form.description} onChange={e => set('description', e.target.value)} /></label>
+
+        <div className="form-wide">
+          <label>캐릭터 풀
+            <select value={poolMode} onChange={e => {
+              setPoolMode(e.target.value);
+              set('characterPool', e.target.value === 'all' ? 'all' : []);
+            }}>
+              <option value="all">전체</option>
+              <option value="select">직접 선택</option>
+            </select>
+          </label>
+          {poolMode === 'select' && (
+            <div className="char-pool-select">
+              {characters.map(c => {
+                const pool = Array.isArray(form.characterPool) ? form.characterPool : [];
+                const checked = pool.includes(c.id);
+                return (
+                  <label key={c.id} className="pool-check">
+                    <input type="checkbox" checked={checked} onChange={() => {
+                      set('characterPool', checked ? pool.filter(x => x !== c.id) : [...pool, c.id]);
+                    }} />
+                    <span style={getRarityStyle(c.rarity)}>[{c.rarity}] {c.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="form-wide">
+          <label>픽업 캐릭터</label>
+          <div className="char-pool-select">
+            {characters.filter(c => c.rarity === 'SSR' || c.rarity === 'SR').map(c => {
+              const checked = (form.featuredCharIds || []).includes(c.id);
+              return (
+                <label key={c.id} className="pool-check">
+                  <input type="checkbox" checked={checked} onChange={() => {
+                    const ids = form.featuredCharIds || [];
+                    set('featuredCharIds', checked ? ids.filter(x => x !== c.id) : [...ids, c.id]);
+                  }} />
+                  <span style={getRarityStyle(c.rarity)}>[{c.rarity}] {c.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="form-actions">
+          <button className="btn-save" onClick={() => onSave(form)}>저장</button>
+          <button className="btn-cancel" onClick={onCancel}>취소</button>
+        </div>
+      </div>
+    );
+  };
+
+  // ====== 우편 발송 ======
+  const MailForm = () => {
+    const [target, setTarget] = useState('all');
+    const [userQuery, setUserQuery] = useState('');
+    const [userResults, setUserResults] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [title, setTitle] = useState('');
+    const [body, setBody] = useState('');
+    const [currency, setCurrency] = useState('');
+    const [gold, setGold] = useState('');
+    const [charId, setCharId] = useState('');
+    const [expiresInDays, setExpiresInDays] = useState('');
+    const [sending, setSending] = useState(false);
+
+    const searchUsers = async (q) => {
+      setUserQuery(q);
+      if (q.length < 1) { setUserResults([]); return; }
+      try {
+        const d = await req('/users?q=' + encodeURIComponent(q));
+        setUserResults(d.users || []);
+      } catch {}
+    };
+
+    const send = async () => {
+      if (!title.trim()) { showMsg('제목을 입력하세요'); return; }
+      if (target === 'user' && !selectedUser) { showMsg('대상 유저를 선택하세요'); return; }
+
+      const rewards = {};
+      if (currency) rewards.currency = parseInt(currency);
+      if (gold) rewards.gold = parseInt(gold);
+      if (charId) {
+        rewards.characterId = parseInt(charId);
+        const c = characters.find(ch => ch.id === parseInt(charId));
+        if (c) rewards.characterName = c.name;
+      }
+      const hasRewards = Object.keys(rewards).length > 0;
+
+      const payload = {
+        title: title.trim(),
+        body: body.trim(),
+        rewards: hasRewards ? rewards : null,
+        expiresInDays: expiresInDays ? parseInt(expiresInDays) : null,
+      };
+
+      setSending(true);
+      try {
+        if (target === 'all') {
+          const r = await req('/mail/broadcast', { method: 'POST', body: payload });
+          showMsg(`전체 ${r.sent}명에게 발송 완료`);
+        } else {
+          await req('/mail/send', { method: 'POST', body: { ...payload, userId: selectedUser.id } });
+          showMsg(`${selectedUser.display_name}에게 발송 완료`);
+        }
+        setTitle(''); setBody(''); setCurrency(''); setGold(''); setCharId(''); setExpiresInDays('');
+      } catch (e) {
+        showMsg('발송 실패: ' + e.message);
+      }
+      setSending(false);
+    };
+
+    return (
+      <div className="admin-mail-tab">
+        <div className="admin-form">
+          <h3>우편 발송</h3>
+
+          <div className="mail-target-row">
+            <label className="mail-radio">
+              <input type="radio" name="target" checked={target === 'all'} onChange={() => { setTarget('all'); setSelectedUser(null); }} />
+              전체 발송
+            </label>
+            <label className="mail-radio">
+              <input type="radio" name="target" checked={target === 'user'} onChange={() => setTarget('user')} />
+              특정 유저
+            </label>
+          </div>
+
+          {target === 'user' && (
+            <div className="mail-user-search">
+              <input
+                placeholder="유저 검색 (아이디/닉네임)"
+                value={userQuery}
+                onChange={e => searchUsers(e.target.value)}
+              />
+              {selectedUser && (
+                <div className="mail-selected-user">
+                  <span>#{selectedUser.id} {selectedUser.display_name} ({selectedUser.username})</span>
+                  <button onClick={() => setSelectedUser(null)}>&#10005;</button>
+                </div>
+              )}
+              {!selectedUser && userResults.length > 0 && (
+                <div className="mail-user-results">
+                  {userResults.map(u => (
+                    <button key={u.id} className="mail-user-item" onClick={() => { setSelectedUser(u); setUserResults([]); setUserQuery(''); }}>
+                      <span className="mail-user-id">#{u.id}</span>
+                      <span className="mail-user-name">{u.display_name}</span>
+                      <span className="mail-user-uname">@{u.username}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="form-grid">
+            <label className="form-wide-full">제목<input value={title} onChange={e => setTitle(e.target.value)} placeholder="우편 제목" /></label>
+          </div>
+          <label className="form-wide">내용<textarea value={body} onChange={e => setBody(e.target.value)} rows={3} placeholder="우편 내용 (선택)" /></label>
+
+          <div className="mail-rewards-section">
+            <h4>보상 첨부</h4>
+            <div className="form-grid">
+              <label>&#128142; 다이아<input type="number" min="0" value={currency} onChange={e => setCurrency(e.target.value)} placeholder="0" /></label>
+              <label>&#129689; 골드<input type="number" min="0" value={gold} onChange={e => setGold(e.target.value)} placeholder="0" /></label>
+              <label>&#127873; 캐릭터
+                <select value={charId} onChange={e => setCharId(e.target.value)}>
+                  <option value="">없음</option>
+                  {characters.map(c => (
+                    <option key={c.id} value={c.id}>[{c.rarity}] {c.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>만료 (일)<input type="number" min="1" value={expiresInDays} onChange={e => setExpiresInDays(e.target.value)} placeholder="무제한" /></label>
+            </div>
+          </div>
+
+          <div className="form-actions">
+            <button className="btn-save" onClick={send} disabled={sending}>
+              {sending ? '발송 중...' : target === 'all' ? '전체 발송' : '발송'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ====== 렌더 ======
   if (!authed) {
     return (
@@ -281,6 +550,8 @@ export default function AdminPage() {
         <div className="admin-tabs">
           <button className={tab === 'characters' ? 'active' : ''} onClick={() => setTab('characters')}>캐릭터</button>
           <button className={tab === 'skills' ? 'active' : ''} onClick={() => setTab('skills')}>스킬</button>
+          <button className={tab === 'banners' ? 'active' : ''} onClick={() => setTab('banners')}>가챠 배너</button>
+          <button className={tab === 'mail' ? 'active' : ''} onClick={() => setTab('mail')}>우편</button>
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
       </div>
@@ -458,6 +729,68 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {tab === 'banners' && (
+        <div className="admin-banners-tab">
+          <div className="list-header">
+            <span>가챠 배너 ({banners.length})</span>
+            <button className="btn-add" onClick={() => setEditingBanner('new')}>+ 추가</button>
+          </div>
+
+          {editingBanner && (
+            <BannerForm
+              initial={editingBanner === 'new' ? null : { ...editingBanner, _isEdit: true }}
+              onSave={saveBanner}
+              onCancel={() => setEditingBanner(null)}
+            />
+          )}
+
+          <div className="banner-list">
+            {banners.map(b => (
+              <div key={b.id} className={'banner-card' + (b.active ? ' active' : ' inactive')}>
+                <div className="banner-card-img">
+                  {b.image ? <img src={b.image} alt={b.name} /> : <span className="no-banner-img">이미지 없음</span>}
+                </div>
+                <div className="banner-card-info">
+                  <div className="banner-card-top">
+                    <span className="banner-name">{b.name}</span>
+                    <span className={'banner-type-badge ' + b.type}>{b.type === 'permanent' ? '상시' : '한정'}</span>
+                    <span className={'banner-status ' + (b.active ? 'on' : 'off')}>{b.active ? '활성' : '비활성'}</span>
+                  </div>
+                  {b.description && <p className="banner-desc">{b.description}</p>}
+                  {b.type === 'limited' && (
+                    <p className="banner-period">
+                      {b.startDate || '시작일 미정'} ~ {b.endDate || '종료일 미정'}
+                    </p>
+                  )}
+                  {b.featuredCharIds && b.featuredCharIds.length > 0 && (
+                    <p className="banner-featured">
+                      픽업: {b.featuredCharIds.map(id => characters.find(c => c.id === id)?.name || `#${id}`).join(', ')}
+                      {b.featuredRateUp ? ` (${(b.featuredRateUp * 100)}%)` : ''}
+                    </p>
+                  )}
+                  <div className="banner-actions">
+                    <button className="btn-sm" onClick={() => toggleBannerActive(b)}>
+                      {b.active ? '비활성화' : '활성화'}
+                    </button>
+                    <button className="btn-sm" onClick={() => setEditingBanner(b)}>수정</button>
+                    <label className="btn-sm btn-upload-label">
+                      이미지
+                      <input type="file" accept="image/*" hidden
+                        onChange={e => e.target.files[0] && uploadBannerImage(b.id, e.target.files[0])} />
+                    </label>
+                    {b.type !== 'permanent' && (
+                      <button className="btn-sm btn-remove" onClick={() => deleteBanner(b.id)}>삭제</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'mail' && <MailForm />}
     </div>
   );
 }

@@ -63,7 +63,7 @@ class DatabaseWrapper {
           return undefined;
         } catch (e) {
           // If it's a write statement that was accidentally called with get
-          if (sql.trim().toUpperCase().startsWith('UPDATE') || 
+          if (sql.trim().toUpperCase().startsWith('UPDATE') ||
               sql.trim().toUpperCase().startsWith('INSERT') ||
               sql.trim().toUpperCase().startsWith('DELETE')) {
             return self._runInternal(sql, params);
@@ -409,6 +409,21 @@ async function initDb() {
       date TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS mail (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER DEFAULT NULL,
+      recipient_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      body TEXT DEFAULT '',
+      rewards TEXT DEFAULT NULL,
+      is_read INTEGER DEFAULT 0,
+      is_claimed INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      expires_at DATETIME DEFAULT NULL,
+      FOREIGN KEY (sender_id) REFERENCES users(id),
+      FOREIGN KEY (recipient_id) REFERENCES users(id)
+    );
   `);
 
   // ============ 마이그레이션 ============
@@ -469,6 +484,15 @@ async function initDb() {
   } catch {
     db.exec("ALTER TABLE users ADD COLUMN representative_inventory_id INTEGER DEFAULT NULL");
     console.log('[DB] users 대표캐릭터 마이그레이션 완료');
+  }
+
+  // 프로필 마이그레이션 (bio, profile_icon)
+  try {
+    db.prepare("SELECT bio FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''");
+    db.exec("ALTER TABLE users ADD COLUMN profile_icon TEXT DEFAULT ''");
+    console.log('[DB] users 프로필 마이그레이션 완료');
   }
 
   // ============ 캐릭터 시드 ============

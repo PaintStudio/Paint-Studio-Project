@@ -24,9 +24,10 @@ export const api = {
   login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
   register: (username, password, displayName) => request('/auth/register', { method: 'POST', body: { username, password, displayName } }),
   me: () => request('/auth/me'),
-  pull: () => request('/gacha/pull', { method: 'POST' }),
-  pull10: () => request('/gacha/pull10', { method: 'POST' }),
-  rates: () => request('/gacha/rates'),
+  pull: (bannerId) => request('/gacha/pull', { method: 'POST', body: { bannerId } }),
+  pull10: (bannerId) => request('/gacha/pull10', { method: 'POST', body: { bannerId } }),
+  rates: (bannerId) => request('/gacha/rates' + (bannerId ? '?bannerId=' + bannerId : '')),
+  banners: () => request('/gacha/banners'),
   myCollection: () => request('/collection/my'),
   userCollection: (userId) => request('/collection/user/' + userId),
   markSeen: (invId) => request('/collection/mark-seen/' + invId, { method: 'PATCH' }),
@@ -74,4 +75,15 @@ export const api = {
   // 로비
   lobby: () => request('/growth/lobby'),
   setRepresentative: (inventoryId) => request('/growth/set-representative', { method: 'POST', body: { inventoryId } }),
+  // 우편
+  mailList: () => request('/mail/list'),
+  mailRead: (id) => request('/mail/read/' + id, { method: 'PATCH' }),
+  mailClaim: (id) => request('/mail/claim/' + id, { method: 'POST' }),
+  mailDelete: (id) => request('/mail/' + id, { method: 'DELETE' }),
+  mailCleanup: () => request('/mail/cleanup/read', { method: 'DELETE' }),
+  mailUnreadCount: () => request('/mail/unread-count'),
+  // 프로필
+  profile: () => request('/profile/me'),
+  updateProfile: (data) => request('/profile/me', { method: 'PUT', body: data }),
+  profileIcons: () => request('/profile/icons'),
 };

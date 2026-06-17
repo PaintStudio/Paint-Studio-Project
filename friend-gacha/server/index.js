@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// API 라우트 (initDb 이후에 등록되지만, 라우트 핸들러는 요청 시점에 실행되므로 OK)
+// API 라우트
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/gacha', require('./routes/gacha'));
 app.use('/api/collection', require('./routes/collection'));
@@ -28,13 +28,15 @@ app.use('/api/raid', require('./routes/raid'));
 app.use('/api/daily', require('./routes/daily'));
 app.use('/api/growth', require('./routes/growth'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/mail', require('./routes/mail'));
+app.use('/api/profile', require('./routes/profile'));
 
-// 게임 설정 공유 (클라이언트에서도 참조)
+// 게임 설정 공유
 app.get('/api/config', (req, res) => {
   res.json(require('../gameConfig.json'));
 });
 
-// 재화 지급 (매일 로그인 보너스 대용 - 수동)
+// 재화 지급
 app.post('/api/admin/give-currency', (req, res) => {
   const { amount, secret } = req.body;
   if (secret !== 'gacha-admin') return res.status(403).json({ error: 'ㄴㄴ' });
@@ -42,7 +44,7 @@ app.post('/api/admin/give-currency', (req, res) => {
   res.json({ ok: true, message: `모든 유저에게 ${amount || 500} 지급 완료` });
 });
 
-// 뽑기 로그 타임라인 (최근 50개)
+// 뽑기 로그 타임라인
 app.get('/api/feed', (req, res) => {
   const feed = db.prepare(`
     SELECT pl.*, u.display_name, c.name as char_name, c.rarity, c.title
@@ -54,7 +56,7 @@ app.get('/api/feed', (req, res) => {
   res.json({ feed });
 });
 
-// 업로드 이미지 서빙 (data/images/ → /uploads/)
+// 업로드 이미지 서빙
 const uploadsDir = path.join(__dirname, '..', 'data', 'images');
 app.use('/uploads', express.static(uploadsDir));
 
@@ -67,9 +69,9 @@ app.get('*', (req, res) => {
   }
 });
 
-// ============ Socket.io (실시간 알림) ============
+// ============ Socket.io ============
 
-const onlineUsers = new Map(); // userId -> socketId
+const onlineUsers = new Map();
 
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -77,6 +79,8 @@ io.use((socket, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     socket.userId = decoded.id;
+    const user = db.prepare('SELECT display_name FROM users WHERE id = ?').get(decoded.id);
+    socket.displayName = user ? user.display_name : decoded.username;
     socket.username = decoded.username;
     next();
   } catch {
@@ -89,7 +93,20 @@ io.on('connection', (socket) => {
   io.emit('online_users', Array.from(onlineUsers.keys()));
   console.log(`[Socket] ${socket.username} 접속 (현재 ${onlineUsers.size}명)`);
 
-  // 뽑기 결과 브로드캐스트
+  socket.on('chat_message', (data) => {
+    const user = db.prepare('SELECT display_name, profile_icon FROM users WHERE id = ?').get(socket.userId);
+    const msg = {
+      userId: socket.userId,
+      username: user ? user.display_name : socket.displayName,
+      profileIcon: user ? (user.profile_icon || '') : '',
+      text: (data.text || '').slice(0, 200).trim(),
+      timestamp: Date.now()
+    };
+    if (msg.text) {
+      io.emit('chat_message', msg);
+    }
+  });
+
   socket.on('pull_result', (data) => {
     socket.broadcast.emit('someone_pulled', {
       userId: socket.userId,
@@ -98,7 +115,6 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 트레이드 알림
   socket.on('trade_offer', (data) => {
     const targetSocket = onlineUsers.get(data.toUserId);
     if (targetSocket) {
@@ -124,7 +140,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// sql.js는 비동기 초기화 필요 → DB 준비 후 서버 시작
 initDb().then(() => {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🎰 친구 가챠 서버 실행 중!`);

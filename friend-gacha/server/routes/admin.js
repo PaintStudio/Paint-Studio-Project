@@ -230,6 +230,95 @@ router.get('/stages', (req, res) => {
   res.json({ stages: stages.map(s => ({ ...s, enemy_data: JSON.parse(s.enemy_data), rewards: JSON.parse(s.rewards) })) });
 });
 
+// ============ 가챠 배너 관리 ============
+
+const { loadBanners, saveBanners } = require('./gacha');
+const BANNER_IMAGE_DIR = path.join(__dirname, '..', '..', 'data', 'images', 'banners');
+
+// 배너 전체 목록 (어드민용 - 비활성 포함)
+router.get('/banners', (req, res) => {
+  const data = loadBanners();
+  res.json(data);
+});
+
+// 배너 생성
+router.post('/banners', (req, res) => {
+  const data = loadBanners();
+  const { id, name, type, description, characterPool, featuredCharIds, rates, featuredRateUp, startDate, endDate } = req.body;
+
+  if (!id || !name) return res.status(400).json({ error: 'id와 name은 필수입니다' });
+  if (data.banners.find(b => b.id === id)) return res.status(400).json({ error: '이미 존재하는 배너 ID입니다' });
+
+  data.banners.push({
+    id, name,
+    type: type || 'limited',
+    description: description || '',
+    image: null,
+    characterPool: characterPool || 'all',
+    featuredCharIds: featuredCharIds || [],
+    rates: rates || null,
+    featuredRateUp: featuredRateUp || 0.5,
+    active: false,
+    startDate: startDate || null,
+    endDate: endDate || null
+  });
+
+  saveBanners(data);
+  res.json({ ok: true });
+});
+
+// 배너 수정
+router.put('/banners/:bannerId', (req, res) => {
+  const data = loadBanners();
+  const idx = data.banners.findIndex(b => b.id === req.params.bannerId);
+  if (idx === -1) return res.status(404).json({ error: '배너를 찾을 수 없습니다' });
+
+  const allowed = ['name', 'type', 'description', 'characterPool', 'featuredCharIds', 'rates', 'featuredRateUp', 'active', 'startDate', 'endDate'];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) data.banners[idx][key] = req.body[key];
+  }
+
+  saveBanners(data);
+  res.json({ ok: true });
+});
+
+// 배너 삭제
+router.delete('/banners/:bannerId', (req, res) => {
+  const data = loadBanners();
+  data.banners = data.banners.filter(b => b.id !== req.params.bannerId);
+  saveBanners(data);
+  res.json({ ok: true });
+});
+
+// 배너 이미지 업로드
+router.post('/banners/:bannerId/image', express.raw({ type: ['image/*'], limit: '5mb' }), (req, res) => {
+  const data = loadBanners();
+  const banner = data.banners.find(b => b.id === req.params.bannerId);
+  if (!banner) return res.status(404).json({ error: '배너를 찾을 수 없습니다' });
+
+  if (!fs.existsSync(BANNER_IMAGE_DIR)) fs.mkdirSync(BANNER_IMAGE_DIR, { recursive: true });
+
+  const contentType = req.headers['content-type'] || 'image/png';
+  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
+    : contentType.includes('webp') ? 'webp' : 'png';
+
+  const filename = `banner_${req.params.bannerId}.${ext}`;
+  const filepath = path.join(BANNER_IMAGE_DIR, filename);
+
+  // 기존 파일 삭제
+  for (const old of ['png', 'jpg', 'webp']) {
+    const oldPath = path.join(BANNER_IMAGE_DIR, `banner_${req.params.bannerId}.${old}`);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+
+  fs.writeFileSync(filepath, req.body);
+  const imageUrl = `/uploads/banners/${filename}`;
+  banner.image = imageUrl;
+  saveBanners(data);
+
+  res.json({ ok: true, image: imageUrl });
+});
+
 // ============ DB 유틸 ============
 
 // DB 리셋 (캐릭터/스킬만 — 유저 데이터는 보존 옵션)
@@ -257,6 +346,72 @@ router.get('/export-seed', (req, res) => {
   `).all();
 
   res.json({ characters, skills, mappings });
+});
+
+// ============ 유저 관리 ============
+
+router.get('/users', (req, res) => {
+  const q = req.query.q || '';
+  let users;
+  if (q) {
+    users = db.prepare(`
+      SELECT id, username, display_name, currency, gold, total_pulls
+      FROM users WHERE username LIKE ? OR display_name LIKE ?
+      ORDER BY id LIMIT 50
+    `).all(`%${q}%`, `%${q}%`);
+  } else {
+    users = db.prepare(`
+      SELECT id, username, display_name, currency, gold, total_pulls
+      FROM users ORDER BY id LIMIT 50
+    `).all();
+  }
+  res.json({ users });
+});
+
+// ============ 우편 관리 ============
+
+// 전체 유저에게 우편 발송
+router.post('/mail/broadcast', (req, res) => {
+  const { title, body, rewards, expiresInDays } = req.body;
+  if (!title) return res.status(400).json({ error: 'title은 필수입니다' });
+
+  const users = db.prepare('SELECT id FROM users').all();
+  const rewardsJson = rewards ? JSON.stringify(rewards) : null;
+  const expiresAt = expiresInDays
+    ? new Date(Date.now() + expiresInDays * 86400000).toISOString()
+    : null;
+
+  const insert = db.prepare(`
+    INSERT INTO mail (sender_id, recipient_id, title, body, rewards, expires_at)
+    VALUES (NULL, ?, ?, ?, ?, ?)
+  `);
+
+  for (const u of users) {
+    insert.run(u.id, title, body || '', rewardsJson, expiresAt);
+  }
+
+  res.json({ ok: true, sent: users.length });
+});
+
+// 특정 유저에게 우편 발송
+router.post('/mail/send', (req, res) => {
+  const { userId, title, body, rewards, expiresInDays } = req.body;
+  if (!userId || !title) return res.status(400).json({ error: 'userId와 title은 필수입니다' });
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: '존재하지 않는 유저입니다' });
+
+  const rewardsJson = rewards ? JSON.stringify(rewards) : null;
+  const expiresAt = expiresInDays
+    ? new Date(Date.now() + expiresInDays * 86400000).toISOString()
+    : null;
+
+  db.prepare(`
+    INSERT INTO mail (sender_id, recipient_id, title, body, rewards, expires_at)
+    VALUES (NULL, ?, ?, ?, ?, ?)
+  `).run(userId, title, body || '', rewardsJson, expiresAt);
+
+  res.json({ ok: true });
 });
 
 module.exports = router;

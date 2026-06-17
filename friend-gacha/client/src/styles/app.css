@@ -57,6 +57,7 @@
 }
 .main-content.main-lobby { max-width: 100%; padding: 0; padding-bottom: 0; overflow: hidden; }
 .main-content:has(.admin-page) { max-width: 100%; padding: 8px; padding-bottom: 80px; }
+.main-content:has(.detail-view) { padding: 8px; padding-bottom: 60px; overflow: hidden; height: calc(100dvh - 60px); }
 
 /* 토스트 */
 .toast-container {

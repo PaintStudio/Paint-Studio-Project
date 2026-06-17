@@ -40,10 +40,11 @@ router.post('/login', (req, res) => {
 
 // 내 정보
 router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, username, display_name, currency, total_pulls, pity_counter FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, display_name, bio, profile_icon, currency, total_pulls, pity_counter FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: '유저를 찾을 수 없습니다' });
   res.json({
     id: user.id, username: user.username, displayName: user.display_name,
+    bio: user.bio || '', profileIcon: user.profile_icon || '',
     currency: user.currency, totalPulls: user.total_pulls, pityCounter: user.pity_counter
   });
 });
