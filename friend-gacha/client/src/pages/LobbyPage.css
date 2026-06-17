@@ -78,6 +78,18 @@
 .lobby-res { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
 .lobby-res.gold { color: #f39c12; }
 .lobby-res.diamond { color: var(--gold); }
+.lobby-mail-btn {
+  position: relative; background: none; font-size: 1.1rem; padding: 4px;
+  border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; opacity: 0.7;
+}
+.lobby-mail-btn:hover { opacity: 1; border-color: var(--accent); }
+.lobby-mail-badge {
+  position: absolute; top: -5px; right: -5px;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  background: #e74c3c; color: #fff; font-size: 0.55rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; line-height: 1;
+}
 .lobby-settings-btn {
   background: none; font-size: 1.1rem; padding: 4px;
   border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; opacity: 0.7;

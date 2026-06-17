@@ -57,6 +57,39 @@ function SkillCard({ skill, equipped, onAction, actionLabel }) {
 
 const POOL_PAGE_SIZE = 6; // 2열 x 3행
 
+const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, CR: 4 };
+
+const SORT_OPTIONS = [
+  { key: 'rarity', label: '레어도' },
+  { key: 'acquired', label: '획득순' },
+  { key: 'name', label: '이름' },
+  { key: 'level', label: '레벨' },
+  { key: 'element', label: '속성' },
+  { key: 'origin', label: '근원' },
+];
+
+function compareByKey(a, b, key) {
+  switch (key) {
+    case 'rarity': return (RARITY_ORDER[a.rarity] || 0) - (RARITY_ORDER[b.rarity] || 0);
+    case 'acquired': return a.inventory_id - b.inventory_id;
+    case 'name': return a.name.localeCompare(b.name, 'ko');
+    case 'level': return a.level - b.level;
+    case 'element': return a.element.localeCompare(b.element);
+    case 'origin': return (a.origin || '').localeCompare(b.origin || '');
+    default: return 0;
+  }
+}
+
+function sortCharacters(chars, sortStack) {
+  return [...chars].sort((a, b) => {
+    for (const { key, dir } of sortStack) {
+      const cmp = compareByKey(a, b, key);
+      if (cmp !== 0) return cmp * (dir === 'asc' ? 1 : -1);
+    }
+    return 0;
+  });
+}
+
 export default function GrowthPage({ user, onRefresh, addToast }) {
   const [characters, setCharacters] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -64,6 +97,10 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
   const [dupes, setDupes] = useState([]);
   const [activeTab, setActiveTab] = useState('skills');
   const [poolPage, setPoolPage] = useState(0);
+  const [sortStack, setSortStack] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem('charSortStack')); if (Array.isArray(s) && s.length) return s; } catch {}
+    return [{ key: 'rarity', dir: 'desc' }];
+  });
 
   useEffect(() => { loadChars(); }, []);
 
@@ -128,12 +165,46 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
   };
 
   // ========== 캐릭터 목록 ==========
+  const sorted = sortCharacters(characters, sortStack);
+
+  const handleSort = (key) => {
+    setSortStack(prev => {
+      const idx = prev.findIndex(s => s.key === key);
+      let next;
+      if (idx === 0) {
+        next = [{ key, dir: prev[0].dir === 'desc' ? 'asc' : 'desc' }, ...prev.slice(1)];
+      } else {
+        const rest = prev.filter(s => s.key !== key);
+        next = [{ key, dir: 'desc' }, ...rest];
+      }
+      localStorage.setItem('charSortStack', JSON.stringify(next));
+      return next;
+    });
+  };
+
   if (!detail) {
     return (
       <div className="growth-page">
-        <h2>캐릭터 리스트</h2>
+        <div className="char-list-header">
+          <h2>캐릭터 리스트</h2>
+          <div className="sort-bar">
+            {SORT_OPTIONS.map(opt => {
+              const idx = sortStack.findIndex(s => s.key === opt.key);
+              const entry = idx >= 0 ? sortStack[idx] : null;
+              return (
+                <button key={opt.key}
+                  className={`sort-btn ${idx === 0 ? 'active' : idx > 0 ? 'sub' : ''}`}
+                  onClick={() => handleSort(opt.key)}>
+                  {idx >= 0 && <span className="sort-rank">{idx + 1}</span>}
+                  {opt.label}
+                  {entry && <span className="sort-arrow">{entry.dir === 'desc' ? '▼' : '▲'}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="char-card-grid">
-          {characters.map(c => {
+          {sorted.map(c => {
             const originColor = ORIGIN_COLORS[c.origin] || '#666';
             return (
               <div key={c.inventory_id} className="char-card" onClick={() => selectChar(c)}

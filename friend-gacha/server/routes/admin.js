@@ -260,7 +260,8 @@ router.post('/banners', (req, res) => {
     featuredRateUp: featuredRateUp || 0.5,
     active: false,
     startDate: startDate || null,
-    endDate: endDate || null
+    endDate: endDate || null,
+    showRates: req.body.showRates !== undefined ? req.body.showRates : true,
   });
 
   saveBanners(data);
@@ -273,7 +274,7 @@ router.put('/banners/:bannerId', (req, res) => {
   const idx = data.banners.findIndex(b => b.id === req.params.bannerId);
   if (idx === -1) return res.status(404).json({ error: '배너를 찾을 수 없습니다' });
 
-  const allowed = ['name', 'type', 'description', 'characterPool', 'featuredCharIds', 'rates', 'featuredRateUp', 'active', 'startDate', 'endDate'];
+  const allowed = ['name', 'type', 'description', 'characterPool', 'featuredCharIds', 'rates', 'featuredRateUp', 'active', 'startDate', 'endDate', 'showRates'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) data.banners[idx][key] = req.body[key];
   }

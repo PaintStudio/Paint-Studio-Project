@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api, setToken, clearToken } from './utils/api';
 import { connectSocket, disconnectSocket, getSocket } from './utils/socket';
+import { addToast } from './utils/toast';
 import LoginPage from './pages/LoginPage';
 import LobbyPage from './pages/LobbyPage';
 import GachaPage from './pages/GachaPage';
@@ -10,7 +11,7 @@ import StagePage from './pages/StagePage';
 import RaidPage from './pages/RaidPage';
 import GrowthPage from './pages/GrowthPage';
 import AdminPage from './pages/AdminPage';
-import Toast from './components/Toast';
+import ToastContainer from './components/Toast';
 import './styles/app.css';
 
 export default function App() {
@@ -18,14 +19,7 @@ export default function App() {
   const [page, setPage] = useState('lobby');
   const [subPage, setSubPage] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [toasts, setToasts] = useState([]);
   const [missions, setMissions] = useState([]);
-
-  const addToast = useCallback((message, type = 'info') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
-  }, []);
 
   const refreshUser = async () => {
     try { const u = await api.userStatus(); setUser(u); } catch {}
@@ -165,9 +159,7 @@ export default function App() {
         ))}
       </nav>
 
-      <div className="toast-container">
-        {toasts.map(t => <Toast key={t.id} message={t.message} type={t.type} />)}
-      </div>
+      <ToastContainer />
     </div>
   );
 }

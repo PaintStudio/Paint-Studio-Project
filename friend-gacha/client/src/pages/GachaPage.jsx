@@ -136,39 +136,46 @@ export default function GachaPage({ user, onPull, addToast }) {
 
   return (
     <div className="gacha-main">
-      {banners.length > 1 && (
-        <div className="banner-selector">
-          {banners.map(b => (
-            <button key={b.id}
-              className={'banner-tab' + (banner?.id === b.id ? ' active' : '')}
+      <div className="banner-list">
+        {banners.map(b => {
+          const selected = banner?.id === b.id;
+          const bRates = b.rates || gameConfig.gacha.rates;
+          return (
+            <div key={b.id}
+              className={`gacha-banner ${selected ? 'selected' : ''}`}
               onClick={() => setSelectedBanner(b)}>
-              {b.name}
-              {b.type === 'limited' && <span className="limited-dot" />}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="gacha-banner">
-        {banner?.image ? (
-          <img src={banner.image} alt={banner.name} className="banner-img" />
-        ) : (
-          <div className="banner-bg" />
+              {b.image ? (
+                <img src={b.image} alt={b.name} className="banner-img" />
+              ) : (
+                <div className="banner-bg" />
+              )}
+              <div className="banner-overlay">
+                <h2 className="banner-title">{b.name}</h2>
+                {b.description && <p className="banner-sub">{b.description}</p>}
+                {b.type === 'limited' && b.endDate && (
+                  <p className="banner-period">{b.endDate}까지</p>
+                )}
+              </div>
+              {(b.showRates !== false) && (
+                <div className="banner-rates">
+                  {Object.entries(bRates).reverse().map(([r, rate]) => (
+                    <span key={r} style={getRarityStyle(r)} className="rate-badge">
+                      {r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {banners.length === 0 && (
+          <div className="gacha-banner">
+            <div className="banner-bg" />
+            <div className="banner-overlay">
+              <h2 className="banner-title">가챠</h2>
+            </div>
+          </div>
         )}
-        <div className="banner-overlay">
-          <h2 className="banner-title">{banner?.name || '가챠'}</h2>
-          {banner?.description && <p className="banner-sub">{banner.description}</p>}
-          {banner?.type === 'limited' && banner.endDate && (
-            <p className="banner-period">{banner.endDate}까지</p>
-          )}
-        </div>
-        <div className="banner-rates">
-          {Object.entries(rates).reverse().map(([r, rate]) => (
-            <span key={r} style={getRarityStyle(r)} className="rate-badge">
-              {r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
-            </span>
-          ))}
-        </div>
       </div>
 
       <div className="pity-info">
@@ -186,7 +193,7 @@ export default function GachaPage({ user, onPull, addToast }) {
           disabled={pulling || user.currency < 100}
         >
           <span className="pull-label">1회 뽑기</span>
-          <span className="pull-cost">💎 100</span>
+          <span className="pull-cost">&#128142; 100</span>
         </button>
         <button
           className="btn-pull btn-pull-multi"
@@ -194,7 +201,7 @@ export default function GachaPage({ user, onPull, addToast }) {
           disabled={pulling || user.currency < 1000}
         >
           <span className="pull-label">10연차</span>
-          <span className="pull-cost">💎 1,000</span>
+          <span className="pull-cost">&#128142; 1,000</span>
           <span className="pull-bonus">R이상 1개 보장!</span>
         </button>
       </div>

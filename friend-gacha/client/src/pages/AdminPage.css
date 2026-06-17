@@ -348,6 +348,11 @@
   font-size: 13px;
 }
 .form-wide textarea { resize: vertical; }
+.form-check-label {
+  display: flex; flex-direction: row !important; align-items: center; gap: 8px;
+  font-size: 12px; color: #888; cursor: pointer;
+}
+.form-check-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: #5b4fcf; }
 .form-actions { display: flex; gap: 8px; margin-top: 8px; }
 .btn-save { padding: 6px 20px; background: #2ecc71; color: #000; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
 .btn-cancel { padding: 6px 20px; background: #444; color: #ccc; border: none; border-radius: 4px; cursor: pointer; }

@@ -25,7 +25,13 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
   const [showProfile, setShowProfile] = useState(false);
   const [profile, setProfile] = useState(null);
 
-  useEffect(() => { loadLobby(); loadProfile(); }, []);
+  const [unreadMail, setUnreadMail] = useState(0);
+
+  useEffect(() => { loadLobby(); loadProfile(); loadUnread(); }, []);
+
+  const loadUnread = async () => {
+    try { const d = await api.mailUnreadCount(); setUnreadMail(d.count); } catch {}
+  };
 
   const loadLobby = async () => {
     try {
@@ -80,6 +86,10 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
           <span className="lobby-res gold">&#129689;{(user.gold || 0).toLocaleString()}</span>
           <span className="lobby-res diamond">&#128142;{(user.currency || 0).toLocaleString()}</span>
         </div>
+        <button className="lobby-mail-btn" onClick={() => navigate('social', 'mail')}>
+          &#128236;
+          {unreadMail > 0 && <span className="lobby-mail-badge">{unreadMail}</span>}
+        </button>
         <button className="lobby-settings-btn" onClick={() => setShowSettings(!showSettings)}>&#9881;&#65039;</button>
       </div>
 

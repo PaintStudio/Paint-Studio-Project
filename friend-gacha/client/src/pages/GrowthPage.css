@@ -1,6 +1,38 @@
 .growth-page { display: flex; flex-direction: column; gap: 16px; }
 .growth-page.detail-view { height: 100%; overflow: hidden; }
-.growth-page h2 { font-size: 1.2rem; }
+.growth-page h2 { font-size: 1.2rem; margin: 0; }
+
+/* ========== 헤더 + 정렬 ========== */
+.char-list-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 0 16px; flex-wrap: wrap;
+}
+.sort-bar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.sort-btn {
+  display: flex; align-items: center; gap: 3px;
+  padding: 4px 10px; font-size: 0.72rem; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); border-radius: 6px;
+  cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.sort-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+.sort-btn.active {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.sort-btn.sub {
+  border-color: rgba(233,69,96,0.35); color: var(--text-secondary);
+}
+.sort-rank {
+  font-size: 0.55rem; font-weight: 800; min-width: 13px; height: 13px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: rgba(255,255,255,0.2); line-height: 1;
+}
+.sort-btn.active .sort-rank { background: rgba(255,255,255,0.3); }
+.sort-btn.sub .sort-rank { background: rgba(233,69,96,0.25); color: var(--accent); }
+.sort-arrow { font-size: 0.55rem; opacity: 0.8; }
 
 /* ========== 캐릭터 카드 그리드 ========== */
 .char-card-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 12px; padding: 0 16px; }

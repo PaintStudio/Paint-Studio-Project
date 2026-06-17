@@ -309,6 +309,7 @@ export default function AdminPage() {
       startDate: initial?.startDate || '',
       endDate: initial?.endDate || '',
       rates: initial?.rates || null,
+      showRates: initial?.showRates !== undefined ? initial.showRates : true,
     });
     const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -325,6 +326,9 @@ export default function AdminPage() {
             <option value="limited">한정</option>
           </select></label>
           <label>픽업 확률<input type="number" step="0.05" min="0" max="1" value={form.featuredRateUp} onChange={e => set('featuredRateUp', +e.target.value)} /></label>
+          <label className="form-check-label">확률 표시
+            <input type="checkbox" checked={form.showRates} onChange={e => set('showRates', e.target.checked)} />
+          </label>
           <label>시작일<input type="date" value={form.startDate || ''} onChange={e => set('startDate', e.target.value || null)} /></label>
           <label>종료일<input type="date" value={form.endDate || ''} onChange={e => set('endDate', e.target.value || null)} /></label>
         </div>
