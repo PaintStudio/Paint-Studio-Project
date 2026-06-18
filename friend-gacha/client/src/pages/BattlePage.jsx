@@ -16,6 +16,7 @@ import './BattlePage.css';
  */
 
 import gameConfig from '@gameConfig';
+import { processEffects } from '../utils/skillEffects';
 
 // gameConfig에서 속성 상성 생성
 const ELEMENT_CHART = {};
@@ -310,57 +311,88 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
     setAllActions(prev => [...prev, { attacker: attacker.id, defender: defender.id, damage: finalDamage, defended }]);
   }
 
+  // 효과 뮤테이션 적용
+  function applyMutations(mutations) {
+    for (const m of mutations) {
+      const isAlly = party.some(u => u.id === m.targetId);
+      const setter = isAlly ? setParty : setEnemies;
+      if (m.log) addLog(m.log);
+      switch (m.mut) {
+        case 'healHp':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, hp: Math.min(u.maxHp, u.hp + m.amount) } : u));
+          break;
+        case 'recoverNotes':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, notes: Math.min(u.maxNotes, u.notes + m.amount) } : u));
+          break;
+        case 'addBuff':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, buffs: [...u.buffs, { stat: m.stat, amount: m.amount, turns: m.turns }] } : u));
+          break;
+        case 'addDebuff':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, debuffs: [...u.debuffs, { stat: m.stat, amount: m.amount, turns: m.turns }] } : u));
+          break;
+        case 'cleanse':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, debuffs: u.debuffs.slice(Math.min(m.count, u.debuffs.length)) } : u));
+          break;
+        case 'dispel':
+          setter(prev => prev.map(u => u.id === m.targetId
+            ? { ...u, buffs: u.buffs.slice(Math.min(m.count, u.buffs.length)) } : u));
+          break;
+      }
+    }
+  }
+
   // 플레이어 스킬 사용
   function useSkill(skill, targetId) {
     const uid = turnOrder[currentTurnIdx];
     const unit = party.find(u => u.id === uid);
     if (!unit || unit.notes < skill.cost) return;
 
-    const targets = skill.target === 'aoe'
-      ? enemies.filter(u => u.alive)
-      : skill.target === 'ally_single' || skill.target === 'ally_all'
-        ? (skill.target === 'ally_all' ? party.filter(u => u.alive) : [party.find(u => u.id === targetId)])
-        : [enemies.find(u => u.id === targetId)];
-
+    let targets;
+    switch (skill.target) {
+      case 'aoe':        targets = enemies.filter(u => u.alive); break;
+      case 'ally_all':   targets = party.filter(u => u.alive); break;
+      case 'ally_single': targets = [party.find(u => u.id === targetId)]; break;
+      case 'self':       targets = [party.find(u => u.id === uid)]; break;
+      default:           targets = [enemies.find(u => u.id === targetId)]; break;
+    }
     if (!targets.length || targets.some(t => !t)) return;
 
     // 노트 차감
     setParty(prev => prev.map(u => u.id === uid ? { ...u, notes: u.notes - skill.cost } : u));
 
     if (skill.type === 'attack' || skill.type === 'ultimate') {
-      // 공격 처리
       const extra = skill.extra || {};
       for (const target of targets) {
         const { damage, isCrit, elemMult } = calcDmg(unit, target, skill.power, skill.element, extra.ignoreDef);
-
-        // 적 방어 리액션 (단일 타겟만)
         if (skill.target !== 'aoe') {
           const defSkill = enemyDefenseAI(target);
           applyAttackWithDefense(unit, target, damage, isCrit, defSkill);
         } else {
-          // AOE는 방어 없이 적용
-          const finalDmg = Math.round(damage * gameConfig.battle.undefendedPenalty); // 무방비
+          const finalDmg = Math.round(damage * gameConfig.battle.undefendedPenalty);
           addLog(`  → ${target.name}: ${finalDmg} 피해${isCrit ? ' (크리티컬!)' : ''}`);
           setEnemies(prev => prev.map(u => u.id === target.id ? {
             ...u, hp: Math.max(0, u.hp - finalDmg), alive: Math.max(0, u.hp - finalDmg) > 0
           } : u));
         }
       }
-
       if (skill.target === 'aoe') {
         addLog(`${unit.name} → ${skill.name}! (전체 공격)`);
       } else {
         addLog(`${unit.name} → ${skill.name} → ${targets[0].name}!`);
       }
-
-      // 궁극기 버프 처리
-      if (extra.buff) {
+      // 궁극기 레거시 extra 처리 (effects 미사용 기존 데이터 호환)
+      if (extra.buff && !extra.effects) {
         setParty(prev => prev.map(u => u.alive ? {
           ...u, buffs: [...u.buffs, { stat: extra.buff.stat, amount: extra.buff.amount, turns: extra.buff.turns }]
         } : u));
         addLog(`  아군 전체 ${extra.buff.stat.toUpperCase()} ${Math.round(extra.buff.amount * 100)}% 증가!`);
       }
-      if (extra.alsoHeal) {
+      if (extra.alsoHeal && !extra.effects) {
         setParty(prev => prev.map(u => u.alive ? {
           ...u, hp: Math.min(u.maxHp, u.hp + Math.round(u.maxHp * extra.alsoHeal))
         } : u));
@@ -391,6 +423,20 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         } : u));
         addLog(`${unit.name} → ${skill.name} → ${target.name}: ${(extra.stat || 'DEF').toUpperCase()} ${Math.round(skill.power * 100)}% 감소`);
       }
+    } else if (skill.type === 'support') {
+      if (targets.length === 1) {
+        addLog(`${unit.name} → ${skill.name} → ${targets[0].name}!`);
+      } else {
+        addLog(`${unit.name} → ${skill.name}!`);
+      }
+    }
+
+    // extra.effects 배열 처리 (모든 스킬 타입 공통)
+    const extra = skill.extra || {};
+    if (extra.effects && Array.isArray(extra.effects)) {
+      const ctx = { caster: unit, targets, allies: party, enemies };
+      const mutations = processEffects(extra.effects, ctx);
+      applyMutations(mutations);
     }
 
     setSelectedSkill(null);
@@ -451,7 +497,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
       <div className="battle-enemies">
         {enemies.map(e => (
           <div key={e.id}
-            className={`battle-unit enemy ${!e.alive ? 'dead' : ''} ${activeUnitId === e.id ? 'active' : ''} ${selectingTarget && selectedSkill?.type === 'attack' ? 'targetable' : ''}`}
+            className={`battle-unit enemy ${!e.alive ? 'dead' : ''} ${activeUnitId === e.id ? 'active' : ''} ${selectingTarget && selectedSkill?.target === 'single' ? 'targetable' : ''}`}
             onClick={() => {
               if (selectingTarget && e.alive && selectedSkill) {
                 const tgt = selectedSkill.target;

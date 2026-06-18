@@ -31,7 +31,7 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100dvh;
-  overflow-x: hidden;
+  min-width: 1920px;
   -webkit-tap-highlight-color: transparent;
 }
 

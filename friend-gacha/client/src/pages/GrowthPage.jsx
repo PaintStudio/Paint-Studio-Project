@@ -3,7 +3,7 @@ import { api } from '../utils/api';
 import gameConfig from '@gameConfig';
 import './GrowthPage.css';
 
-const ELEM_ICONS = { fire: '🔥', water: '💧', wind: '🌿', light: '✨', dark: '🌑', neutral: '⚪' };
+const ELEM_ICONS = { fire: '🔥', water: '💧', wind: '🍃', light: '✨', dark: '🌑', neutral: '⚪' };
 
 const ELEM_COLORS = {};
 for (const [k, v] of Object.entries(gameConfig.elements)) ELEM_COLORS[k] = v.color;

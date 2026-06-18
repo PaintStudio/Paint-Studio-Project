@@ -3,7 +3,7 @@
   height: 100dvh; font-size: 1.2rem; color: var(--text-secondary);
 }
 
-.app { display: flex; flex-direction: column; min-height: 100dvh; }
+.app { display: flex; flex-direction: column; min-height: 100dvh; width: 1920px; margin: 0 auto; }
 
 /* 헤더 */
 .app-header {
@@ -19,7 +19,7 @@
 .tab-bar {
   display: flex; background: var(--bg-secondary);
   border-top: 1px solid var(--border);
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 1920px; z-index: 100;
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tab-item {

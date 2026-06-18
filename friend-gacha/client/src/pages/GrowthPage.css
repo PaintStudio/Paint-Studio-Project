@@ -36,9 +36,6 @@
 
 /* ========== 캐릭터 카드 그리드 ========== */
 .char-card-grid { display: grid; grid-template-columns: repeat(auto-fill, 200px); gap: 12px; padding: 0 16px; justify-content: center; }
-@media (max-width: 600px) {
-  .char-card-grid { grid-template-columns: repeat(2, 1fr); padding: 0 8px; gap: 8px; }
-}
 
 .char-card {
   aspect-ratio: 1 / 1.4;

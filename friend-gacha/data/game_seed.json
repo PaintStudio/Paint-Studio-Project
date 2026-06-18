@@ -442,7 +442,7 @@
       "name": "리사",
       "rarity": "N",
       "element": "light",
-      "title": "집사 중의 집사",
+      "title": "호기심 많은 모험가",
       "description": "호기심 가득한 천사 견습 모험가.",
       "image_url": "/uploads/characters/char_20.png",
       "image_bust": "",
@@ -514,6 +514,36 @@
       "cooldown": 0,
       "extra": "{}",
       "equip_condition": "{}"
+    },
+    {
+      "id": 40,
+      "name": "후퇴 방어",
+      "description": "뒤로 후퇴하며 방어한다. 데미지의 50%를 경감한다.",
+      "type": "defense",
+      "rarity": "faint",
+      "cost": 2,
+      "power": 1,
+      "element": "neutral",
+      "target": "self",
+      "defense_mult": 0.5,
+      "cooldown": 0,
+      "extra": "{}",
+      "equip_condition": "{}"
+    },
+    {
+      "id": 41,
+      "name": "격려",
+      "description": "아군 하나의 턴 노트를 3 회복한다.",
+      "type": "support",
+      "rarity": "faint",
+      "cost": 3,
+      "power": 1,
+      "element": "wind",
+      "target": "ally_single",
+      "defense_mult": 0,
+      "cooldown": 3,
+      "extra": "{}",
+      "equip_condition": "{\"origin\": [\"sound\"]}"
     }
   ],
   "characterSkills": [
@@ -578,6 +608,12 @@
       "is_fixed": 0
     },
     {
+      "charName": "아우라",
+      "skillName": "격려",
+      "awakening_required": 0,
+      "is_fixed": 0
+    },
+    {
       "charName": "카날리",
       "skillName": "기본 공격",
       "awakening_required": 0,
@@ -610,6 +646,12 @@
     {
       "charName": "리카",
       "skillName": "기본 방어",
+      "awakening_required": 0,
+      "is_fixed": 0
+    },
+    {
+      "charName": "리카",
+      "skillName": "후퇴 방어",
       "awakening_required": 0,
       "is_fixed": 0
     },
@@ -670,6 +712,12 @@
     {
       "charName": "쿼시",
       "skillName": "기본 방어",
+      "awakening_required": 0,
+      "is_fixed": 0
+    },
+    {
+      "charName": "쿼시",
+      "skillName": "격려",
       "awakening_required": 0,
       "is_fixed": 0
     },
@@ -754,6 +802,12 @@
     {
       "charName": "리사",
       "skillName": "기본 방어",
+      "awakening_required": 0,
+      "is_fixed": 0
+    },
+    {
+      "charName": "리사",
+      "skillName": "후퇴 방어",
       "awakening_required": 0,
       "is_fixed": 0
     },
