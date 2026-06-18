@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const DB_PATH = path.join(__dirname, '..', 'data', 'gacha.db');
+const SEED_PATH = path.join(__dirname, '..', 'data', 'game_seed.json');
 const dataDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
@@ -468,6 +469,23 @@ async function initDb() {
     console.log('[DB] equipped_skills 마이그레이션 완료');
   }
 
+  // 캐릭터 슬롯 수 마이그레이션
+  try {
+    db.prepare("SELECT attack_slots FROM characters LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE characters ADD COLUMN attack_slots INTEGER DEFAULT 3");
+    db.exec("ALTER TABLE characters ADD COLUMN defense_slots INTEGER DEFAULT 2");
+    console.log('[DB] characters 슬롯 수 마이그레이션 완료');
+  }
+
+  // 스킬 초기화 플래그 마이그레이션
+  try {
+    db.prepare("SELECT skills_initialized FROM inventory LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE inventory ADD COLUMN skills_initialized INTEGER DEFAULT 0");
+    console.log('[DB] inventory skills_initialized 마이그레이션 완료');
+  }
+
   // 이미지 타입 확장 마이그레이션
   try {
     db.prepare("SELECT image_bust FROM characters LIMIT 1").get();
@@ -495,152 +513,202 @@ async function initDb() {
     console.log('[DB] users 프로필 마이그레이션 완료');
   }
 
-  // ============ 캐릭터 시드 ============
-  const charCount = db.prepare('SELECT COUNT(*) as cnt FROM characters').get();
-  if (charCount.cnt === 0) {
-    const seed = [
-      // SSR (2)
-      { name: '유카리', rarity: 'SSR', element: 'fire', origin: 'life', title: '영원한 황혼의 왕', description: '먼 옛날부터 살아온 황혼의 왕', quote: '에반데.', base_hp: 5500, base_atk: 280, base_def: 180, base_spd: 115, turn_notes: 6, image_url: '/uploads/characters/char_1.png' },
-      { name: '츠바키', rarity: 'SSR', element: 'light', origin: 'season', title: '분홍 동백의 신중', description: '분홍 동백의 신중', quote: '이 길이 아니었나...', base_hp: 4800, base_atk: 310, base_def: 150, base_spd: 130, turn_notes: 6, image_url: '/uploads/characters/char_2.png' },
-      // SR (4)
-      { name: '시스투스', rarity: 'SR', element: 'wind', origin: 'memory', title: '물들어가는 무채', description: '성영의 관리자의 세계에서 온 유일한 생존자. 의식성 에스페리아의 대무녀.', quote: '"사라지고 싶지 않아"', base_hp: 80, base_atk: 15, base_def: 10, base_spd: 14, turn_notes: 8, image_url: '/uploads/characters/char_3.png' },
-      { name: '베르트랑', rarity: 'SR', element: 'fire', origin: 'life', title: '파프니르', description: '파프니르의 기사.', quote: '아저씨는 이런 게 익숙치 않아서 말이야.', base_hp: 4800, base_atk: 190, base_def: 200, base_spd: 95, turn_notes: 5, image_url: '/uploads/characters/char_4.png' },
-      { name: '아우라', rarity: 'SR', element: 'light', origin: 'sound', title: '기도하는 자', description: '새벽기사단의 2분대 대장.', quote: '이른 새벽을 기다리며.', base_hp: 4500, base_atk: 250, base_def: 130, base_spd: 105, turn_notes: 5, image_url: '/uploads/characters/char_5.png' },
-      { name: '카날리', rarity: 'SR', element: 'water', origin: 'force', title: '싱크로스트', description: '다른 세계에서 온 대행관리자.', quote: '가라앉아.', base_hp: 5000, base_atk: 170, base_def: 180, base_spd: 100, turn_notes: 5, image_url: '/uploads/characters/char_6.png' },
-      // R (6)
-      { name: '코루리', rarity: 'R', element: 'light', origin: 'time', title: '용안의 소녀', description: '용화의 비술을 간직한 소녀.', quote: '이 쪽 보지 마.', base_hp: 3500, base_atk: 200, base_def: 110, base_spd: 115, turn_notes: 4, image_url: '/uploads/characters/char_7.png' },
-      { name: '리카', rarity: 'R', element: 'water', origin: 'space', title: '수호하는 자', description: '쿨뢰르 레기온의 큰언니.', quote: '마노의 혼, 물러서지 않는다.', base_hp: 3800, base_atk: 180, base_def: 140, base_spd: 95, turn_notes: 4, image_url: '/uploads/characters/char_8.png' },
-      { name: '린네', rarity: 'R', element: 'wind', origin: 'memory', title: '사라진 그리움', description: '린네 할로우패스.', quote: '마치 선향불꽃처럼.', base_hp: 4000, base_atk: 210, base_def: 150, base_spd: 90, turn_notes: 4, image_url: '/uploads/characters/char_9.png' },
-      { name: '페리도트', rarity: 'R', element: 'dark', origin: 'intellect', title: '사라져 버린 긍지', description: '먼 옛날의 대마법사.', quote: '저를 내버려두세요.', base_hp: 3600, base_atk: 190, base_def: 120, base_spd: 105, turn_notes: 4, image_url: '/uploads/characters/char_10.png' },
-      { name: '렌', rarity: 'R', element: 'wind', origin: 'life', title: '매와 함께하는 기사', description: '새벽기사단 2분대의 정령사.', quote: '지금 바로 그대에게 전하고파 뛰쳐나갔어.', base_hp: 3400, base_atk: 220, base_def: 100, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_11.png' },
-      { name: '게로트', rarity: 'R', element: 'wind', origin: 'heart', title: '요리의 대가', description: '에스큘럼의 요리 마스터.', quote: '가장 중요한 것은 상대를 생각하는 마음.', base_hp: 3700, base_atk: 175, base_def: 130, base_spd: 110, turn_notes: 4, image_url: '/uploads/characters/char_12.png' },
-      // N (9)
-      { name: '쿼시', rarity: 'N', element: 'light', origin: 'sound', title: '비트마스터', description: '유니아나의 비트마스터 중 하나', quote: '이 곡 좋은데?', base_hp: 2800, base_atk: 140, base_def: 100, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_13.png' },
-      { name: '가네트', rarity: 'N', element: 'fire', origin: 'time', title: '회귀의 기사', description: '에스큘럼 새벽기사단의 창끝 분대 분대원.', quote: '이 익숙함은?', base_hp: 3200, base_atk: 120, base_def: 120, base_spd: 80, turn_notes: 3, image_url: '/uploads/characters/char_14.png' },
-      { name: '호프', rarity: 'N', element: 'wind', origin: 'life', title: '느긋한 집배원', description: '에스큘럼의 느릿한 집배원.', quote: '"다음 집으로..."', base_hp: 3000, base_atk: 150, base_def: 90, base_spd: 100, turn_notes: 3, image_url: '/uploads/characters/char_15.png' },
-      { name: '메이', rarity: 'N', element: 'dark', origin: 'intellect', title: '에너지학 연구원', description: '스타기어의 에너지 연구원.', quote: '"발견!"', base_hp: 2600, base_atk: 130, base_def: 90, base_spd: 120, turn_notes: 3, image_url: '/uploads/characters/char_16.png' },
-      { name: '티어리', rarity: 'N', element: 'wind', origin: 'force', title: '교육팀 팀장', description: '신기루 교육지원팀의 팀장.', quote: '"이 보고서 누가 썼어?"', base_hp: 3500, base_atk: 110, base_def: 140, base_spd: 70, turn_notes: 3, image_url: '/uploads/characters/char_17.png' },
-      { name: '밥', rarity: 'N', element: 'fire', origin: 'memory', title: '평범한? 농부', description: '', quote: '"야채라도 가져가라."', base_hp: 2700, base_atk: 160, base_def: 85, base_spd: 110, turn_notes: 3, image_url: '/uploads/characters/char_18.png' },
-      { name: '아이유브', rarity: 'N', element: 'fire', origin: 'season', title: '불행한 자', description: '미스테리아의 ', quote: '"내가 받는 벌이라고...?"', base_hp: 80, base_atk: 145, base_def: 95, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_19.png' },
-      { name: '리사', rarity: 'N', element: 'light', origin: 'sound', title: '집사 중의 집사', description: '호기심 가득한 천사 견습 모험가.', quote: '"이 지도가 향하는 곳은!"', base_hp: 60, base_atk: 7, base_def: 5, base_spd: 8, turn_notes: 6, image_url: '/uploads/characters/char_20.png' },
-      { name: '아르시스', rarity: 'N', element: 'water', origin: 'heart', title: '성취자 멘토', description: '세인트 인퀴지터의 선배 성취자.', quote: '쨘! 이게 기적이라는 거야.', base_hp: 1000, base_atk: 100, base_def: 80, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_21.png' },
-    ];
-
-    const cols = ['name','rarity','element','origin','title','description','quote','base_hp','base_atk','base_def','base_spd','turn_notes','image_url'];
-    for (const c of seed) {
-      const vals = cols.map(k => c[k]);
-      const placeholders = cols.map(() => '?').join(', ');
-      db.prepare(`INSERT INTO characters (${cols.join(', ')}) VALUES (${placeholders})`).run(...vals);
-    }
-    console.log(`[DB] ${seed.length}개 캐릭터 시드 완료`);
+  // skills.equip_condition 마이그레이션
+  try {
+    db.prepare("SELECT equip_condition FROM skills LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE skills ADD COLUMN equip_condition TEXT DEFAULT '{}'");
+    console.log('[DB] skills.equip_condition 마이그레이션 완료');
   }
 
-  // ============ 스킬 시드 ============
+  // character_skills.awakening_required 마이그레이션
+  try {
+    db.prepare("SELECT awakening_required FROM character_skills LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE character_skills ADD COLUMN awakening_required INTEGER DEFAULT -1");
+    db.exec("UPDATE character_skills SET awakening_required = 0 WHERE is_default = 1");
+    console.log('[DB] character_skills.awakening_required 마이그레이션 완료');
+  }
+
+  // ============ 게임 데이터 시드 (JSON 우선, 없으면 하드코딩 폴백) ============
+  const charCount = db.prepare('SELECT COUNT(*) as cnt FROM characters').get();
   const skillCount = db.prepare('SELECT COUNT(*) as cnt FROM skills').get();
-  if (skillCount.cnt === 0) {
-    const skillSeed = [
-      // 기본 스킬 (흐림)
-      { name: '기본 타격', description: '적 하나에게 기본 피해', type: 'attack', rarity: 'faint', cost: 1, power: 1.0, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '기본 방어', description: '받는 피해 40% 감소', type: 'defense', rarity: 'faint', cost: 1, power: 0, element: 'neutral', target: 'self', defense_mult: 0.4, cooldown: 0, extra: '{}' },
-      // 일반 공격 (담)
-      { name: '강타', description: '적 하나에게 강한 피해', type: 'attack', rarity: 'pale', cost: 2, power: 1.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '전체 강타', description: '적 전체에게 피해', type: 'attack', rarity: 'pale', cost: 3, power: 1.5, element: 'neutral', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '화염 베기', description: '불속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '화염 폭풍', description: '불속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '수류탄', description: '물속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'water', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '해일', description: '물속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '덩굴 채찍', description: '풍속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '가시 폭발', description: '풍속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '빛의 창', description: '빛속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'light', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '심판의 빛', description: '빛속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '어둠의 칼날', description: '암속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '암흑 폭발', description: '암속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'dark', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      // 강화 공격 (짙음)
-      { name: '맹렬한 일격', description: '적 하나에게 큰 피해', type: 'attack', rarity: 'deep', cost: 3, power: 2.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      // 방어 (담~짙음)
-      { name: '강화 방어', description: '받는 피해 60% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'self', defense_mult: 0.6, cooldown: 0, extra: '{}' },
-      { name: '완벽한 방어', description: '받는 피해 80% 감소', type: 'defense', rarity: 'deep', cost: 3, power: 0, element: 'neutral', target: 'self', defense_mult: 0.8, cooldown: 0, extra: '{}' },
-      { name: '반격 방어', description: '피해 50% 감소 + 반격', type: 'defense', rarity: 'deep', cost: 2, power: 0.5, element: 'neutral', target: 'self', defense_mult: 0.5, cooldown: 0, extra: '{"counter":true}' },
-      { name: '보호막', description: '아군 하나 피해 50% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'ally_single', defense_mult: 0.5, cooldown: 0, extra: '{}' },
-      // 궁극기 (짙음~영롱) - 캐릭터 고유기들
-      { name: '황혼의 불꽃', description: '적 전체 ATK 400% + 아군 ATK 버프', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 4.0, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"atk","amount":0.3,"turns":2}}' },
-      { name: '벚꽃 난무', description: '적 전체 ATK 380% 피해', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 3.8, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '무채의 꿈', description: '적 전체 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.5, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '파프니르의 화염', description: '적 하나 ATK 450% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.5, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '새벽의 기도', description: '아군 전체 HP 40% 회복 + ATK 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'light', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true,"buff":{"stat":"atk","amount":0.2,"turns":2}}' },
-      { name: '심연의 조율', description: '아군 전체 HP 40% 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'water', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true}' },
-      { name: '용안 해방', description: '적 전체 ATK 300% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '마노의 방패', description: '적 전체 ATK 280% + 아군 DEF 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 2.8, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"def","amount":0.3,"turns":2}}' },
-      { name: '선향불꽃', description: '적 하나 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 3.5, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '잊혀진 마도', description: '적 하나 ATK 400% (DEF 무시)', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.0, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"ignoreDef":true}' },
-      { name: '정령의 날개', description: '적 전체 ATK 280% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 2.8, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '미식의 심장', description: '적 전체 300% + 아군 HP 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"alsoHeal":0.2}' },
-      // 회복/버프/디버프 (담~짙음)
-      { name: '응급 치료', description: '아군 하나 HP 25% 회복', type: 'heal', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '전체 치유', description: '아군 전체 HP 15% 회복', type: 'heal', rarity: 'deep', cost: 3, power: 0.15, element: 'neutral', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{}' },
-      { name: '전투 고무', description: '아군 하나 ATK 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"atk","turns":3}' },
-      { name: '철벽 강화', description: '아군 하나 DEF 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
-      { name: '약점 간파', description: '적 하나 DEF 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
-      { name: '속도 저하', description: '적 하나 SPD 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"spd","turns":3}' },
-    ];
 
-    const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra'];
-    for (const s of skillSeed) {
-      const vals = sCols.map(k => s[k]);
-      const placeholders = sCols.map(() => '?').join(', ');
-      db.prepare(`INSERT INTO skills (${sCols.join(', ')}) VALUES (${placeholders})`).run(...vals);
-    }
-    console.log(`[DB] ${skillSeed.length}개 스킬 시드 완료`);
-
-    // 캐릭터-스킬 매핑
-    const getSkillId = (name) => db.prepare('SELECT id FROM skills WHERE name = ?').get(name)?.id;
-    const getCharId = (name) => db.prepare('SELECT id FROM characters WHERE name = ?').get(name)?.id;
-
-    const charSkillMap = [
-      // SSR
-      { char: '유카리', skills: ['기본 타격','강타','전체 강타','화염 베기','화염 폭풍','기본 방어','강화 방어','황혼의 불꽃'], defaults: ['기본 타격','강타','화염 베기','기본 방어','황혼의 불꽃'] },
-      { char: '츠바키', skills: ['기본 타격','강타','맹렬한 일격','빛의 창','심판의 빛','기본 방어','반격 방어','벚꽃 난무'], defaults: ['기본 타격','맹렬한 일격','빛의 창','기본 방어','벚꽃 난무'] },
-      // SR
-      { char: '시스투스', skills: ['기본 타격','덩굴 채찍','가시 폭발','기본 방어','강화 방어','응급 치료','전체 치유','무채의 꿈'], defaults: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','무채의 꿈'] },
-      { char: '베르트랑', skills: ['기본 타격','강타','화염 베기','기본 방어','강화 방어','반격 방어','파프니르의 화염'], defaults: ['기본 타격','강타','기본 방어','반격 방어','파프니르의 화염'] },
-      { char: '아우라', skills: ['기본 타격','빛의 창','기본 방어','응급 치료','전체 치유','전투 고무','새벽의 기도'], defaults: ['기본 타격','빛의 창','기본 방어','응급 치료','새벽의 기도'] },
-      { char: '카날리', skills: ['기본 타격','수류탄','해일','기본 방어','강화 방어','보호막','심연의 조율'], defaults: ['기본 타격','수류탄','기본 방어','보호막','심연의 조율'] },
-      // R
-      { char: '코루리', skills: ['기본 타격','빛의 창','기본 방어','전투 고무','용안 해방'], defaults: ['기본 타격','빛의 창','기본 방어','전투 고무','용안 해방'] },
-      { char: '리카', skills: ['기본 타격','수류탄','기본 방어','강화 방어','철벽 강화','마노의 방패'], defaults: ['기본 타격','수류탄','기본 방어','강화 방어','마노의 방패'] },
-      { char: '린네', skills: ['기본 타격','강타','덩굴 채찍','기본 방어','선향불꽃'], defaults: ['기본 타격','강타','덩굴 채찍','기본 방어','선향불꽃'] },
-      { char: '페리도트', skills: ['기본 타격','어둠의 칼날','암흑 폭발','기본 방어','약점 간파','잊혀진 마도'], defaults: ['기본 타격','어둠의 칼날','기본 방어','약점 간파','잊혀진 마도'] },
-      { char: '렌', skills: ['기본 타격','덩굴 채찍','가시 폭발','기본 방어','속도 저하','정령의 날개'], defaults: ['기본 타격','덩굴 채찍','기본 방어','속도 저하','정령의 날개'] },
-      { char: '게로트', skills: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','전투 고무','미식의 심장'], defaults: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','미식의 심장'] },
-      // N (궁극기 없음)
-      { char: '쿼시', skills: ['기본 타격','빛의 창','기본 방어','전투 고무'], defaults: ['기본 타격','빛의 창','기본 방어','전투 고무'] },
-      { char: '가네트', skills: ['기본 타격','화염 베기','기본 방어','강화 방어'], defaults: ['기본 타격','화염 베기','기본 방어','강화 방어'] },
-      { char: '호프', skills: ['기본 타격','덩굴 채찍','기본 방어','응급 치료'], defaults: ['기본 타격','덩굴 채찍','기본 방어'] },
-      { char: '메이', skills: ['기본 타격','어둠의 칼날','기본 방어','약점 간파'], defaults: ['기본 타격','어둠의 칼날','기본 방어'] },
-      { char: '티어리', skills: ['기본 타격','덩굴 채찍','기본 방어','강화 방어','철벽 강화'], defaults: ['기본 타격','덩굴 채찍','기본 방어','강화 방어'] },
-      { char: '밥', skills: ['기본 타격','화염 베기','기본 방어'], defaults: ['기본 타격','화염 베기','기본 방어'] },
-      { char: '아이유브', skills: ['기본 타격','화염 베기','기본 방어','속도 저하'], defaults: ['기본 타격','화염 베기','기본 방어'] },
-      { char: '리사', skills: ['기본 타격','빛의 창','기본 방어','응급 치료'], defaults: ['기본 타격','빛의 창','기본 방어','응급 치료'] },
-      { char: '아르시스', skills: ['기본 타격','수류탄','기본 방어','응급 치료'], defaults: ['기본 타격','수류탄','기본 방어','응급 치료'] },
-    ];
-
-    // 고유기(ultimate) 스킬은 is_fixed = 1 (장착 해제 불가)
-    const fixedSkillTypes = new Set(['ultimate']);
-    for (const mapping of charSkillMap) {
-      const charId = getCharId(mapping.char);
-      if (!charId) continue;
-      for (const skillName of mapping.skills) {
-        const skillId = getSkillId(skillName);
-        if (!skillId) continue;
-        const isDefault = mapping.defaults.includes(skillName) ? 1 : 0;
-        const skill = skillSeed.find(s => s.name === skillName);
-        const isFixed = (skill && fixedSkillTypes.has(skill.type)) ? 1 : 0;
-        try {
-          db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default, is_fixed) VALUES (?, ?, ?, ?)').run(charId, skillId, isDefault, isFixed);
-        } catch (e) {}
+  if (charCount.cnt === 0 && skillCount.cnt === 0) {
+    let seedData = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try {
+        seedData = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8'));
+        console.log('[DB] game_seed.json 발견 - JSON 시드에서 로드');
+      } catch (e) {
+        console.error('[DB] game_seed.json 파싱 실패, 하드코딩 폴백:', e.message);
       }
     }
-    console.log('[DB] 캐릭터-스킬 매핑 완료');
+
+    if (seedData) {
+      // JSON 시드에서 로드
+      const charCols = ['name','rarity','element','origin','title','description','quote','base_hp','base_atk','base_def','base_spd','turn_notes','image_url','image_bust','image_sd','image_ld','is_limited','attack_slots','defense_slots'];
+      for (const c of seedData.characters) {
+        const vals = charCols.map(k => c[k] ?? '');
+        const placeholders = charCols.map(() => '?').join(', ');
+        db.prepare(`INSERT INTO characters (${charCols.join(', ')}) VALUES (${placeholders})`).run(...vals);
+      }
+      console.log(`[DB] ${seedData.characters.length}개 캐릭터 시드 완료 (JSON)`);
+
+      const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra','equip_condition'];
+      for (const s of seedData.skills) {
+        const vals = sCols.map(k => {
+          if (k === 'equip_condition') return typeof s[k] === 'object' ? JSON.stringify(s[k]) : (s[k] ?? '{}');
+          return s[k] ?? '';
+        });
+        const placeholders = sCols.map(() => '?').join(', ');
+        db.prepare(`INSERT INTO skills (${sCols.join(', ')}) VALUES (${placeholders})`).run(...vals);
+      }
+      console.log(`[DB] ${seedData.skills.length}개 스킬 시드 완료 (JSON)`);
+
+      const getSkillId = (name) => db.prepare('SELECT id FROM skills WHERE name = ?').get(name)?.id;
+      const getCharId = (name) => db.prepare('SELECT id FROM characters WHERE name = ?').get(name)?.id;
+      for (const m of seedData.characterSkills) {
+        const charId = getCharId(m.charName);
+        const skillId = getSkillId(m.skillName);
+        if (!charId || !skillId) continue;
+        const awkReq = m.awakening_required !== undefined ? m.awakening_required : (m.is_default ? 0 : -1);
+        try {
+          db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default, is_fixed, awakening_required) VALUES (?, ?, ?, ?, ?)')
+            .run(charId, skillId, awkReq === 0 ? 1 : 0, m.is_fixed, awkReq);
+        } catch (e) {}
+      }
+      console.log(`[DB] ${seedData.characterSkills.length}개 캐릭터-스킬 매핑 완료 (JSON)`);
+    } else {
+      // 하드코딩 폴백 (최초 설치용)
+      const seed = [
+        { name: '유카리', rarity: 'SSR', element: 'fire', origin: 'life', title: '영원한 황혼의 왕', description: '먼 옛날부터 살아온 황혼의 왕', quote: '에반데.', base_hp: 5500, base_atk: 280, base_def: 180, base_spd: 115, turn_notes: 6, image_url: '/uploads/characters/char_1.png' },
+        { name: '츠바키', rarity: 'SSR', element: 'light', origin: 'season', title: '분홍 동백의 신중', description: '분홍 동백의 신중', quote: '이 길이 아니었나...', base_hp: 4800, base_atk: 310, base_def: 150, base_spd: 130, turn_notes: 6, image_url: '/uploads/characters/char_2.png' },
+        { name: '시스투스', rarity: 'SR', element: 'wind', origin: 'memory', title: '물들어가는 무채', description: '성영의 관리자의 세계에서 온 유일한 생존자. 의식성 에스페리아의 대무녀.', quote: '"사라지고 싶지 않아"', base_hp: 80, base_atk: 15, base_def: 10, base_spd: 14, turn_notes: 8, image_url: '/uploads/characters/char_3.png' },
+        { name: '베르트랑', rarity: 'SR', element: 'fire', origin: 'life', title: '파프니르', description: '파프니르의 기사.', quote: '아저씨는 이런 게 익숙치 않아서 말이야.', base_hp: 4800, base_atk: 190, base_def: 200, base_spd: 95, turn_notes: 5, image_url: '/uploads/characters/char_4.png' },
+        { name: '아우라', rarity: 'SR', element: 'light', origin: 'sound', title: '기도하는 자', description: '새벽기사단의 2분대 대장.', quote: '이른 새벽을 기다리며.', base_hp: 4500, base_atk: 250, base_def: 130, base_spd: 105, turn_notes: 5, image_url: '/uploads/characters/char_5.png' },
+        { name: '카날리', rarity: 'SR', element: 'water', origin: 'force', title: '싱크로스트', description: '다른 세계에서 온 대행관리자.', quote: '가라앉아.', base_hp: 5000, base_atk: 170, base_def: 180, base_spd: 100, turn_notes: 5, image_url: '/uploads/characters/char_6.png' },
+        { name: '코루리', rarity: 'R', element: 'light', origin: 'time', title: '용안의 소녀', description: '용화의 비술을 간직한 소녀.', quote: '이 쪽 보지 마.', base_hp: 3500, base_atk: 200, base_def: 110, base_spd: 115, turn_notes: 4, image_url: '/uploads/characters/char_7.png' },
+        { name: '리카', rarity: 'R', element: 'water', origin: 'space', title: '수호하는 자', description: '쿨뢰르 레기온의 큰언니.', quote: '마노의 혼, 물러서지 않는다.', base_hp: 3800, base_atk: 180, base_def: 140, base_spd: 95, turn_notes: 4, image_url: '/uploads/characters/char_8.png' },
+        { name: '린네', rarity: 'R', element: 'wind', origin: 'memory', title: '사라진 그리움', description: '린네 할로우패스.', quote: '마치 선향불꽃처럼.', base_hp: 4000, base_atk: 210, base_def: 150, base_spd: 90, turn_notes: 4, image_url: '/uploads/characters/char_9.png' },
+        { name: '페리도트', rarity: 'R', element: 'dark', origin: 'intellect', title: '사라져 버린 긍지', description: '먼 옛날의 대마법사.', quote: '저를 내버려두세요.', base_hp: 3600, base_atk: 190, base_def: 120, base_spd: 105, turn_notes: 4, image_url: '/uploads/characters/char_10.png' },
+        { name: '렌', rarity: 'R', element: 'wind', origin: 'life', title: '매와 함께하는 기사', description: '새벽기사단 2분대의 정령사.', quote: '지금 바로 그대에게 전하고파 뛰쳐나갔어.', base_hp: 3400, base_atk: 220, base_def: 100, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_11.png' },
+        { name: '게로트', rarity: 'R', element: 'wind', origin: 'heart', title: '요리의 대가', description: '에스큘럼의 요리 마스터.', quote: '가장 중요한 것은 상대를 생각하는 마음.', base_hp: 3700, base_atk: 175, base_def: 130, base_spd: 110, turn_notes: 4, image_url: '/uploads/characters/char_12.png' },
+        { name: '쿼시', rarity: 'N', element: 'light', origin: 'sound', title: '비트마스터', description: '유니아나의 비트마스터 중 하나', quote: '이 곡 좋은데?', base_hp: 2800, base_atk: 140, base_def: 100, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_13.png' },
+        { name: '가네트', rarity: 'N', element: 'fire', origin: 'time', title: '회귀의 기사', description: '에스큘럼 새벽기사단의 창끝 분대 분대원.', quote: '이 익숙함은?', base_hp: 3200, base_atk: 120, base_def: 120, base_spd: 80, turn_notes: 3, image_url: '/uploads/characters/char_14.png' },
+        { name: '호프', rarity: 'N', element: 'wind', origin: 'life', title: '느긋한 집배원', description: '에스큘럼의 느릿한 집배원.', quote: '"다음 집으로..."', base_hp: 3000, base_atk: 150, base_def: 90, base_spd: 100, turn_notes: 3, image_url: '/uploads/characters/char_15.png' },
+        { name: '메이', rarity: 'N', element: 'dark', origin: 'intellect', title: '에너지학 연구원', description: '스타기어의 에너지 연구원.', quote: '"발견!"', base_hp: 2600, base_atk: 130, base_def: 90, base_spd: 120, turn_notes: 3, image_url: '/uploads/characters/char_16.png' },
+        { name: '티어리', rarity: 'N', element: 'wind', origin: 'force', title: '교육팀 팀장', description: '신기루 교육지원팀의 팀장.', quote: '"이 보고서 누가 썼어?"', base_hp: 3500, base_atk: 110, base_def: 140, base_spd: 70, turn_notes: 3, image_url: '/uploads/characters/char_17.png' },
+        { name: '밥', rarity: 'N', element: 'fire', origin: 'memory', title: '평범한? 농부', description: '', quote: '"야채라도 가져가라."', base_hp: 2700, base_atk: 160, base_def: 85, base_spd: 110, turn_notes: 3, image_url: '/uploads/characters/char_18.png' },
+        { name: '아이유브', rarity: 'N', element: 'fire', origin: 'season', title: '불행한 자', description: '미스테리아의 ', quote: '"내가 받는 벌이라고...?"', base_hp: 80, base_atk: 145, base_def: 95, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_19.png' },
+        { name: '리사', rarity: 'N', element: 'light', origin: 'sound', title: '집사 중의 집사', description: '호기심 가득한 천사 견습 모험가.', quote: '"이 지도가 향하는 곳은!"', base_hp: 60, base_atk: 7, base_def: 5, base_spd: 8, turn_notes: 6, image_url: '/uploads/characters/char_20.png' },
+        { name: '아르시스', rarity: 'N', element: 'water', origin: 'heart', title: '성취자 멘토', description: '세인트 인퀴지터의 선배 성취자.', quote: '쨘! 이게 기적이라는 거야.', base_hp: 1000, base_atk: 100, base_def: 80, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_21.png' },
+      ];
+
+      const cols = ['name','rarity','element','origin','title','description','quote','base_hp','base_atk','base_def','base_spd','turn_notes','image_url'];
+      for (const c of seed) {
+        const vals = cols.map(k => c[k]);
+        const placeholders = cols.map(() => '?').join(', ');
+        db.prepare(`INSERT INTO characters (${cols.join(', ')}) VALUES (${placeholders})`).run(...vals);
+      }
+      console.log(`[DB] ${seed.length}개 캐릭터 시드 완료 (하드코딩)`);
+
+      const skillSeed = [
+        { name: '기본 타격', description: '적 하나에게 기본 피해', type: 'attack', rarity: 'faint', cost: 1, power: 1.0, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '기본 방어', description: '받는 피해 40% 감소', type: 'defense', rarity: 'faint', cost: 1, power: 0, element: 'neutral', target: 'self', defense_mult: 0.4, cooldown: 0, extra: '{}' },
+        { name: '강타', description: '적 하나에게 강한 피해', type: 'attack', rarity: 'pale', cost: 2, power: 1.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '전체 강타', description: '적 전체에게 피해', type: 'attack', rarity: 'pale', cost: 3, power: 1.5, element: 'neutral', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '화염 베기', description: '불속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '화염 폭풍', description: '불속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '수류탄', description: '물속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'water', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '해일', description: '물속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '덩굴 채찍', description: '풍속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '가시 폭발', description: '풍속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '빛의 창', description: '빛속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'light', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '심판의 빛', description: '빛속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '어둠의 칼날', description: '암속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '암흑 폭발', description: '암속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'dark', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '맹렬한 일격', description: '적 하나에게 큰 피해', type: 'attack', rarity: 'deep', cost: 3, power: 2.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '강화 방어', description: '받는 피해 60% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'self', defense_mult: 0.6, cooldown: 0, extra: '{}' },
+        { name: '완벽한 방어', description: '받는 피해 80% 감소', type: 'defense', rarity: 'deep', cost: 3, power: 0, element: 'neutral', target: 'self', defense_mult: 0.8, cooldown: 0, extra: '{}' },
+        { name: '반격 방어', description: '피해 50% 감소 + 반격', type: 'defense', rarity: 'deep', cost: 2, power: 0.5, element: 'neutral', target: 'self', defense_mult: 0.5, cooldown: 0, extra: '{"counter":true}' },
+        { name: '보호막', description: '아군 하나 피해 50% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'ally_single', defense_mult: 0.5, cooldown: 0, extra: '{}' },
+        { name: '황혼의 불꽃', description: '적 전체 ATK 400% + 아군 ATK 버프', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 4.0, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"atk","amount":0.3,"turns":2}}' },
+        { name: '벚꽃 난무', description: '적 전체 ATK 380% 피해', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 3.8, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '무채의 꿈', description: '적 전체 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.5, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '파프니르의 화염', description: '적 하나 ATK 450% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.5, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '새벽의 기도', description: '아군 전체 HP 40% 회복 + ATK 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'light', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true,"buff":{"stat":"atk","amount":0.2,"turns":2}}' },
+        { name: '심연의 조율', description: '아군 전체 HP 40% 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'water', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true}' },
+        { name: '용안 해방', description: '적 전체 ATK 300% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '마노의 방패', description: '적 전체 ATK 280% + 아군 DEF 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 2.8, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"def","amount":0.3,"turns":2}}' },
+        { name: '선향불꽃', description: '적 하나 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 3.5, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '잊혀진 마도', description: '적 하나 ATK 400% (DEF 무시)', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.0, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"ignoreDef":true}' },
+        { name: '정령의 날개', description: '적 전체 ATK 280% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 2.8, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '미식의 심장', description: '적 전체 300% + 아군 HP 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"alsoHeal":0.2}' },
+        { name: '응급 치료', description: '아군 하나 HP 25% 회복', type: 'heal', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '전체 치유', description: '아군 전체 HP 15% 회복', type: 'heal', rarity: 'deep', cost: 3, power: 0.15, element: 'neutral', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{}' },
+        { name: '전투 고무', description: '아군 하나 ATK 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"atk","turns":3}' },
+        { name: '철벽 강화', description: '아군 하나 DEF 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
+        { name: '약점 간파', description: '적 하나 DEF 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
+        { name: '속도 저하', description: '적 하나 SPD 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"spd","turns":3}' },
+      ];
+
+      const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra'];
+      for (const s of skillSeed) {
+        const vals = sCols.map(k => s[k]);
+        const placeholders = sCols.map(() => '?').join(', ');
+        db.prepare(`INSERT INTO skills (${sCols.join(', ')}) VALUES (${placeholders})`).run(...vals);
+      }
+      console.log(`[DB] ${skillSeed.length}개 스킬 시드 완료 (하드코딩)`);
+
+      const getSkillId = (name) => db.prepare('SELECT id FROM skills WHERE name = ?').get(name)?.id;
+      const getCharId = (name) => db.prepare('SELECT id FROM characters WHERE name = ?').get(name)?.id;
+
+      // awakening: { 0: 획득 시, 1: 1각성 시, ... }
+      const charSkillMap = [
+        { char: '유카리', awakening: { 0: ['기본 타격','강타','화염 베기','기본 방어','황혼의 불꽃'] } },
+        { char: '츠바키', awakening: { 0: ['기본 타격','맹렬한 일격','빛의 창','기본 방어','벚꽃 난무'] } },
+        { char: '시스투스', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','무채의 꿈'] } },
+        { char: '베르트랑', awakening: { 0: ['기본 타격','강타','기본 방어','반격 방어','파프니르의 화염'] } },
+        { char: '아우라', awakening: { 0: ['기본 타격','빛의 창','기본 방어','응급 치료','새벽의 기도'] } },
+        { char: '카날리', awakening: { 0: ['기본 타격','수류탄','기본 방어','보호막','심연의 조율'] } },
+        { char: '코루리', awakening: { 0: ['기본 타격','빛의 창','기본 방어','전투 고무','용안 해방'] } },
+        { char: '리카', awakening: { 0: ['기본 타격','수류탄','기본 방어','강화 방어','마노의 방패'] } },
+        { char: '린네', awakening: { 0: ['기본 타격','강타','덩굴 채찍','기본 방어','선향불꽃'] } },
+        { char: '페리도트', awakening: { 0: ['기본 타격','어둠의 칼날','기본 방어','약점 간파','잊혀진 마도'] } },
+        { char: '렌', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','속도 저하','정령의 날개'] } },
+        { char: '게로트', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','미식의 심장'] } },
+        { char: '쿼시', awakening: { 0: ['기본 타격','빛의 창','기본 방어','전투 고무'] } },
+        { char: '가네트', awakening: { 0: ['기본 타격','화염 베기','기본 방어','강화 방어'] } },
+        { char: '호프', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어'] } },
+        { char: '메이', awakening: { 0: ['기본 타격','어둠의 칼날','기본 방어'] } },
+        { char: '티어리', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','강화 방어'] } },
+        { char: '밥', awakening: { 0: ['기본 타격','화염 베기','기본 방어'] } },
+        { char: '아이유브', awakening: { 0: ['기본 타격','화염 베기','기본 방어'] } },
+        { char: '리사', awakening: { 0: ['기본 타격','빛의 창','기본 방어','응급 치료'] } },
+        { char: '아르시스', awakening: { 0: ['기본 타격','수류탄','기본 방어','응급 치료'] } },
+      ];
+
+      const fixedSkillTypes = new Set(['ultimate']);
+      for (const mapping of charSkillMap) {
+        const charId = getCharId(mapping.char);
+        if (!charId) continue;
+        for (const [awk, skillNames] of Object.entries(mapping.awakening)) {
+          for (const skillName of skillNames) {
+            const skillId = getSkillId(skillName);
+            if (!skillId) continue;
+            const skill = skillSeed.find(s => s.name === skillName);
+            const isFixed = (skill && fixedSkillTypes.has(skill.type)) ? 1 : 0;
+            const awkNum = Number(awk);
+            try {
+              db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default, is_fixed, awakening_required) VALUES (?, ?, ?, ?, ?)')
+                .run(charId, skillId, awkNum === 0 ? 1 : 0, isFixed, awkNum);
+            } catch (e) {}
+          }
+        }
+      }
+      console.log('[DB] 캐릭터-스킬 매핑 완료 (하드코딩)');
+    }
   }
 
   // ============ 스테이지 시드 ============
@@ -699,5 +767,133 @@ async function initDb() {
   return db;
 }
 
+// 스킬 타입 → 슬롯 타입
+const DEFENSE_SKILL_TYPES = ['defense'];
+function getSlotTypeForSkill(type) {
+  return DEFENSE_SKILL_TYPES.includes(type) ? 'defense' : 'attack';
+}
+
+// 캐릭터 획득/각성 시 스킬 부여
+function initCharacterSkills(userId, inventoryId, characterId, awakeningLevel) {
+  if (awakeningLevel === undefined) awakeningLevel = 0;
+  const skills = dbProxy.prepare(`
+    SELECT s.*, cs.is_fixed FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+    WHERE cs.character_id = ? AND cs.awakening_required >= 0 AND cs.awakening_required <= ?
+  `).all(characterId, awakeningLevel);
+
+  const occupied = dbProxy.prepare('SELECT slot_type, slot_number FROM equipped_skills WHERE inventory_id = ?').all(inventoryId);
+  const atkOccupied = new Set(occupied.filter(o => o.slot_type === 'attack').map(o => o.slot_number));
+  const defOccupied = new Set(occupied.filter(o => o.slot_type === 'defense').map(o => o.slot_number));
+
+  for (const s of skills) {
+    const already = dbProxy.prepare('SELECT 1 FROM equipped_skills WHERE inventory_id = ? AND skill_id = ?').get(inventoryId, s.id);
+    if (already) continue;
+
+    const st = getSlotTypeForSkill(s.type);
+    const occ = st === 'attack' ? atkOccupied : defOccupied;
+    let nextSlot = -1;
+    for (let i = 0; i < 10; i++) { if (!occ.has(i)) { nextSlot = i; break; } }
+    if (nextSlot === -1) continue;
+    occ.add(nextSlot);
+
+    let siId = null;
+    if (!s.is_fixed) {
+      const si = dbProxy.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
+        .run(userId, s.id, awakeningLevel === 0 ? 'character' : 'awakening');
+      siId = si.lastInsertRowid;
+    }
+    dbProxy.prepare('INSERT INTO equipped_skills (inventory_id, skill_id, slot_number, slot_type, is_fixed, skill_inventory_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(inventoryId, s.id, nextSlot, st, s.is_fixed ? 1 : 0, siId);
+  }
+  dbProxy.prepare('UPDATE inventory SET skills_initialized = 1 WHERE id = ?').run(inventoryId);
+}
+
+// 각성 시 해당 단계 스킬만 부여
+function grantAwakeningSkills(userId, inventoryId, characterId, awakeningLevel) {
+  const skills = dbProxy.prepare(`
+    SELECT s.*, cs.is_fixed FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+    WHERE cs.character_id = ? AND cs.awakening_required = ?
+  `).all(characterId, awakeningLevel);
+  if (skills.length === 0) return [];
+
+  const occupied = dbProxy.prepare('SELECT slot_type, slot_number FROM equipped_skills WHERE inventory_id = ?').all(inventoryId);
+  const atkOccupied = new Set(occupied.filter(o => o.slot_type === 'attack').map(o => o.slot_number));
+  const defOccupied = new Set(occupied.filter(o => o.slot_type === 'defense').map(o => o.slot_number));
+  const granted = [];
+
+  for (const s of skills) {
+    const st = getSlotTypeForSkill(s.type);
+    const occ = st === 'attack' ? atkOccupied : defOccupied;
+    let nextSlot = -1;
+    for (let i = 0; i < 10; i++) { if (!occ.has(i)) { nextSlot = i; break; } }
+
+    let siId = null;
+    if (!s.is_fixed) {
+      const si = dbProxy.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
+        .run(userId, s.id, 'awakening');
+      siId = si.lastInsertRowid;
+    }
+
+    if (nextSlot !== -1) {
+      occ.add(nextSlot);
+      dbProxy.prepare('INSERT INTO equipped_skills (inventory_id, skill_id, slot_number, slot_type, is_fixed, skill_inventory_id) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(inventoryId, s.id, nextSlot, st, s.is_fixed ? 1 : 0, siId);
+    }
+    granted.push({ id: s.id, name: s.name, type: s.type, equipped: nextSlot !== -1 });
+  }
+  return granted;
+}
+
+// 장착 조건 체크
+const RARITY_ORDER = ['N', 'R', 'SR', 'SSR', 'CR'];
+function checkEquipCondition(conditionJson, character) {
+  const condition = typeof conditionJson === 'string' ? JSON.parse(conditionJson || '{}') : (conditionJson || {});
+  if (Object.keys(condition).length === 0) return true;
+  for (const [key, value] of Object.entries(condition)) {
+    if (key === 'element') {
+      if (Array.isArray(value) ? !value.includes(character.element) : character.element !== value) return false;
+    } else if (key === 'origin') {
+      if (Array.isArray(value) ? !value.includes(character.origin) : character.origin !== value) return false;
+    } else if (key === 'minRarity') {
+      if (RARITY_ORDER.indexOf(character.rarity) < RARITY_ORDER.indexOf(value)) return false;
+    }
+  }
+  return true;
+}
+
+function exportGameData() {
+  try {
+    const characters = dbProxy.prepare('SELECT * FROM characters ORDER BY id').all();
+    const skills = dbProxy.prepare('SELECT * FROM skills ORDER BY id').all();
+    const mappings = dbProxy.prepare(`
+      SELECT cs.*, c.name as charName, s.name as skillName
+      FROM character_skills cs
+      JOIN characters c ON cs.character_id = c.id
+      JOIN skills s ON cs.skill_id = s.id
+      ORDER BY cs.character_id, cs.skill_id
+    `).all();
+
+    const data = {
+      characters,
+      skills,
+      characterSkills: mappings.map(m => ({
+        charName: m.charName,
+        skillName: m.skillName,
+        awakening_required: m.awakening_required ?? 0,
+        is_fixed: m.is_fixed,
+      })),
+    };
+
+    fs.writeFileSync(SEED_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    console.log('[DB] game_seed.json 자동 저장 완료');
+  } catch (e) {
+    console.error('[DB] game_seed.json 저장 실패:', e.message);
+  }
+}
+
 module.exports = dbProxy;
 module.exports.initDb = initDb;
+module.exports.initCharacterSkills = initCharacterSkills;
+module.exports.grantAwakeningSkills = grantAwakeningSkills;
+module.exports.checkEquipCondition = checkEquipCondition;
+module.exports.exportGameData = exportGameData;

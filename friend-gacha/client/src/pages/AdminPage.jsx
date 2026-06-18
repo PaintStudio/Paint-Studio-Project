@@ -22,6 +22,9 @@ const RARITIES = Object.keys(gameConfig.rarities);
 const ELEMENTS = Object.keys(gameConfig.elements);
 const ORIGINS = Object.keys(gameConfig.origins);
 const SKILL_TYPES = Object.keys(gameConfig.skillTypes);
+const SKILL_RARITIES = Object.keys(gameConfig.skillRarities);
+const SKILL_RARITY_LABEL = {};
+for (const [k, v] of Object.entries(gameConfig.skillRarities)) SKILL_RARITY_LABEL[k] = v.label;
 const TARGETS = Object.keys(gameConfig.targets);
 
 const RARITY_COLORS = {};
@@ -117,6 +120,7 @@ export default function AdminPage() {
     const [form, setForm] = useState(initial || {
       name: '', rarity: 'N', element: 'neutral', origin: 'force', title: '', description: '', quote: '',
       base_hp: 1000, base_atk: 100, base_def: 80, base_spd: 100, turn_notes: 4,
+      attack_slots: 3, defense_slots: 2,
     });
     const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -137,6 +141,8 @@ export default function AdminPage() {
           <label>칭호<input value={form.title || ''} onChange={e => set('title', e.target.value)} /></label>
           <label>대사<input value={form.quote || ''} onChange={e => set('quote', e.target.value)} /></label>
           <label>턴 노트<input type="number" value={form.turn_notes} onChange={e => set('turn_notes', +e.target.value)} /></label>
+          <label>공격 슬롯<input type="number" min="0" max="10" value={form.attack_slots ?? 3} onChange={e => set('attack_slots', +e.target.value)} /></label>
+          <label>방어 슬롯<input type="number" min="0" max="10" value={form.defense_slots ?? 2} onChange={e => set('defense_slots', +e.target.value)} /></label>
           <label>HP<input type="number" value={form.base_hp} onChange={e => set('base_hp', +e.target.value)} /></label>
           <label>ATK<input type="number" value={form.base_atk} onChange={e => set('base_atk', +e.target.value)} /></label>
           <label>DEF<input type="number" value={form.base_def} onChange={e => set('base_def', +e.target.value)} /></label>
@@ -154,8 +160,8 @@ export default function AdminPage() {
   // ====== 스킬 편집 폼 ======
   const SkillForm = ({ initial, onSave, onCancel }) => {
     const [form, setForm] = useState(initial || {
-      name: '', description: '', type: 'attack', cost: 1, power: 1.0,
-      element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}',
+      name: '', description: '', type: 'attack', rarity: 'faint', cost: 1, power: 1.0,
+      element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}', equip_condition: '{}',
     });
     const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -166,6 +172,9 @@ export default function AdminPage() {
           <label>이름<input value={form.name} onChange={e => set('name', e.target.value)} /></label>
           <label>타입<select value={form.type} onChange={e => set('type', e.target.value)}>
             {SKILL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select></label>
+          <label>등급<select value={form.rarity || 'faint'} onChange={e => set('rarity', e.target.value)}>
+            {SKILL_RARITIES.map(r => <option key={r} value={r}>{SKILL_RARITY_LABEL[r]} ({r})</option>)}
           </select></label>
           <label>코스트<input type="number" value={form.cost} onChange={e => set('cost', +e.target.value)} /></label>
           <label>위력<input type="number" step="0.1" value={form.power} onChange={e => set('power', +e.target.value)} /></label>
@@ -180,6 +189,7 @@ export default function AdminPage() {
         </div>
         <label className="form-wide">설명<input value={form.description || ''} onChange={e => set('description', e.target.value)} /></label>
         <label className="form-wide">추가 데이터 (JSON)<input value={typeof form.extra === 'string' ? form.extra : JSON.stringify(form.extra)} onChange={e => set('extra', e.target.value)} /></label>
+        <label className="form-wide">장착 조건 (JSON)<input value={typeof form.equip_condition === 'string' ? form.equip_condition : JSON.stringify(form.equip_condition || {})} onChange={e => set('equip_condition', e.target.value)} placeholder='예: {"element":"fire"} / {"element":["fire","water"]} / {"minRarity":"SR"}' /></label>
         <div className="form-actions">
           <button className="btn-save" onClick={() => onSave(form)}>저장</button>
           <button className="btn-cancel" onClick={onCancel}>취소</button>
@@ -245,7 +255,7 @@ export default function AdminPage() {
   };
 
   const addSkillToChar = async (charId, skillId) => {
-    await req('/characters/' + charId + '/skills', { method: 'POST', body: { skillId, isDefault: false } });
+    await req('/characters/' + charId + '/skills', { method: 'POST', body: { skillId, awakeningRequired: 0 } });
     loadCharDetail(charId);
   };
 
@@ -254,8 +264,13 @@ export default function AdminPage() {
     loadCharDetail(charId);
   };
 
-  const toggleDefault = async (charId, skillId) => {
-    await req('/characters/' + charId + '/skills/' + skillId + '/default', { method: 'PATCH' });
+  const setAwakeningRequired = async (charId, skillId, value) => {
+    await req('/characters/' + charId + '/skills/' + skillId + '/awakening', { method: 'PATCH', body: { awakeningRequired: value } });
+    loadCharDetail(charId);
+  };
+
+  const toggleFixed = async (charId, skillId) => {
+    await req('/characters/' + charId + '/skills/' + skillId + '/fixed', { method: 'PATCH' });
     loadCharDetail(charId);
   };
 
@@ -632,6 +647,8 @@ export default function AdminPage() {
                       <span>DEF: {selectedChar.base_def}</span>
                       <span>SPD: {selectedChar.base_spd}</span>
                       <span>턴노트: {selectedChar.turn_notes}</span>
+                      <span>공격슬롯: {selectedChar.attack_slots ?? 3}</span>
+                      <span>방어슬롯: {selectedChar.defense_slots ?? 2}</span>
                       <span className="elem-badge" style={{ background: ELEM_COLORS[selectedChar.element] }}>
                         {ELEM_LABEL[selectedChar.element]}
                       </span>
@@ -657,11 +674,18 @@ export default function AdminPage() {
                           <span className="skill-name">{s.name}</span>
                           <span className="skill-cost">코스트:{s.cost}</span>
                           {s.type === 'attack' || s.type === 'ultimate' ? <span className="skill-power">위력:{s.power}</span> : null}
-                          {s.is_default ? <span className="default-badge">기본</span> : null}
+                          {s.is_fixed ? <span className="fixed-badge">고정</span> : null}
                         </div>
                         <div className="skill-actions">
-                          <button onClick={() => toggleDefault(selectedChar.id, s.id)}>
-                            {s.is_default ? '기본해제' : '기본설정'}
+                          <button onClick={() => {
+                            const cur = s.awakening_required ?? 0;
+                            const next = cur >= 2 ? 0 : cur + 1;
+                            setAwakeningRequired(selectedChar.id, s.id, next);
+                          }}>
+                            {(s.awakening_required ?? 0) === 0 ? '획득시' : s.awakening_required + '각성'}
+                          </button>
+                          <button onClick={() => toggleFixed(selectedChar.id, s.id)}>
+                            {s.is_fixed ? '고정해제' : '고정설정'}
                           </button>
                           <button className="btn-remove" onClick={() => removeSkillFromChar(selectedChar.id, s.id)}>제거</button>
                         </div>
@@ -706,7 +730,7 @@ export default function AdminPage() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th><th>이름</th><th>타입</th><th>코스트</th><th>위력</th>
+                  <th>ID</th><th>이름</th><th>타입</th><th>등급</th><th>코스트</th><th>위력</th>
                   <th>속성</th><th>타겟</th><th>방어배율</th><th>설명</th><th></th>
                 </tr>
               </thead>
@@ -716,6 +740,7 @@ export default function AdminPage() {
                     <td>{s.id}</td>
                     <td className="skill-name-cell">{s.name}</td>
                     <td><span className={'skill-type st-' + s.type}>{s.type}</span></td>
+                    <td>{SKILL_RARITY_LABEL[s.rarity] || s.rarity || '-'}</td>
                     <td>{s.cost}</td>
                     <td>{s.power}</td>
                     <td><span className="elem-badge-sm" style={{ background: ELEM_COLORS[s.element] }}>{ELEM_LABEL[s.element]}</span></td>

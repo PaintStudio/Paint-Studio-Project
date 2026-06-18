@@ -10,6 +10,7 @@ import SocialPage from './pages/SocialPage';
 import StagePage from './pages/StagePage';
 import RaidPage from './pages/RaidPage';
 import GrowthPage from './pages/GrowthPage';
+import InventoryPage from './pages/InventoryPage';
 import AdminPage from './pages/AdminPage';
 import ToastContainer from './components/Toast';
 import './styles/app.css';
@@ -97,6 +98,7 @@ export default function App() {
   const tabs = [
     { key: 'lobby', label: '로비', icon: '🏠' },
     { key: 'character', label: '캐릭터', icon: '👤' },
+    { key: 'inventory', label: '보관함', icon: '🎒' },
     { key: 'battle', label: '배틀', icon: '⚔️' },
     { key: 'gacha', label: '뽑기', icon: '🎰' },
     { key: 'social', label: '소셜', icon: '💬' },
@@ -129,6 +131,7 @@ export default function App() {
             : <StagePage user={user} onRefresh={refreshUser} addToast={addToast} />
         )}
         {page === 'gacha' && <GachaPage user={user} onPull={() => { refreshUser(); loadMissions(); }} addToast={addToast} />}
+        {page === 'inventory' && <InventoryPage user={user} />}
         {page === 'social' && <SocialPage user={user} addToast={addToast} onRefresh={refreshUser} />}
         {page === 'admin' && <AdminPage />}
       </main>

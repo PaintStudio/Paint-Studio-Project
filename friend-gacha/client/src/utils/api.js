@@ -28,6 +28,9 @@ export const api = {
   pull10: (bannerId) => request('/gacha/pull10', { method: 'POST', body: { bannerId } }),
   rates: (bannerId) => request('/gacha/rates' + (bannerId ? '?bannerId=' + bannerId : '')),
   banners: () => request('/gacha/banners'),
+  skillPull: () => request('/gacha/skill-pull', { method: 'POST' }),
+  skillPull10: () => request('/gacha/skill-pull10', { method: 'POST' }),
+  skillRates: () => request('/gacha/skill-rates'),
   myCollection: () => request('/collection/my'),
   userCollection: (userId) => request('/collection/user/' + userId),
   markSeen: (invId) => request('/collection/mark-seen/' + invId, { method: 'PATCH' }),
@@ -65,12 +68,13 @@ export const api = {
   charDetail: (invId) => request('/growth/detail/' + invId),
   levelUp: (inventoryId, amount) => request('/growth/levelup', { method: 'POST', body: { inventoryId, amount } }),
   awaken: (inventoryId, materialId) => request('/growth/awaken', { method: 'POST', body: { inventoryId, materialId } }),
-  equipSkill: (inventoryId, skillId, slotNumber) =>
-    request('/growth/equip-skill', { method: 'POST', body: { inventoryId, skillId, slotNumber } }),
-  unequipSkill: (inventoryId, slotNumber) =>
-    request('/growth/unequip-skill', { method: 'POST', body: { inventoryId, slotNumber } }),
+  equipSkill: (inventoryId, skillId, slotNumber, slotType, skillInventoryId) =>
+    request('/growth/equip-skill', { method: 'POST', body: { inventoryId, skillId, slotNumber, slotType, skillInventoryId } }),
+  unequipSkill: (inventoryId, slotNumber, slotType) =>
+    request('/growth/unequip-skill', { method: 'POST', body: { inventoryId, slotNumber, slotType } }),
   equipSkillsBulk: (inventoryId, skillIds) =>
     request('/growth/equip-skills-bulk', { method: 'POST', body: { inventoryId, skillIds } }),
+  skillInventory: () => request('/growth/skill-inventory'),
   partyList: () => request('/growth/party-list'),
   // 로비
   lobby: () => request('/growth/lobby'),

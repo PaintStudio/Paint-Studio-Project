@@ -5,6 +5,9 @@ import './GrowthPage.css';
 
 const ELEM_ICONS = { fire: '🔥', water: '💧', wind: '🌿', light: '✨', dark: '🌑', neutral: '⚪' };
 
+const ELEM_COLORS = {};
+for (const [k, v] of Object.entries(gameConfig.elements)) ELEM_COLORS[k] = v.color;
+
 const ORIGIN_LABELS = {};
 const ORIGIN_COLORS = {};
 for (const [k, v] of Object.entries(gameConfig.origins)) {
@@ -35,12 +38,14 @@ function SkillTypeBadge({ type }) {
   );
 }
 
-function SkillCard({ skill, equipped, onAction, actionLabel }) {
+function SkillCard({ skill, equipped, onAction, actionLabel, count }) {
   return (
     <div className={`sk-card ${equipped ? 'sk-equipped' : ''}`} onClick={onAction}>
       <div className="sk-card-header">
         <SkillTypeBadge type={skill.type} />
-        <span className="sk-card-name">{skill.name}{equipped !== undefined && equipped && ' ✓'}</span>
+        <span className="sk-card-name">{skill.name}{equipped !== undefined && equipped && ' &#10003;'}</span>
+        {count > 1 && <span className="sk-count-badge">&#215;{count}</span>}
+        {skill.isFixed && <span className="sk-fixed-badge">&#128274;</span>}
       </div>
       {skill.description && <p className="sk-card-desc">{skill.description}</p>}
       <div className="sk-card-footer">
@@ -147,18 +152,18 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
     } catch (err) { addToast(err.message, 'error'); }
   };
 
-  const equipSkill = async (skillId, slot) => {
+  const equipSkill = async (skillId, slotNumber, slotType, skillInventoryId) => {
     try {
-      await api.equipSkill(selected, skillId, slot);
+      await api.equipSkill(selected, skillId, slotNumber, slotType, skillInventoryId || undefined);
       loadDetail(selected);
       setPoolPage(0);
       addToast('스킬 장착!', 'trade');
     } catch (err) { addToast(err.message, 'error'); }
   };
 
-  const unequipSkill = async (slot) => {
+  const unequipSkill = async (slotNumber, slotType) => {
     try {
-      await api.unequipSkill(selected, slot);
+      await api.unequipSkill(selected, slotNumber, slotType);
       loadDetail(selected);
       addToast('스킬 해제', 'trade');
     } catch (err) { addToast(err.message, 'error'); }
@@ -205,19 +210,27 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
         </div>
         <div className="char-card-grid">
           {sorted.map(c => {
-            const originColor = ORIGIN_COLORS[c.origin] || '#666';
+            const rarityColor = RARITY_COLORS[c.rarity] || '#666';
+            const elemColor = ELEM_COLORS[c.element] || '#95a5a6';
+            const originImg = `/uploads/origins/${c.origin}.png`;
             return (
               <div key={c.inventory_id} className="char-card" onClick={() => selectChar(c)}
-                style={{ borderColor: originColor }}>
+                style={{ borderColor: rarityColor === 'rainbow' ? '#ffd700' : rarityColor }}>
                 <div className="char-card-inner">
-                  <span className="char-card-elem">{ELEM_ICONS[c.element]}</span>
+                  <span className="char-card-origin-wrap">
+                    <span className="char-card-origin" style={{
+                      backgroundColor: elemColor,
+                      WebkitMaskImage: `url(${originImg})`,
+                      maskImage: `url(${originImg})`,
+                    }} />
+                  </span>
                   {(c.image_bust || c.image_url)
                     ? <img src={c.image_bust || c.image_url} alt={c.name} className="char-card-img" />
                     : <span className="char-card-initial">{c.name[0]}</span>}
                   <div className="char-card-level">Lv.{c.level}</div>
                 </div>
                 <div className="char-card-bottom">
-                  <span className="char-card-rarity" style={{ color: RARITY_COLORS[c.rarity] === 'rainbow' ? '#ffd700' : (RARITY_COLORS[c.rarity] || '#aaa') }}>{c.rarity}</span>
+                  <span className="char-card-rarity" style={{ color: rarityColor === 'rainbow' ? '#ffd700' : (rarityColor || '#aaa') }}>{c.rarity}</span>
                   <span className="char-card-name">{c.name}</span>
                 </div>
               </div>
@@ -233,9 +246,17 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
   const d = detail;
   const rarityColor = RARITY_COLORS[d.rarity] || '#888';
 
-  // 스킬 풀 페이지네이션
-  const totalPoolPages = Math.max(1, Math.ceil(d.skillPool.length / POOL_PAGE_SIZE));
-  const pagedPool = d.skillPool.slice(poolPage * POOL_PAGE_SIZE, (poolPage + 1) * POOL_PAGE_SIZE);
+  // 스킬 풀 = 전체 공용 인벤토리 (같은 스킬 묶기)
+  const groupedPool = (() => {
+    const map = {};
+    for (const s of (d.skillInventory || [])) {
+      if (!map[s.id]) map[s.id] = { ...s, count: 1, siIds: [s.skillInventoryId] };
+      else { map[s.id].count++; map[s.id].siIds.push(s.skillInventoryId); }
+    }
+    return Object.values(map);
+  })();
+  const totalPoolPages = Math.max(1, Math.ceil(groupedPool.length / POOL_PAGE_SIZE));
+  const pagedPool = groupedPool.slice(poolPage * POOL_PAGE_SIZE, (poolPage + 1) * POOL_PAGE_SIZE);
 
   return (
     <div className="growth-page detail-view">
@@ -264,8 +285,9 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
 
             <div className="detail-badge-row">
               <span className="detail-badge">Lv.{d.level}/{d.maxLevel}</span>
-              <span className="detail-badge">{d.awakening}/5 ★</span>
-              <span className="detail-badge">🎵 {d.turnNotes}</span>
+              <span className="detail-badge">{d.awakening}/5 &#9733;</span>
+              <span className="detail-badge">&#9835; {d.turnNotes}</span>
+              <span className="detail-badge">&#9876; {d.attackSlots?.total ?? 3} / &#128737; {d.defenseSlots?.total ?? 2}</span>
             </div>
 
             <div className="detail-exp-line">{d.exp}/{d.nextLevelExp} EXP</div>
@@ -297,40 +319,73 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
 
           <div className="detail-tab-content">
             {/* === 스킬 탭 === */}
-            {activeTab === 'skills' && (
-              <div className="tab-skills">
-                <h3 className="tab-section-title">장착 스킬</h3>
-                <div className="equipped-list">
-                  {d.equippedSkills.map((s, i) => (
-                    <SkillCard key={i} skill={s} actionLabel="해제"
-                      onAction={() => unequipSkill(i)} />
-                  ))}
-                  {d.equippedSkills.length === 0 && <p className="empty-msg">장착된 스킬이 없습니다</p>}
-                </div>
+            {activeTab === 'skills' && (() => {
+              const atkSlots = d.attackSlots || { total: 3, skills: [] };
+              const defSlots = d.defenseSlots || { total: 2, skills: [] };
+              const allEquippedSiIds = new Set([...atkSlots.skills, ...defSlots.skills].filter(s => s.skillInventoryId).map(s => s.skillInventoryId));
 
-                <div className="pool-header">
-                  <h3 className="tab-section-title">스킬 풀</h3>
-                  {totalPoolPages > 1 && (
-                    <div className="pool-pager">
-                      <button className="pool-arrow" disabled={poolPage <= 0} onClick={() => setPoolPage(p => p - 1)}>‹</button>
-                      <span className="pool-page-num">{poolPage + 1}/{totalPoolPages}</span>
-                      <button className="pool-arrow" disabled={poolPage >= totalPoolPages - 1} onClick={() => setPoolPage(p => p + 1)}>›</button>
+              const renderSlotSection = (label, slots, slotType) => {
+                const emptyCount = Math.max(0, slots.total - slots.skills.length);
+                return (
+                  <div className="slot-section">
+                    <h3 className="tab-section-title">{label} ({slots.skills.length}/{slots.total})</h3>
+                    <div className="equipped-list">
+                      {slots.skills.map((s) => (
+                        <SkillCard key={`${slotType}-${s.slot}`} skill={s}
+                          actionLabel={s.isFixed ? null : '해제'}
+                          onAction={() => { if (!s.isFixed) unequipSkill(s.slot, slotType); }} />
+                      ))}
+                      {Array.from({ length: emptyCount }, (_, i) => (
+                        <div key={`empty-${slotType}-${i}`} className="sk-card sk-empty">
+                          <span className="sk-empty-label">빈 슬롯</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="tab-skills">
+                  {renderSlotSection('공격 슬롯', atkSlots, 'attack')}
+                  {renderSlotSection('방어 슬롯', defSlots, 'defense')}
+
+                  <div className="pool-header">
+                    <h3 className="tab-section-title">스킬 풀 ({groupedPool.length})</h3>
+                    {totalPoolPages > 1 && (
+                      <div className="pool-pager">
+                        <button className="pool-arrow" disabled={poolPage <= 0} onClick={() => setPoolPage(p => p - 1)}>&#8249;</button>
+                        <span className="pool-page-num">{poolPage + 1}/{totalPoolPages}</span>
+                        <button className="pool-arrow" disabled={poolPage >= totalPoolPages - 1} onClick={() => setPoolPage(p => p + 1)}>&#8250;</button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pool-grid">
+                    {pagedPool.map((g) => {
+                      const targetSlotType = g.slotType || 'attack';
+                      const targetSlots = targetSlotType === 'attack' ? atkSlots : defSlots;
+                      const occupied = new Set(targetSlots.skills.map(sk => sk.slot));
+                      let nextSlot = -1;
+                      for (let i = 0; i < targetSlots.total; i++) {
+                        if (!occupied.has(i)) { nextSlot = i; break; }
+                      }
+                      const isFull = nextSlot === -1;
+                      const freeSiId = g.siIds.find(id => !allEquippedSiIds.has(id));
+                      const allUsed = !freeSiId;
+                      return (
+                        <SkillCard key={`pool-${g.id}`} skill={g} equipped={allUsed || isFull}
+                          count={g.count}
+                          onAction={() => {
+                            if (!allUsed && !isFull) {
+                              equipSkill(g.id, nextSlot, targetSlotType, freeSiId);
+                            }
+                          }} />
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="pool-grid">
-                  {pagedPool.map(s => {
-                    const isEquipped = d.equippedSkills.some(es => es.id === s.id);
-                    return (
-                      <SkillCard key={s.id} skill={s} equipped={isEquipped}
-                        onAction={() => {
-                          if (!isEquipped) equipSkill(s.id, d.equippedSkills.length);
-                        }} />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* === 육성 탭 === */}
             {activeTab === 'growth' && (

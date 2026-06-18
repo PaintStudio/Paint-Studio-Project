@@ -8,9 +8,28 @@ import './GachaPage.css';
 const RARITY_COLORS = {};
 for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
 
+const SKILL_RARITY_COLORS = {};
+const SKILL_RARITY_LABELS = {};
+for (const [k, v] of Object.entries(gameConfig.skillRarities)) {
+  SKILL_RARITY_COLORS[k] = v.color;
+  SKILL_RARITY_LABELS[k] = v.label;
+}
+
+const SKILL_TYPE_LABELS = {};
+const SKILL_TYPE_COLORS = {};
+for (const [k, v] of Object.entries(gameConfig.skillTypes)) {
+  SKILL_TYPE_LABELS[k] = v.label;
+  SKILL_TYPE_COLORS[k] = v.color;
+}
+
 function getRarityStyle(rarity) {
   if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
   return { color: RARITY_COLORS[rarity] || '#888' };
+}
+
+function getSkillRarityStyle(rarity) {
+  if (rarity === 'iridescent') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
+  return { color: SKILL_RARITY_COLORS[rarity] || '#aaa' };
 }
 
 export default function GachaPage({ user, onPull, addToast }) {
@@ -20,6 +39,8 @@ export default function GachaPage({ user, onPull, addToast }) {
   const [currentReveal, setCurrentReveal] = useState(0);
   const [banners, setBanners] = useState([]);
   const [selectedBanner, setSelectedBanner] = useState(null);
+  const [gachaMode, setGachaMode] = useState('character');
+  const [skillResults, setSkillResults] = useState([]);
 
   useEffect(() => {
     api.banners().then(d => {
@@ -74,8 +95,27 @@ export default function GachaPage({ user, onPull, addToast }) {
     setPhase('idle');
     setPulling(false);
     setResults([]);
+    setSkillResults([]);
     setCurrentReveal(0);
     onPull();
+  };
+
+  // 스킬 가챠
+  const doSkillPull = async (multi) => {
+    setPulling(true);
+    setPhase('charging');
+    try {
+      const data = multi ? await api.skillPull10() : await api.skillPull();
+      const pullResults = multi ? data.results : [data.result];
+      setTimeout(() => {
+        setSkillResults(pullResults);
+        setPhase('skill-results');
+      }, 1200);
+    } catch (err) {
+      addToast(err.message, 'error');
+      setPhase('idle');
+      setPulling(false);
+    }
   };
 
   if (phase === 'charging') {
@@ -134,77 +174,139 @@ export default function GachaPage({ user, onPull, addToast }) {
     );
   }
 
+  if (phase === 'skill-results') {
+    return (
+      <div className="gacha-results">
+        <h2 className="results-title">스킬 뽑기 결과</h2>
+        <div className="results-grid">
+          {skillResults.map((r, i) => (
+            <div key={i} className="result-item skill-result-item">
+              <span className="skill-result-type" style={{ background: SKILL_TYPE_COLORS[r.skill.type] || '#666' }}>
+                {SKILL_TYPE_LABELS[r.skill.type] || r.skill.type}
+              </span>
+              <span className="skill-result-name">{r.skill.name}</span>
+              <span className="skill-result-rarity" style={getSkillRarityStyle(r.rarity)}>
+                {SKILL_RARITY_LABELS[r.rarity] || r.rarity}
+              </span>
+              {r.skill.description && <span className="skill-result-desc">{r.skill.description}</span>}
+            </div>
+          ))}
+        </div>
+        <button className="btn-primary" onClick={finish}>확인</button>
+      </div>
+    );
+  }
+
+  const skillGachaCfg = gameConfig.skillGacha;
+  const skillPullCost = skillGachaCfg.pullCost;
+  const skillMultiCost = skillPullCost * skillGachaCfg.multiPullCount;
+
   return (
     <div className="gacha-main">
-      <div className="banner-list">
-        {banners.map(b => {
-          const selected = banner?.id === b.id;
-          const bRates = b.rates || gameConfig.gacha.rates;
-          return (
-            <div key={b.id}
-              className={`gacha-banner ${selected ? 'selected' : ''}`}
-              onClick={() => setSelectedBanner(b)}>
-              {b.image ? (
-                <img src={b.image} alt={b.name} className="banner-img" />
-              ) : (
-                <div className="banner-bg" />
-              )}
-              <div className="banner-overlay">
-                <h2 className="banner-title">{b.name}</h2>
-                {b.description && <p className="banner-sub">{b.description}</p>}
-                {b.type === 'limited' && b.endDate && (
-                  <p className="banner-period">{b.endDate}까지</p>
-                )}
-              </div>
-              {(b.showRates !== false) && (
-                <div className="banner-rates">
-                  {Object.entries(bRates).reverse().map(([r, rate]) => (
-                    <span key={r} style={getRarityStyle(r)} className="rate-badge">
-                      {r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
-                    </span>
-                  ))}
+      <div className="gacha-mode-tabs">
+        <button className={`gacha-mode-tab ${gachaMode === 'character' ? 'active' : ''}`}
+          onClick={() => setGachaMode('character')}>캐릭터 뽑기</button>
+        <button className={`gacha-mode-tab ${gachaMode === 'skill' ? 'active' : ''}`}
+          onClick={() => setGachaMode('skill')}>스킬 뽑기</button>
+      </div>
+
+      {gachaMode === 'character' && (
+        <>
+          <div className="banner-list">
+            {banners.map(b => {
+              const selected = banner?.id === b.id;
+              const bRates = b.rates || gameConfig.gacha.rates;
+              return (
+                <div key={b.id}
+                  className={`gacha-banner ${selected ? 'selected' : ''}`}
+                  onClick={() => setSelectedBanner(b)}>
+                  {b.image ? (
+                    <img src={b.image} alt={b.name} className="banner-img" />
+                  ) : (
+                    <div className="banner-bg" />
+                  )}
+                  <div className="banner-overlay">
+                    <h2 className="banner-title">{b.name}</h2>
+                    {b.description && <p className="banner-sub">{b.description}</p>}
+                    {b.type === 'limited' && b.endDate && (
+                      <p className="banner-period">{b.endDate}까지</p>
+                    )}
+                  </div>
+                  {(b.showRates !== false) && (
+                    <div className="banner-rates">
+                      {Object.entries(bRates).reverse().map(([r, rate]) => (
+                        <span key={r} style={getRarityStyle(r)} className="rate-badge">
+                          {r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+              );
+            })}
+            {banners.length === 0 && (
+              <div className="gacha-banner">
+                <div className="banner-bg" />
+                <div className="banner-overlay">
+                  <h2 className="banner-title">가챠</h2>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pity-info">
+            <span>천장까지</span>
+            <div className="pity-bar">
+              <div className="pity-fill" style={{ width: `${(user.pityCounter / 90) * 100}%` }} />
             </div>
-          );
-        })}
-        {banners.length === 0 && (
-          <div className="gacha-banner">
-            <div className="banner-bg" />
-            <div className="banner-overlay">
-              <h2 className="banner-title">가챠</h2>
+            <span className="pity-count">{user.pityCounter}/90</span>
+          </div>
+
+          <div className="pull-buttons">
+            <button className="btn-pull btn-pull-single" onClick={() => doPull(false)}
+              disabled={pulling || user.currency < 100}>
+              <span className="pull-label">1회 뽑기</span>
+              <span className="pull-cost">&#128142; 100</span>
+            </button>
+            <button className="btn-pull btn-pull-multi" onClick={() => doPull(true)}
+              disabled={pulling || user.currency < 1000}>
+              <span className="pull-label">10연차</span>
+              <span className="pull-cost">&#128142; 1,000</span>
+              <span className="pull-bonus">R이상 1개 보장!</span>
+            </button>
+          </div>
+        </>
+      )}
+
+      {gachaMode === 'skill' && (
+        <>
+          <div className="skill-gacha-info">
+            <h3 className="skill-gacha-title">&#9835; 스킬 가챠</h3>
+            <p className="skill-gacha-desc">스킬을 뽑아 인벤토리에 추가합니다. 아무 캐릭터에 장착 가능!</p>
+            <div className="skill-gacha-rates">
+              {Object.entries(gameConfig.skillGacha.rates).reverse().map(([r, rate]) => (
+                <span key={r} className="skill-rate-badge" style={getSkillRarityStyle(r)}>
+                  {SKILL_RARITY_LABELS[r] || r} {(rate * 100).toFixed(rate < 0.01 ? 1 : 0)}%
+                </span>
+              ))}
             </div>
           </div>
-        )}
-      </div>
 
-      <div className="pity-info">
-        <span>천장까지</span>
-        <div className="pity-bar">
-          <div className="pity-fill" style={{ width: `${(user.pityCounter / 90) * 100}%` }} />
-        </div>
-        <span className="pity-count">{user.pityCounter}/90</span>
-      </div>
-
-      <div className="pull-buttons">
-        <button
-          className="btn-pull btn-pull-single"
-          onClick={() => doPull(false)}
-          disabled={pulling || user.currency < 100}
-        >
-          <span className="pull-label">1회 뽑기</span>
-          <span className="pull-cost">&#128142; 100</span>
-        </button>
-        <button
-          className="btn-pull btn-pull-multi"
-          onClick={() => doPull(true)}
-          disabled={pulling || user.currency < 1000}
-        >
-          <span className="pull-label">10연차</span>
-          <span className="pull-cost">&#128142; 1,000</span>
-          <span className="pull-bonus">R이상 1개 보장!</span>
-        </button>
-      </div>
+          <div className="pull-buttons">
+            <button className="btn-pull btn-pull-single" onClick={() => doSkillPull(false)}
+              disabled={pulling || user.currency < skillPullCost}>
+              <span className="pull-label">1회 뽑기</span>
+              <span className="pull-cost">&#128142; {skillPullCost}</span>
+            </button>
+            <button className="btn-pull btn-pull-multi" onClick={() => doSkillPull(true)}
+              disabled={pulling || user.currency < skillMultiCost}>
+              <span className="pull-label">10연차</span>
+              <span className="pull-cost">&#128142; {skillMultiCost.toLocaleString()}</span>
+              <span className="pull-bonus">담 이상 1개 보장!</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

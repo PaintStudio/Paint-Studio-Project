@@ -101,6 +101,8 @@ function pickCharacter(rarity, banner) {
   return chars[Math.floor(Math.random() * chars.length)];
 }
 
+const { initCharacterSkills } = require('../db');
+
 // 단일 뽑기 실행
 function executePull(userId, banner) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
@@ -113,6 +115,8 @@ function executePull(userId, banner) {
   const newPity = rarity === 'SSR' ? 0 : user.pity_counter + 1;
   db.prepare('UPDATE users SET currency = currency - ?, total_pulls = total_pulls + 1, pity_counter = ? WHERE id = ?')
     .run(PULL_COST, newPity, userId);
+
+  initCharacterSkills(userId, inv.lastInsertRowid, character.id);
 
   return {
     inventoryId: inv.lastInsertRowid,
@@ -194,6 +198,94 @@ router.get('/rates', (req, res) => {
   const rates = banner?.rates || DEFAULT_RATES;
   const characters = db.prepare('SELECT id, name, rarity, title FROM characters ORDER BY CASE rarity WHEN "SSR" THEN 1 WHEN "SR" THEN 2 WHEN "R" THEN 3 ELSE 4 END').all();
   res.json({ rates, pityThreshold: PITY_THRESHOLD, characters, pullCost: PULL_COST, featuredCharIds: banner?.featuredCharIds || [] });
+});
+
+// ============ 스킬 가챠 ============
+
+const skillGachaCfg = gameConfig.skillGacha;
+const SKILL_PULL_COST = skillGachaCfg.pullCost;
+const SKILL_MULTI_COUNT = skillGachaCfg.multiPullCount;
+const SKILL_RATES = skillGachaCfg.rates;
+
+function rollSkillRarity() {
+  const rand = Math.random();
+  let cumulative = 0;
+  for (const [rarity, rate] of Object.entries(SKILL_RATES)) {
+    cumulative += rate;
+    if (rand < cumulative) return rarity;
+  }
+  return 'faint';
+}
+
+function pickSkill(rarity) {
+  const skills = db.prepare('SELECT * FROM skills WHERE rarity = ?').all(rarity);
+  if (skills.length === 0) {
+    const all = db.prepare('SELECT * FROM skills').all();
+    return all[Math.floor(Math.random() * all.length)];
+  }
+  return skills[Math.floor(Math.random() * skills.length)];
+}
+
+function executeSkillPull(userId) {
+  const rarity = rollSkillRarity();
+  const skill = pickSkill(rarity);
+
+  const inv = db.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
+    .run(userId, skill.id, 'gacha');
+
+  db.prepare('UPDATE users SET currency = currency - ? WHERE id = ?').run(SKILL_PULL_COST, userId);
+
+  return {
+    skillInventoryId: inv.lastInsertRowid,
+    skill: { id: skill.id, name: skill.name, type: skill.type, rarity: skill.rarity, description: skill.description,
+             cost: skill.cost, power: skill.power, element: skill.element },
+    rarity: skill.rarity,
+  };
+}
+
+// 스킬 단일 뽑기
+router.post('/skill-pull', authMiddleware, (req, res) => {
+  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+  if (user.currency < SKILL_PULL_COST) return res.status(400).json({ error: '재화가 부족합니다', needed: SKILL_PULL_COST, have: user.currency });
+
+  const result = executeSkillPull(req.user.id);
+  const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+
+  res.json({ result, currency: updated.currency });
+});
+
+// 스킬 10연차
+router.post('/skill-pull10', authMiddleware, (req, res) => {
+  const totalCost = SKILL_PULL_COST * SKILL_MULTI_COUNT;
+  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+  if (user.currency < totalCost) return res.status(400).json({ error: '재화가 부족합니다', needed: totalCost, have: user.currency });
+
+  const results = [];
+  for (let i = 0; i < SKILL_MULTI_COUNT; i++) {
+    results.push(executeSkillPull(req.user.id));
+  }
+
+  // 10연차 pale 이상 보장
+  const hasPale = results.some(r => r.rarity !== 'faint');
+  if (!hasPale) {
+    const last = results[results.length - 1];
+    const paleSkill = pickSkill('pale');
+    db.prepare('UPDATE skill_inventory SET skill_id = ? WHERE id = ?').run(paleSkill.id, last.skillInventoryId);
+    results[results.length - 1] = {
+      ...last,
+      skill: { id: paleSkill.id, name: paleSkill.name, type: paleSkill.type, rarity: paleSkill.rarity,
+               description: paleSkill.description, cost: paleSkill.cost, power: paleSkill.power, element: paleSkill.element },
+      rarity: paleSkill.rarity,
+    };
+  }
+
+  const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+  res.json({ results, currency: updated.currency });
+});
+
+// 스킬 가챠 확률표
+router.get('/skill-rates', (req, res) => {
+  res.json({ rates: SKILL_RATES, pullCost: SKILL_PULL_COST, multiPullCount: SKILL_MULTI_COUNT });
 });
 
 module.exports = router;

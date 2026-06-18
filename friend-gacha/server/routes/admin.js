@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { exportGameData } = require('../db');
 const path = require('path');
 const fs = require('fs');
 
@@ -50,10 +51,10 @@ router.get('/characters/:id', (req, res) => {
   if (!char) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
 
   const skills = db.prepare(`
-    SELECT s.*, cs.is_default FROM character_skills cs
+    SELECT s.*, cs.is_default, cs.is_fixed, cs.awakening_required FROM character_skills cs
     JOIN skills s ON cs.skill_id = s.id
     WHERE cs.character_id = ?
-    ORDER BY s.type, s.cost
+    ORDER BY s.type, s.cost, s.name
   `).all(req.params.id);
 
   res.json({ character: char, skills });
@@ -61,13 +62,15 @@ router.get('/characters/:id', (req, res) => {
 
 // 캐릭터 생성
 router.post('/characters', (req, res) => {
-  const { name, rarity, element, origin, title, description, quote, base_hp, base_atk, base_def, base_spd, turn_notes, image_url } = req.body;
+  const { name, rarity, element, origin, title, description, quote, base_hp, base_atk, base_def, base_spd, turn_notes, image_url, attack_slots, defense_slots } = req.body;
   const result = db.prepare(`
-    INSERT INTO characters (name, rarity, element, origin, title, description, quote, base_hp, base_atk, base_def, base_spd, turn_notes, image_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO characters (name, rarity, element, origin, title, description, quote, base_hp, base_atk, base_def, base_spd, turn_notes, image_url, attack_slots, defense_slots)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(name, rarity || 'N', element || 'neutral', origin || 'force', title || '', description || '', quote || '',
-    base_hp || 1000, base_atk || 100, base_def || 80, base_spd || 100, turn_notes || 4, image_url || '');
+    base_hp || 1000, base_atk || 100, base_def || 80, base_spd || 100, turn_notes || 4, image_url || '',
+    attack_slots ?? 3, defense_slots ?? 2);
 
+  exportGameData();
   res.json({ id: result.lastInsertRowid });
 });
 
@@ -77,7 +80,8 @@ router.put('/characters/:id', (req, res) => {
   if (!char) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
 
   const fields = ['name', 'rarity', 'element', 'origin', 'title', 'description', 'quote',
-    'base_hp', 'base_atk', 'base_def', 'base_spd', 'turn_notes', 'image_url', 'image_bust', 'image_sd', 'image_ld', 'is_limited'];
+    'base_hp', 'base_atk', 'base_def', 'base_spd', 'turn_notes', 'image_url', 'image_bust', 'image_sd', 'image_ld', 'is_limited',
+    'attack_slots', 'defense_slots'];
 
   const updates = [];
   const values = [];
@@ -92,6 +96,7 @@ router.put('/characters/:id', (req, res) => {
 
   values.push(req.params.id);
   db.prepare(`UPDATE characters SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  exportGameData();
   res.json({ ok: true });
 });
 
@@ -100,6 +105,7 @@ router.delete('/characters/:id', (req, res) => {
   // 연관 데이터 정리
   db.prepare('DELETE FROM character_skills WHERE character_id = ?').run(req.params.id);
   db.prepare('DELETE FROM characters WHERE id = ?').run(req.params.id);
+  exportGameData();
   res.json({ ok: true });
 });
 
@@ -155,31 +161,35 @@ router.get('/skills', (req, res) => {
 
 // 스킬 생성
 router.post('/skills', (req, res) => {
-  const { name, description, type, cost, power, element, target, defense_mult, cooldown, extra } = req.body;
+  const { name, description, type, rarity, cost, power, element, target, defense_mult, cooldown, extra, equip_condition } = req.body;
   const result = db.prepare(`
-    INSERT INTO skills (name, description, type, cost, power, element, target, defense_mult, cooldown, extra)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(name, description || '', type || 'attack', cost || 1, power || 1.0,
+    INSERT INTO skills (name, description, type, rarity, cost, power, element, target, defense_mult, cooldown, extra, equip_condition)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(name, description || '', type || 'attack', rarity || 'faint', cost || 1, power || 1.0,
     element || 'neutral', target || 'single', defense_mult || 0, cooldown || 0,
-    typeof extra === 'string' ? extra : JSON.stringify(extra || {}));
+    typeof extra === 'string' ? extra : JSON.stringify(extra || {}),
+    typeof equip_condition === 'string' ? equip_condition : JSON.stringify(equip_condition || {}));
 
+  exportGameData();
   res.json({ id: result.lastInsertRowid });
 });
 
 // 스킬 수정
 router.put('/skills/:id', (req, res) => {
-  const fields = ['name', 'description', 'type', 'cost', 'power', 'element', 'target', 'defense_mult', 'cooldown', 'extra'];
+  const fields = ['name', 'description', 'type', 'rarity', 'cost', 'power', 'element', 'target', 'defense_mult', 'cooldown', 'extra', 'equip_condition'];
+  const jsonFields = new Set(['extra', 'equip_condition']);
   const updates = [];
   const values = [];
   for (const f of fields) {
     if (req.body[f] !== undefined) {
       updates.push(`${f} = ?`);
-      values.push(f === 'extra' && typeof req.body[f] !== 'string' ? JSON.stringify(req.body[f]) : req.body[f]);
+      values.push(jsonFields.has(f) && typeof req.body[f] !== 'string' ? JSON.stringify(req.body[f]) : req.body[f]);
     }
   }
   if (updates.length === 0) return res.json({ ok: true });
   values.push(req.params.id);
   db.prepare(`UPDATE skills SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+  exportGameData();
   res.json({ ok: true });
 });
 
@@ -188,6 +198,7 @@ router.delete('/skills/:id', (req, res) => {
   db.prepare('DELETE FROM character_skills WHERE skill_id = ?').run(req.params.id);
   db.prepare('DELETE FROM equipped_skills WHERE skill_id = ?').run(req.params.id);
   db.prepare('DELETE FROM skills WHERE id = ?').run(req.params.id);
+  exportGameData();
   res.json({ ok: true });
 });
 
@@ -195,10 +206,12 @@ router.delete('/skills/:id', (req, res) => {
 
 // 캐릭터에 스킬 추가
 router.post('/characters/:id/skills', (req, res) => {
-  const { skillId, isDefault } = req.body;
+  const { skillId, isDefault, isFixed, awakeningRequired } = req.body;
+  const awkReq = awakeningRequired !== undefined ? awakeningRequired : (isDefault ? 0 : -1);
   try {
-    db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default) VALUES (?, ?, ?)')
-      .run(req.params.id, skillId, isDefault ? 1 : 0);
+    db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default, is_fixed, awakening_required) VALUES (?, ?, ?, ?, ?)')
+      .run(req.params.id, skillId, awkReq === 0 ? 1 : 0, isFixed ? 1 : 0, awkReq);
+    exportGameData();
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -209,18 +222,48 @@ router.post('/characters/:id/skills', (req, res) => {
 router.delete('/characters/:charId/skills/:skillId', (req, res) => {
   db.prepare('DELETE FROM character_skills WHERE character_id = ? AND skill_id = ?')
     .run(req.params.charId, req.params.skillId);
+  exportGameData();
   res.json({ ok: true });
 });
 
-// 캐릭터 스킬 기본값 토글
+// 캐릭터 스킬 기본값 토글 (하위호환 + awakening_required 연동)
 router.patch('/characters/:charId/skills/:skillId/default', (req, res) => {
-  const current = db.prepare('SELECT is_default FROM character_skills WHERE character_id = ? AND skill_id = ?')
+  const current = db.prepare('SELECT is_default, awakening_required FROM character_skills WHERE character_id = ? AND skill_id = ?')
     .get(req.params.charId, req.params.skillId);
   if (!current) return res.status(404).json({ error: '매핑을 찾을 수 없습니다' });
 
-  db.prepare('UPDATE character_skills SET is_default = ? WHERE character_id = ? AND skill_id = ?')
-    .run(current.is_default ? 0 : 1, req.params.charId, req.params.skillId);
-  res.json({ ok: true, isDefault: !current.is_default });
+  const newDefault = current.is_default ? 0 : 1;
+  db.prepare('UPDATE character_skills SET is_default = ?, awakening_required = ? WHERE character_id = ? AND skill_id = ?')
+    .run(newDefault, newDefault ? 0 : -1, req.params.charId, req.params.skillId);
+  exportGameData();
+  res.json({ ok: true, isDefault: !!newDefault, awakeningRequired: newDefault ? 0 : -1 });
+});
+
+// 캐릭터 스킬 각성 단계 설정
+router.patch('/characters/:charId/skills/:skillId/awakening', (req, res) => {
+  const { awakeningRequired } = req.body;
+  if (awakeningRequired === undefined) return res.status(400).json({ error: 'awakeningRequired 필수' });
+
+  const current = db.prepare('SELECT 1 FROM character_skills WHERE character_id = ? AND skill_id = ?')
+    .get(req.params.charId, req.params.skillId);
+  if (!current) return res.status(404).json({ error: '매핑을 찾을 수 없습니다' });
+
+  db.prepare('UPDATE character_skills SET awakening_required = ?, is_default = ? WHERE character_id = ? AND skill_id = ?')
+    .run(awakeningRequired, awakeningRequired === 0 ? 1 : 0, req.params.charId, req.params.skillId);
+  exportGameData();
+  res.json({ ok: true });
+});
+
+// 캐릭터 스킬 고정 토글
+router.patch('/characters/:charId/skills/:skillId/fixed', (req, res) => {
+  const current = db.prepare('SELECT is_fixed FROM character_skills WHERE character_id = ? AND skill_id = ?')
+    .get(req.params.charId, req.params.skillId);
+  if (!current) return res.status(404).json({ error: '매핑을 찾을 수 없습니다' });
+
+  db.prepare('UPDATE character_skills SET is_fixed = ? WHERE character_id = ? AND skill_id = ?')
+    .run(current.is_fixed ? 0 : 1, req.params.charId, req.params.skillId);
+  exportGameData();
+  res.json({ ok: true, isFixed: !current.is_fixed });
 });
 
 // ============ 스테이지 관리 ============

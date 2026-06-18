@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('../db');
+const { initCharacterSkills } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -52,8 +53,9 @@ router.post('/claim/:id', authMiddleware, (req, res) => {
     if (rewards.characterId) {
       const char = db.prepare('SELECT id FROM characters WHERE id = ?').get(rewards.characterId);
       if (char) {
-        db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)')
+        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)')
           .run(req.user.id, rewards.characterId);
+        initCharacterSkills(req.user.id, inv.lastInsertRowid, rewards.characterId);
       }
     }
   }
