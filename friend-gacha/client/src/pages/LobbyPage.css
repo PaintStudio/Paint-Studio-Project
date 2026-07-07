@@ -73,9 +73,11 @@
 }
 
 .lobby-header-resources {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 14px;
 }
-.lobby-res { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.lobby-res { font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.lobby-res .currency-icon { width: 60px; height: 60px; }
+.lobby-res .currency-icon.prism { width: 53px; height: 53px; }
 .lobby-res.gold { color: #f39c12; }
 .lobby-res.diamond { color: var(--gold); }
 .lobby-mail-btn {

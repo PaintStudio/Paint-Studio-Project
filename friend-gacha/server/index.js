@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const { JWT_SECRET } = require('./middleware/auth');
+const { JWT_SECRET, setAuthDb } = require('./middleware/auth');
 const db = require('./db');
 const { initDb } = require('./db');
 
@@ -25,6 +25,8 @@ app.use('/api/collection', require('./routes/collection'));
 app.use('/api/trade', require('./routes/trade'));
 app.use('/api/stage', require('./routes/stage'));
 app.use('/api/raid', require('./routes/raid'));
+app.use('/api/farming', require('./routes/farming'));
+app.use('/api/story', require('./routes/story'));
 app.use('/api/daily', require('./routes/daily'));
 app.use('/api/growth', require('./routes/growth'));
 app.use('/api/admin', require('./routes/admin'));
@@ -34,6 +36,12 @@ app.use('/api/profile', require('./routes/profile'));
 // 게임 설정 공유
 app.get('/api/config', (req, res) => {
   res.json(require('../gameConfig.json'));
+});
+
+// 대사 데이터
+app.get('/api/dialogues', (req, res) => {
+  delete require.cache[require.resolve('../data/dialogues')];
+  res.json(require('../data/dialogues'));
 });
 
 // 재화 지급
@@ -54,6 +62,12 @@ app.get('/api/feed', (req, res) => {
     ORDER BY pl.pulled_at DESC LIMIT 50
   `).all();
   res.json({ feed });
+});
+
+// API 에러 핸들러
+app.use('/api', (err, req, res, next) => {
+  console.error('[API 에러]', err.message);
+  res.status(500).json({ error: err.message || '서버 오류' });
 });
 
 // 업로드 이미지 서빙
@@ -88,10 +102,17 @@ io.use((socket, next) => {
   }
 });
 
+const chatHistory = [];
+const CHAT_HISTORY_MAX = 20;
+
 io.on('connection', (socket) => {
   onlineUsers.set(socket.userId, socket.id);
   io.emit('online_users', Array.from(onlineUsers.keys()));
   console.log(`[Socket] ${socket.username} 접속 (현재 ${onlineUsers.size}명)`);
+
+  if (chatHistory.length > 0) {
+    socket.emit('chat_history', chatHistory);
+  }
 
   socket.on('chat_message', (data) => {
     const user = db.prepare('SELECT display_name, profile_icon FROM users WHERE id = ?').get(socket.userId);
@@ -103,14 +124,17 @@ io.on('connection', (socket) => {
       timestamp: Date.now()
     };
     if (msg.text) {
+      chatHistory.push(msg);
+      if (chatHistory.length > CHAT_HISTORY_MAX) chatHistory.shift();
       io.emit('chat_message', msg);
     }
   });
 
   socket.on('pull_result', (data) => {
+    const user = db.prepare('SELECT display_name FROM users WHERE id = ?').get(socket.userId);
     socket.broadcast.emit('someone_pulled', {
       userId: socket.userId,
-      username: socket.username,
+      username: user?.display_name || socket.displayName || socket.username,
       ...data
     });
   });
@@ -141,6 +165,7 @@ io.on('connection', (socket) => {
 });
 
 initDb().then(() => {
+  setAuthDb(db);
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🎰 친구 가챠 서버 실행 중!`);
     console.log(`   로컬: http://localhost:${PORT}`);

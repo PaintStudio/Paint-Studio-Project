@@ -7,7 +7,7 @@ const router = express.Router();
 // 내 프로필 조회
 router.get('/me', authMiddleware, (req, res) => {
   const user = db.prepare(`
-    SELECT id, username, display_name, bio, profile_icon, currency, gold, total_pulls, login_streak
+    SELECT id, username, display_name, bio, profile_icon, currency, gold, total_pulls, login_streak, account_level, account_exp
     FROM users WHERE id = ?
   `).get(req.user.id);
   if (!user) return res.status(404).json({ error: '유저 없음' });
@@ -21,7 +21,9 @@ router.get('/me', authMiddleware, (req, res) => {
     currency: user.currency,
     gold: user.gold,
     totalPulls: user.total_pulls,
-    loginStreak: user.login_streak
+    loginStreak: user.login_streak,
+    accountLevel: user.account_level || 1,
+    accountExp: user.account_exp || 0,
   });
 });
 

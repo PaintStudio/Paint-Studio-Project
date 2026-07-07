@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const itemDefs = require('../../data/items');
 
 const router = express.Router();
 
@@ -69,6 +70,83 @@ router.get('/rankings', authMiddleware, (req, res) => {
   `).all();
 
   res.json({ rankings });
+});
+
+// 아이템 인벤토리 조회
+router.get('/items', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT item_id, quantity FROM user_items WHERE user_id = ? AND quantity > 0').all(req.user.id);
+  const items = rows.map(row => {
+    const def = itemDefs[row.item_id];
+    return {
+      itemId: row.item_id,
+      quantity: row.quantity,
+      name: def?.name || row.item_id,
+      description: def?.description || '',
+      category: def?.category || 'material',
+      rarity: def?.rarity || 'N',
+      sellPrice: def?.sellPrice || 0,
+      image: def?.image || '',
+      icon: def?.icon || '',
+      color: def?.color || null,
+      effect: def?.effect || null,
+    };
+  });
+  res.json({ items });
+});
+
+// 아이템 판매
+router.post('/items/sell', authMiddleware, (req, res) => {
+  const { itemId, quantity } = req.body;
+  if (!itemId || !quantity || quantity < 1) return res.status(400).json({ error: '잘못된 요청입니다' });
+
+  const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
+  if (!row || row.quantity < quantity) return res.status(400).json({ error: '아이템이 부족합니다' });
+
+  const def = itemDefs[itemId];
+  if (!def) return res.status(400).json({ error: '존재하지 않는 아이템입니다' });
+
+  const totalGold = def.sellPrice * quantity;
+  db.prepare('UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?').run(quantity, req.user.id, itemId);
+  db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(totalGold, req.user.id);
+
+  const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
+  res.json({ sold: quantity, goldEarned: totalGold, gold: user.gold });
+});
+
+// 소모품 사용
+router.post('/items/use', authMiddleware, (req, res) => {
+  const { itemId, targetInventoryId } = req.body;
+  if (!itemId) return res.status(400).json({ error: '잘못된 요청입니다' });
+
+  const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
+  if (!row || row.quantity < 1) return res.status(400).json({ error: '아이템이 부족합니다' });
+
+  const def = itemDefs[itemId];
+  if (!def || def.category !== 'consumable' || !def.effect) return res.status(400).json({ error: '사용할 수 없는 아이템입니다' });
+
+  const effect = def.effect;
+  let result = {};
+
+  if (effect.type === 'stamina') {
+    const gameConf = require('../../gameConfig.json');
+    const user = db.prepare('SELECT stamina FROM users WHERE id = ?').get(req.user.id);
+    if (user.stamina >= gameConf.stamina.max) {
+      return res.status(400).json({ error: '스태미나가 이미 최대치 이상입니다' });
+    }
+    db.prepare('UPDATE users SET stamina = stamina + ? WHERE id = ?').run(effect.value, req.user.id);
+    const updated = db.prepare('SELECT stamina FROM users WHERE id = ?').get(req.user.id);
+    result = { stamina: updated.stamina };
+  } else if (effect.type === 'exp' && targetInventoryId) {
+    const { addExp } = require('./stage');
+    addExp(targetInventoryId, effect.value);
+    const inv = db.prepare('SELECT level, exp FROM inventory WHERE id = ? AND user_id = ?').get(targetInventoryId, req.user.id);
+    result = { level: inv?.level, exp: inv?.exp };
+  } else {
+    return res.status(400).json({ error: '사용 조건이 맞지 않습니다' });
+  }
+
+  db.prepare('UPDATE user_items SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?').run(req.user.id, itemId);
+  res.json({ used: itemId, ...result });
 });
 
 module.exports = router;

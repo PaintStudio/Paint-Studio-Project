@@ -32,15 +32,11 @@
 .tab-icon { font-size: 1.3rem; }
 .tab-label { font-weight: 600; }
 
-/* 서브탭 (캐릭터/배틀/소셜 내부) */
+/* 서브탭 */
 .sub-tabs {
   display: flex; background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 99;
-}
-.app-header ~ .main-content ~ .sub-tabs,
-.app-header + .mission-panel + .main-content ~ .sub-tabs {
-  /* 헤더가 있을 때 서브탭 위치 조정 */
+  flex-shrink: 0;
 }
 .sub-tab {
   flex: 1; padding: 10px; background: none; color: var(--text-muted);
@@ -58,6 +54,11 @@
 .main-content.main-lobby { max-width: 100%; padding: 0; padding-bottom: 0; overflow: hidden; }
 .main-content:has(.admin-page) { max-width: 100%; padding: 8px; padding-bottom: 80px; }
 .main-content:has(.detail-view) { padding: 8px; padding-bottom: 60px; overflow: hidden; height: calc(100dvh - 60px); }
+
+/* 전투 진입 시 탭바/패딩 숨김 */
+.app:has(.battle-page) .tab-bar { display: none; }
+.app:has(.battle-page) .sub-tabs { display: none; }
+.main-content:has(.battle-page) { padding: 0; padding-bottom: 0; }
 
 /* 토스트 */
 .toast-container {

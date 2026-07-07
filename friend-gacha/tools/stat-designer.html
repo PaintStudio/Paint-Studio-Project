@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캐릭터 스탯 디자이너</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0f0f1a; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; padding: 20px; }
+h1 { text-align: center; margin-bottom: 8px; font-size: 22px; }
+.subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 20px; }
+
+/* 탭 */
+.tabs { display: flex; gap: 4px; justify-content: center; margin-bottom: 20px; }
+.tabs button { padding: 8px 20px; background: #1e1e2e; border: 1px solid #333; color: #aaa; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.tabs button.active { background: #5b4fcf; color: #fff; border-color: #7b6fef; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 근원 역할 카드 */
+.origin-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 24px;
+}
+.origin-card {
+  background: #1e1e2e; border: 1px solid #333; border-radius: 10px; padding: 16px;
+  display: flex; gap: 16px; align-items: flex-start;
+}
+.origin-card:hover { border-color: #5b4fcf; }
+.origin-card .radar-wrap { flex-shrink: 0; }
+.origin-info { flex: 1; }
+.origin-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.origin-badge { padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; color: #fff; }
+.origin-role { font-size: 14px; font-weight: 600; }
+.origin-desc { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.4; }
+.stat-bars { display: flex; flex-direction: column; gap: 3px; }
+.stat-bar-row { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.stat-bar-label { width: 30px; text-align: right; color: #aaa; font-weight: 600; }
+.stat-bar-track { flex: 1; height: 10px; background: #0f0f1a; border-radius: 5px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 5px; transition: width 0.3s; }
+.stat-bar-value { width: 20px; font-size: 10px; color: #888; }
+
+/* 스탯 테이블 */
+.stat-table-section { margin-bottom: 24px; }
+.stat-table-section h3 { margin-bottom: 8px; font-size: 15px; }
+.rarity-select { margin-bottom: 12px; display: flex; gap: 6px; align-items: center; }
+.rarity-select label { font-size: 13px; color: #888; }
+.rarity-select button { padding: 5px 14px; background: #1e1e2e; border: 1px solid #333; color: #ccc; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.rarity-select button.active { border-color: #5b4fcf; background: #33335a; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { text-align: left; padding: 8px; border-bottom: 2px solid #333; color: #888; font-size: 12px; }
+tbody td { padding: 6px 8px; border-bottom: 1px solid #1e1e2e; }
+tbody tr:hover { background: #1a1a2e; }
+.cell-origin { font-weight: 700; }
+.cell-role { color: #888; font-size: 12px; }
+.cell-stat { font-variant-numeric: tabular-nums; }
+.cell-stat.high { color: #2ecc71; font-weight: 600; }
+.cell-stat.low { color: #e74c3c; }
+.cell-notes { color: #f39c12; }
+
+/* 캐릭터 비교 */
+.char-table { margin-top: 12px; }
+.char-table table { font-size: 12px; }
+.char-diff-ok { color: #2ecc71; }
+.char-diff-warn { color: #f39c12; }
+.char-diff-bad { color: #e74c3c; }
+
+/* 버짓 슬라이더 */
+.budget-controls {
+  background: #1e1e2e; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 16px;
+}
+.budget-controls h4 { margin-bottom: 10px; font-size: 14px; }
+.budget-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 12px; }
+.budget-row label { width: 80px; text-align: right; color: #888; }
+.budget-row input[type="range"] { flex: 1; accent-color: #5b4fcf; }
+.budget-row .budget-val { width: 50px; font-variant-numeric: tabular-nums; }
+
+/* 내보내기 */
+.export-section { margin-top: 20px; text-align: center; }
+.export-section button {
+  padding: 8px 24px; background: #5b4fcf; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+.export-output {
+  margin-top: 12px; background: #0f0f1a; border: 1px solid #333; border-radius: 6px; padding: 12px;
+  font-family: monospace; font-size: 11px; white-space: pre-wrap; max-height: 400px; overflow-y: auto;
+  text-align: left; display: none;
+}
+</style>
+</head>
+<body>
+
+<h1>캐릭터 스탯 디자이너</h1>
+<p class="subtitle">근원(Origin) 기반 역할 시스템 &amp; 등급별 스탯 템플릿</p>
+
+<div class="tabs">
+  <button class="active" onclick="switchTab('overview')">역할 개요</button>
+  <button onclick="switchTab('table')">스탯 테이블</button>
+  <button onclick="switchTab('compare')">현재 캐릭터 비교</button>
+  <button onclick="switchTab('export')">내보내기</button>
+</div>
+
+<div id="tab-overview" class="tab-content active">
+  <div class="origin-grid" id="originGrid"></div>
+</div>
+
+<div id="tab-table" class="tab-content">
+  <div class="budget-controls">
+    <h4>등급별 스탯 버짓 조정</h4>
+    <div id="budgetSliders"></div>
+  </div>
+  <div class="rarity-select" id="rarityFilter"></div>
+  <div class="stat-table-section">
+    <table>
+      <thead>
+        <tr>
+          <th>근원</th><th>역할</th><th>HP</th><th>ATK</th><th>DEF</th><th>SPD</th><th>턴노트</th>
+        </tr>
+      </thead>
+      <tbody id="statTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-compare" class="tab-content">
+  <p style="color:#888;font-size:13px;margin-bottom:12px;">현재 캐릭터 스탯 vs 근원 템플릿 권장값 비교 (&#177;15% 이내 = 정상, &#177;30% = 주의, 초과 = 경고)</p>
+  <div class="char-table">
+    <table>
+      <thead>
+        <tr>
+          <th>이름</th><th>등급</th><th>근원</th><th>HP</th><th>ATK</th><th>DEF</th><th>SPD</th><th>노트</th>
+        </tr>
+      </thead>
+      <tbody id="compareTableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="tab-export" class="tab-content">
+  <div class="export-section">
+    <button onclick="exportStats()">현재 설정으로 스탯 JSON 생성</button>
+    <div class="export-output" id="exportOutput"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  근원 → 역할 정의
+//  grade: 1~5 (각 스탯의 가중치, 5=최고)
+// ============================================================
+const ORIGINS = {
+  force:     { label: '마력', color: '#ec407a', role: '딜러',              desc: '높은 공격력으로 적을 제압하는 주력 딜러. 방어는 중간 이하.',                        grade: { hp: 2, atk: 5, def: 2, spd: 3 }, notesAdj: 0 },
+  life:      { label: '생명', color: '#66bb6a', role: '탱커',            desc: '파티의 방패. 극도로 높은 HP와 방어력으로 아군을 보호하지만 속도가 느리다.',        grade: { hp: 5, atk: 1, def: 5, spd: 1 }, notesAdj: 0 },
+  season:    { label: '계절', color: '#26a69a', role: '힐러',            desc: '아군을 회복하고 지원한다. 생존력이 높지만 공격력은 낮다.',                      grade: { hp: 4, atk: 1, def: 3, spd: 3 }, notesAdj: 0 },
+  memory:    { label: '기억', color: '#ab47bc', role: '디버퍼',          desc: '빠른 속도로 적에게 디버프를 걸어 전투를 유리하게 만든다.',                      grade: { hp: 2, atk: 3, def: 2, spd: 5 }, notesAdj: 0 },
+  sound:     { label: '소리', color: '#ffa726', role: '턴노트 서포터',    desc: '턴노트 회복/최대치 증가 등으로 아군의 행동 자원을 관리하는 독자적 서포터.',       grade: { hp: 3, atk: 1, def: 3, spd: 3 }, notesAdj: 1 },
+  time:      { label: '시간', color: '#4fc3f7', role: '행동순서 조작',    desc: '최고 속도로 선공을 잡고 방어 스킬로 적의 턴을 뺏거나 행동 순서를 뒤흔든다.',    grade: { hp: 2, atk: 2, def: 3, spd: 5 }, notesAdj: 0 },
+  space:     { label: '공간', color: '#7e57c2', role: '탱커(수호)',       desc: '아군을 보호하는 수호형 탱커. 생명보다 방어 특화, 도발/보호막 계열.',              grade: { hp: 4, atk: 1, def: 5, spd: 2 }, notesAdj: 0 },
+  intellect: { label: '지성', color: '#42a5f5', role: '스페셜리스트',    desc: '정해진 역할 없이 캐릭터마다 고유한 특수 메커니즘을 가진 변칙 유닛. 스탯 템플릿이 개별 설계된다.', grade: { hp: 3, atk: 3, def: 3, spd: 3 }, notesAdj: 0 },
+  heart:     { label: '마음', color: '#ef5350', role: '버퍼',            desc: '아군에게 버프를 부여하여 파티 전체의 전투력을 끌어올린다.',                      grade: { hp: 3, atk: 2, def: 3, spd: 4 }, notesAdj: 0 },
+};
+
+// ============================================================
+//  등급별 스탯 범위 (기본 버짓)
+//  min/max 는 grade 1/5 에 대응
+// ============================================================
+const RARITY_BUDGETS = {
+  N:   { hp: [40, 65],   atk: [5, 11],   def: [4, 9],    spd: [5, 10],   notes: 3 },
+  R:   { hp: [55, 85],   atk: [7, 15],   def: [6, 12],   spd: [7, 12],   notes: 4 },
+  SR:  { hp: [70, 110],  atk: [10, 20],  def: [8, 16],   spd: [8, 14],   notes: 5 },
+  SSR: { hp: [85, 140],  atk: [13, 26],  def: [10, 20],  spd: [9, 16],   notes: 6 },
+  CR:  { hp: [100, 170], atk: [16, 32],  def: [12, 24],  spd: [10, 18],  notes: 7 },
+};
+
+// 현재 캐릭터 데이터 (db.js 시드에서 복사)
+const CURRENT_CHARS = [
+  { name: '유카리',   rarity: 'SSR', origin: 'life',      hp: 140, atk: 13, def: 20, spd: 9,  notes: 6 },
+  { name: '츠바키',   rarity: 'SSR', origin: 'season',    hp: 126, atk: 13, def: 15, spd: 13, notes: 6 },
+  { name: '시스투스', rarity: 'SR',  origin: 'memory',    hp: 80,  atk: 15, def: 10, spd: 14, notes: 5 },
+  { name: '베르트랑', rarity: 'SR',  origin: 'life',      hp: 110, atk: 10, def: 16, spd: 8,  notes: 5 },
+  { name: '아우라',   rarity: 'SR',  origin: 'sound',     hp: 90,  atk: 10, def: 12, spd: 11, notes: 6 },
+  { name: '카날리',   rarity: 'SR',  origin: 'force',     hp: 80,  atk: 20, def: 10, spd: 11, notes: 5 },
+  { name: '코루리',   rarity: 'R',   origin: 'time',      hp: 63,  atk: 9,  def: 9,  spd: 12, notes: 4 },
+  { name: '리카',     rarity: 'R',   origin: 'space',     hp: 78,  atk: 7,  def: 12, spd: 8,  notes: 4 },
+  { name: '린네',     rarity: 'R',   origin: 'memory',    hp: 63,  atk: 11, def: 8,  spd: 12, notes: 4 },
+  { name: '페리도트', rarity: 'R',   origin: 'intellect', hp: 70,  atk: 11, def: 9,  spd: 10, notes: 4 },
+  { name: '렌',       rarity: 'R',   origin: 'life',      hp: 85,  atk: 7,  def: 12, spd: 7,  notes: 4 },
+  { name: '게로트',   rarity: 'R',   origin: 'heart',     hp: 70,  atk: 9,  def: 9,  spd: 11, notes: 4 },
+  { name: '쿼시',     rarity: 'N',   origin: 'sound',     hp: 53,  atk: 5,  def: 7,  spd: 8,  notes: 4 },
+  { name: '가네트',   rarity: 'N',   origin: 'time',      hp: 46,  atk: 7,  def: 7,  spd: 10, notes: 3 },
+  { name: '호프',     rarity: 'N',   origin: 'life',      hp: 65,  atk: 5,  def: 9,  spd: 5,  notes: 3 },
+  { name: '메이',     rarity: 'N',   origin: 'intellect', hp: 53,  atk: 8,  def: 7,  spd: 8,  notes: 3 },
+  { name: '티어리',   rarity: 'N',   origin: 'force',     hp: 46,  atk: 11, def: 5,  spd: 8,  notes: 3 },
+  { name: '밥',       rarity: 'N',   origin: 'memory',    hp: 46,  atk: 8,  def: 5,  spd: 10, notes: 3 },
+  { name: '아이유브', rarity: 'N',   origin: 'season',    hp: 59,  atk: 5,  def: 7,  spd: 8,  notes: 3 },
+  { name: '리사',     rarity: 'N',   origin: 'space',     hp: 59,  atk: 5,  def: 9,  spd: 6,  notes: 3 },
+  { name: '아르시스', rarity: 'N',   origin: 'heart',     hp: 53,  atk: 7,  def: 7,  spd: 9,  notes: 3 },
+];
+
+const STAT_COLORS = { hp: '#2ecc71', atk: '#e74c3c', def: '#3498db', spd: '#f39c12' };
+const STAT_LABELS = { hp: 'HP', atk: 'ATK', def: 'DEF', spd: 'SPD' };
+const RARITY_ORDER = ['N', 'R', 'SR', 'SSR', 'CR'];
+const RARITY_COLORS = { N: '#aaa', R: '#5dadec', SR: '#c77dff', SSR: '#ffd700', CR: '#ff6b6b' };
+
+let selectedRarity = 'SR';
+
+// ============================================================
+//  스탯 계산
+// ============================================================
+function calcStat(statKey, grade, rarity) {
+  const range = RARITY_BUDGETS[rarity][statKey];
+  const t = (grade - 1) / 4; // 0~1
+  return Math.round(range[0] + (range[1] - range[0]) * t);
+}
+
+function calcAllStats(originKey, rarity) {
+  const o = ORIGINS[originKey];
+  return {
+    hp:  calcStat('hp',  o.grade.hp,  rarity),
+    atk: calcStat('atk', o.grade.atk, rarity),
+    def: calcStat('def', o.grade.def, rarity),
+    spd: calcStat('spd', o.grade.spd, rarity),
+    notes: RARITY_BUDGETS[rarity].notes + (o.notesAdj || 0),
+  };
+}
+
+// ============================================================
+//  레이더 차트 (Canvas)
+// ============================================================
+function drawRadar(canvas, grades, color, size) {
+  const ctx = canvas.getContext('2d');
+  const w = size, h = size;
+  canvas.width = w * 2; canvas.height = h * 2;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.scale(2, 2);
+
+  const cx = w / 2, cy = h / 2;
+  const r = w / 2 - 16;
+  const stats = ['hp', 'atk', 'def', 'spd'];
+  const labels = ['HP', 'ATK', 'DEF', 'SPD'];
+  const n = stats.length;
+  const angles = stats.map((_, i) => (Math.PI * 2 * i / n) - Math.PI / 2);
+
+  // 배경 그리드
+  for (let ring = 1; ring <= 5; ring++) {
+    ctx.beginPath();
+    const rr = r * ring / 5;
+    angles.forEach((a, i) => {
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.strokeStyle = ring === 3 ? '#444' : '#2a2a3e';
+    ctx.lineWidth = ring === 3 ? 1 : 0.5;
+    ctx.stroke();
+  }
+
+  // 축선
+  angles.forEach(a => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  });
+
+  // 데이터
+  ctx.beginPath();
+  angles.forEach((a, i) => {
+    const val = grades[stats[i]] / 5;
+    const x = cx + Math.cos(a) * r * val;
+    const y = cy + Math.sin(a) * r * val;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = color + '33';
+  ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 꼭짓점
+  angles.forEach((a, i) => {
+    const val = grades[stats[i]] / 5;
+    const x = cx + Math.cos(a) * r * val;
+    const y = cy + Math.sin(a) * r * val;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  });
+
+  // 라벨
+  ctx.font = '10px Segoe UI';
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  angles.forEach((a, i) => {
+    const x = cx + Math.cos(a) * (r + 12);
+    const y = cy + Math.sin(a) * (r + 12);
+    ctx.fillText(labels[i], x, y);
+  });
+}
+
+// ============================================================
+//  역할 개요 탭
+// ============================================================
+function renderOverview() {
+  const grid = document.getElementById('originGrid');
+  grid.innerHTML = '';
+  for (const [key, o] of Object.entries(ORIGINS)) {
+    const card = document.createElement('div');
+    card.className = 'origin-card';
+
+    const radarWrap = document.createElement('div');
+    radarWrap.className = 'radar-wrap';
+    const canvas = document.createElement('canvas');
+    drawRadar(canvas, o.grade, o.color, 100);
+    radarWrap.appendChild(canvas);
+
+    const info = document.createElement('div');
+    info.className = 'origin-info';
+
+    let barsHtml = '';
+    for (const stat of ['hp', 'atk', 'def', 'spd']) {
+      const pct = o.grade[stat] / 5 * 100;
+      barsHtml += `<div class="stat-bar-row">
+        <span class="stat-bar-label">${STAT_LABELS[stat]}</span>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:${STAT_COLORS[stat]}"></div></div>
+        <span class="stat-bar-value">${o.grade[stat]}</span>
+      </div>`;
+    }
+
+    info.innerHTML = `
+      <div class="origin-header">
+        <span class="origin-badge" style="background:${o.color}">${o.label}</span>
+        <span class="origin-role">${o.role}</span>
+      </div>
+      <p class="origin-desc">${o.desc}</p>
+      <div class="stat-bars">${barsHtml}</div>
+    `;
+    card.appendChild(radarWrap);
+    card.appendChild(info);
+    grid.appendChild(card);
+  }
+}
+
+// ============================================================
+//  스탯 테이블 탭
+// ============================================================
+function renderBudgetSliders() {
+  const container = document.getElementById('budgetSliders');
+  container.innerHTML = '';
+  for (const rarity of RARITY_ORDER) {
+    const b = RARITY_BUDGETS[rarity];
+    const row = document.createElement('div');
+    row.style.cssText = 'margin-bottom:12px;padding:8px;background:#252538;border-radius:6px;';
+    let html = `<div style="font-weight:700;color:${RARITY_COLORS[rarity]};margin-bottom:6px;">${rarity} (턴노트: ${b.notes})</div>`;
+    for (const stat of ['hp', 'atk', 'def', 'spd']) {
+      const [min, max] = b[stat];
+      html += `<div class="budget-row">
+        <label>${STAT_LABELS[stat]}</label>
+        <span class="budget-val">${min}</span>
+        <input type="range" min="${Math.round(min*0.5)}" max="${Math.round(max*1.5)}" value="${min}"
+          oninput="updateBudget('${rarity}','${stat}',0,+this.value)">
+        <span>~</span>
+        <input type="range" min="${Math.round(min*0.5)}" max="${Math.round(max*1.5)}" value="${max}"
+          oninput="updateBudget('${rarity}','${stat}',1,+this.value)">
+        <span class="budget-val">${max}</span>
+      </div>`;
+    }
+    row.innerHTML = html;
+    container.appendChild(row);
+  }
+}
+
+function updateBudget(rarity, stat, idx, val) {
+  RARITY_BUDGETS[rarity][stat][idx] = val;
+  const row = event.target.closest('.budget-row');
+  const spans = row.querySelectorAll('.budget-val');
+  spans[idx].textContent = val;
+  renderStatTable();
+  renderCompare();
+}
+
+function renderRarityFilter() {
+  const container = document.getElementById('rarityFilter');
+  container.innerHTML = '<label>등급 필터:</label>';
+  for (const r of ['ALL', ...RARITY_ORDER]) {
+    const btn = document.createElement('button');
+    btn.textContent = r;
+    btn.className = (r === 'ALL' && selectedRarity === 'ALL') || r === selectedRarity ? 'active' : '';
+    btn.style.color = r !== 'ALL' ? RARITY_COLORS[r] : '#ccc';
+    btn.onclick = () => { selectedRarity = r; renderRarityFilter(); renderStatTable(); };
+    container.appendChild(btn);
+  }
+}
+
+function renderStatTable() {
+  const tbody = document.getElementById('statTableBody');
+  tbody.innerHTML = '';
+  const rarities = selectedRarity === 'ALL' ? RARITY_ORDER : [selectedRarity];
+
+  for (const rarity of rarities) {
+    if (rarities.length > 1) {
+      const header = document.createElement('tr');
+      header.innerHTML = `<td colspan="7" style="font-weight:700;color:${RARITY_COLORS[rarity]};padding:10px 8px 4px;border-bottom:1px solid #333;font-size:14px;">${rarity}</td>`;
+      tbody.appendChild(header);
+    }
+    for (const [key, o] of Object.entries(ORIGINS)) {
+      const s = calcAllStats(key, rarity);
+      const maxGrade = Math.max(o.grade.hp, o.grade.atk, o.grade.def, o.grade.spd);
+      const minGrade = Math.min(o.grade.hp, o.grade.atk, o.grade.def, o.grade.spd);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="cell-origin" style="color:${o.color}">${o.label}</td>
+        <td class="cell-role">${o.role}</td>
+        <td class="cell-stat ${o.grade.hp>=4?'high':o.grade.hp<=1?'low':''}">${s.hp}</td>
+        <td class="cell-stat ${o.grade.atk>=4?'high':o.grade.atk<=1?'low':''}">${s.atk}</td>
+        <td class="cell-stat ${o.grade.def>=4?'high':o.grade.def<=1?'low':''}">${s.def}</td>
+        <td class="cell-stat ${o.grade.spd>=4?'high':o.grade.spd<=1?'low':''}">${s.spd}</td>
+        <td class="cell-notes">${s.notes}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+}
+
+// ============================================================
+//  캐릭터 비교 탭
+// ============================================================
+function renderCompare() {
+  const tbody = document.getElementById('compareTableBody');
+  tbody.innerHTML = '';
+
+  for (const c of CURRENT_CHARS) {
+    const recommended = calcAllStats(c.origin, c.rarity);
+    const o = ORIGINS[c.origin];
+    const tr = document.createElement('tr');
+
+    function diffCell(actual, expected, statKey) {
+      if (expected === 0) return `<td>${actual}</td>`;
+      const pct = Math.abs(actual - expected) / expected;
+      const cls = pct <= 0.15 ? 'char-diff-ok' : pct <= 0.30 ? 'char-diff-warn' : 'char-diff-bad';
+      const arrow = actual > expected ? '&#9650;' : actual < expected ? '&#9660;' : '';
+      return `<td class="${cls}">${actual} <small>${arrow} (${expected})</small></td>`;
+    }
+
+    tr.innerHTML = `
+      <td style="font-weight:600">${c.name}</td>
+      <td style="color:${RARITY_COLORS[c.rarity]};font-weight:700">${c.rarity}</td>
+      <td style="color:${o.color}">${o.label} (${o.role})</td>
+      ${diffCell(c.hp, recommended.hp, 'hp')}
+      ${diffCell(c.atk, recommended.atk, 'atk')}
+      ${diffCell(c.def, recommended.def, 'def')}
+      ${diffCell(c.spd, recommended.spd, 'spd')}
+      <td class="${c.notes !== recommended.notes ? 'char-diff-warn' : ''}">${c.notes} (${recommended.notes})</td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ============================================================
+//  내보내기
+// ============================================================
+function exportStats() {
+  const result = {};
+  for (const rarity of RARITY_ORDER) {
+    result[rarity] = {};
+    for (const [key, o] of Object.entries(ORIGINS)) {
+      result[rarity][key] = { role: o.role, ...calcAllStats(key, rarity) };
+    }
+  }
+
+  const el = document.getElementById('exportOutput');
+  el.style.display = 'block';
+  el.textContent = JSON.stringify(result, null, 2);
+}
+
+// ============================================================
+//  탭 전환
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// 초기화
+renderOverview();
+renderBudgetSliders();
+renderRarityFilter();
+renderStatTable();
+renderCompare();
+</script>
+</body>
+</html>

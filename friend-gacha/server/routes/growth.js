@@ -4,9 +4,20 @@ const { authMiddleware } = require('../middleware/auth');
 const { calcStats } = require('../battle');
 
 const gameConfig = require('../../gameConfig.json');
+function loadTalents() {
+  delete require.cache[require.resolve('../../data/talents')];
+  return require('../../data/talents');
+}
 const router = express.Router();
 
+function loadPromotions() {
+  delete require.cache[require.resolve('../../data/promotions')];
+  return require('../../data/promotions');
+}
+
 const MAX_LEVELS = gameConfig.growth.maxLevels;
+const PROMO_CFG = gameConfig.growth.promotion || {};
+const itemDefs = require('../../data/items');
 
 // 스킬 타입 → 슬롯 타입 매핑
 const DEFENSE_SKILL_TYPES = ['defense'];
@@ -14,10 +25,32 @@ function getSlotTypeForSkill(skillType) {
   return DEFENSE_SKILL_TYPES.includes(skillType) ? 'defense' : 'attack';
 }
 
-// 각성에 따른 추가 슬롯 계산
-function calcEffectiveSlots(base, awakening, slotType) {
-  if (slotType === 'attack') return base + (awakening >= 3 ? 1 : 0);
-  return base + (awakening >= 5 ? 1 : 0);
+// 승급 보상 합산 (완료된 tier 0~promotion-1 까지)
+function calcPromoBonuses(characterId, promotion) {
+  const tiers = getPromoTiers(characterId);
+  let atkSlots = 0, defSlots = 0, talentCount = 0, bonusNotes = 0;
+  for (let i = 0; i < Math.min(promotion || 0, tiers.length); i++) {
+    atkSlots += (tiers[i].attackSlots || 0);
+    defSlots += (tiers[i].defenseSlots || 0);
+    bonusNotes += (tiers[i].bonusNotes || 0);
+    if (tiers[i].unlockTalent) talentCount++;
+  }
+  return { atkSlots, defSlots, talentCount, bonusNotes };
+}
+
+// 각성 + 승급에 따른 추가 슬롯 계산
+function calcEffectiveSlots(base, awakening, slotType, promoBonus) {
+  let slots = base;
+  if (slotType === 'attack') slots += (awakening >= 3 ? 1 : 0);
+  else slots += (awakening >= 5 ? 1 : 0);
+  slots += (promoBonus || 0);
+  return slots;
+}
+
+function calcMaxLevel(rarity, promotion) {
+  const base = (gameConfig.growth.maxLevels[rarity] || 40);
+  const promoBonus = (promotion || 0) * (PROMO_CFG.levelBonusPerTier || 10);
+  return base + promoBonus;
 }
 
 // 캐릭터 상세 정보
@@ -33,14 +66,15 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
 
   if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
 
-  const maxLevel = (MAX_LEVELS[inv.rarity] || 40) + inv.awakening * 10;
-  const stats = calcStats(inv, inv.level, inv.awakening);
-  const nextLevelExp = inv.level * 100;
+  const maxLevel = calcMaxLevel(inv.rarity, inv.promotion);
+  const stats = calcStats(inv, inv.level, inv.awakening, inv.promotion);
+  const nextLevelExp = inv.level * inv.level * 10 + inv.level * 50;
 
   const baseAtkSlots = inv.attack_slots ?? 3;
   const baseDefSlots = inv.defense_slots ?? 2;
-  const effectiveAtkSlots = calcEffectiveSlots(baseAtkSlots, inv.awakening, 'attack');
-  const effectiveDefSlots = calcEffectiveSlots(baseDefSlots, inv.awakening, 'defense');
+  const promoBonuses = calcPromoBonuses(inv.character_id, inv.promotion);
+  const effectiveAtkSlots = calcEffectiveSlots(baseAtkSlots, inv.awakening, 'attack', promoBonuses.atkSlots);
+  const effectiveDefSlots = calcEffectiveSlots(baseDefSlots, inv.awakening, 'defense', promoBonuses.defSlots);
 
   // 장착된 스킬 (slot_type, skill_inventory_id 포함)
   const equipped = db.prepare(`
@@ -86,11 +120,19 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
     id: s.id, slot: s.slot_number, slotType: s.slot_type,
     name: s.name, description: s.description,
     type: s.type, cost: s.cost, power: s.power, element: s.element,
-    target: s.target, defense_mult: s.defense_mult,
+    target: s.target, defense_mult: s.defense_mult, cooldown: s.cooldown || 0,
     isFixed: !!s.is_fixed,
     skillInventoryId: s.skill_inventory_id || null,
     extra: typeof s.extra === 'string' ? JSON.parse(s.extra || '{}') : (s.extra || {}),
   });
+
+  const charTalents = loadTalents()[inv.character_id];
+  const totalTalentCount = charTalents ? charTalents.talents.length : 0;
+  const talentUnlockCount = Math.min(1 + promoBonuses.talentCount, totalTalentCount);
+  const availableTalents = charTalents
+    ? charTalents.talents.slice(0, talentUnlockCount).map((t, i) => ({ index: i, ...t }))
+    : [];
+  const equippedTalent = inv.equipped_talent ?? 0;
 
   res.json({
     inventoryId: inv.id,
@@ -100,8 +142,14 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
     imageUrl: inv.image_url || '', imageBust: inv.image_bust || '', imageSd: inv.image_sd || '', imageLd: inv.image_ld || '',
     level: inv.level, maxLevel, exp: inv.exp, nextLevelExp,
     awakening: inv.awakening, maxAwakening: 5,
-    turnNotes: inv.turn_notes,
+    promotion: inv.promotion || 0, maxPromotion: getPromoTiers(inv.character_id).length,
+    turnNotes: inv.turn_notes + Math.floor(inv.level / 10) + inv.awakening * 2 + promoBonuses.bonusNotes,
     stats,
+    talents: availableTalents,
+    talentUnlockCount,
+    totalTalentCount,
+    equippedTalent,
+    isLocked: !!inv.is_locked,
     attackSlots: { total: effectiveAtkSlots, skills: attackEquipped.map(mapSkill) },
     defenseSlots: { total: effectiveDefSlots, skills: defenseEquipped.map(mapSkill) },
     // 하위호환용
@@ -109,7 +157,7 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
     skillPool: skillPool.map(s => ({
       id: s.id, name: s.name, description: s.description,
       type: s.type, cost: s.cost, power: s.power, element: s.element,
-      target: s.target, defense_mult: s.defense_mult,
+      target: s.target, defense_mult: s.defense_mult, cooldown: s.cooldown || 0,
       awakeningRequired: s.awakening_required ?? 0,
       isFixed: !!s.is_fixed,
       slotType: getSlotTypeForSkill(s.type),
@@ -120,10 +168,11 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
       id: s.id, skillInventoryId: s.skill_inventory_id,
       name: s.name, description: s.description,
       type: s.type, cost: s.cost, power: s.power, element: s.element,
-      target: s.target, defense_mult: s.defense_mult,
+      target: s.target, defense_mult: s.defense_mult, cooldown: s.cooldown || 0,
       slotType: getSlotTypeForSkill(s.type),
       source: 'inventory', obtainedFrom: s.obtained_from,
       extra: typeof s.extra === 'string' ? JSON.parse(s.extra || '{}') : (s.extra || {}),
+      equipCondition: typeof s.equip_condition === 'string' ? JSON.parse(s.equip_condition || '{}') : (s.equip_condition || {}),
     })),
   });
 });
@@ -187,7 +236,9 @@ router.post('/equip-skill', authMiddleware, (req, res) => {
 
   // 슬롯 수 제한 체크
   const baseSlots = resolvedSlotType === 'attack' ? (inv.attack_slots ?? 3) : (inv.defense_slots ?? 2);
-  const maxSlots = calcEffectiveSlots(baseSlots, inv.awakening, resolvedSlotType);
+  const equipPromoBonuses = calcPromoBonuses(inv.char_id, inv.promotion);
+  const promoSlotBonus = resolvedSlotType === 'attack' ? equipPromoBonuses.atkSlots : equipPromoBonuses.defSlots;
+  const maxSlots = calcEffectiveSlots(baseSlots, inv.awakening, resolvedSlotType, promoSlotBonus);
   if (slotNumber >= maxSlots) {
     return res.status(400).json({ error: '슬롯이 가득 찼습니다' });
   }
@@ -275,36 +326,68 @@ router.post('/equip-skills-bulk', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-// 레벨업
+// 파편 인벤토리 조회
+// 레벨업 (아이템 소모 — effect.type === 'exp'인 아이템 전부 지원)
 router.post('/levelup', authMiddleware, (req, res) => {
-  const { inventoryId, amount } = req.body;
-  const goldAmount = Math.min(amount || 1000, 10000);
-  const expGain = goldAmount;
+  const { inventoryId, items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: '사용할 아이템을 선택하세요' });
+  }
 
-  const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
-  if (user.gold < goldAmount) return res.status(400).json({ error: '골드가 부족합니다' });
+  const itemDefs = require('../../data/items');
 
   const inv = db.prepare(`
-    SELECT i.*, c.rarity FROM inventory i JOIN characters c ON i.character_id = c.id
+    SELECT i.*, c.rarity, c.origin FROM inventory i JOIN characters c ON i.character_id = c.id
     WHERE i.id = ? AND i.user_id = ?
   `).get(inventoryId, req.user.id);
   if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
 
-  const maxLevel = (MAX_LEVELS[inv.rarity] || 40) + inv.awakening * 10;
+  const maxLevel = calcMaxLevel(inv.rarity, inv.promotion);
   if (inv.level >= maxLevel) return res.status(400).json({ error: '이미 최대 레벨입니다' });
 
-  db.prepare('UPDATE users SET gold = gold - ? WHERE id = ?').run(goldAmount, req.user.id);
+  const originBonus = gameConfig.growth.expOriginBonus || 1.5;
+  let totalExp = 0;
+  const consumed = [];
 
-  let exp = inv.exp + expGain;
-  let level = inv.level;
-  while (level < maxLevel) {
-    const needed = level * 100;
-    if (exp >= needed) { exp -= needed; level++; } else break;
+  for (const { itemId, count } of items) {
+    if (!itemId || !count || count <= 0) continue;
+    const def = itemDefs[itemId];
+    if (!def || !def.effect || def.effect.type !== 'exp') {
+      return res.status(400).json({ error: `경험치 아이템이 아닙니다: ${def?.name || itemId}` });
+    }
+
+    const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
+    const have = row?.quantity || 0;
+    if (have < count) return res.status(400).json({ error: `${def.name} 부족 (보유: ${have})` });
+
+    const baseExp = def.effect.value * count;
+    const bonus = (def.effect.origin && def.effect.origin === inv.origin) ? originBonus : 1;
+    totalExp += Math.floor(baseExp * bonus);
+    consumed.push({ itemId, count });
   }
 
-  db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(exp, level, inventoryId);
-  const updatedUser = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
-  res.json({ level, exp, nextLevelExp: level * 100, levelsGained: level - inv.level, gold: updatedUser.gold });
+  if (totalExp === 0) return res.status(400).json({ error: '경험치를 얻을 수 없습니다' });
+
+  const doLevelUp = db.transaction(() => {
+    for (const c of consumed) {
+      db.prepare('UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?').run(c.count, req.user.id, c.itemId);
+    }
+    let exp = inv.exp + totalExp;
+    let level = inv.level;
+    while (level < maxLevel) {
+      const needed = level * level * 10 + level * 50;
+      if (exp >= needed) { exp -= needed; level++; } else break;
+    }
+    if (level >= maxLevel) exp = 0;
+    db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(exp, level, inventoryId);
+    return { exp, level };
+  });
+
+  const result = doLevelUp();
+  res.json({
+    level: result.level, exp: result.exp, nextLevelExp: result.level * result.level * 10 + result.level * 50,
+    levelsGained: result.level - inv.level, expGained: totalExp
+  });
 });
 
 // 각성
@@ -323,19 +406,33 @@ router.post('/awaken', authMiddleware, (req, res) => {
     WHERE i.id = ? AND i.user_id = ?
   `).get(materialId, req.user.id);
   if (!material) return res.status(404).json({ error: '재료 캐릭터를 찾을 수 없습니다' });
+  if (material.is_locked) return res.status(400).json({ error: '잠금된 캐릭터는 재료로 사용할 수 없습니다' });
   if (material.character_id !== target.character_id) return res.status(400).json({ error: '같은 캐릭터만 각성 재료로 사용할 수 있습니다' });
   if (materialId === inventoryId) return res.status(400).json({ error: '자기 자신은 재료로 사용할 수 없습니다' });
 
   const costs = [1000, 2000, 5000, 10000, 20000];
   const goldCost = costs[target.awakening] || 20000;
   const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
-  if (user.gold < goldCost) return res.status(400).json({ error: `골드가 부족합니다 (필요: ${goldCost})` });
+  if (user.gold < goldCost) return res.status(400).json({ error: `비트가 부족합니다 (필요: ${goldCost})` });
 
   const doAwaken = db.transaction(() => {
     db.prepare('UPDATE inventory SET awakening = awakening + 1 WHERE id = ?').run(inventoryId);
     db.prepare('DELETE FROM equipped_skills WHERE inventory_id = ?').run(materialId);
     db.prepare('DELETE FROM inventory WHERE id = ?').run(materialId);
     db.prepare('UPDATE users SET gold = gold - ? WHERE id = ?').run(goldCost, req.user.id);
+    // 파티 프리셋에서 재료로 소모된 캐릭터 제거
+    const presets = db.prepare('SELECT slot, party_ids FROM party_presets WHERE user_id = ?').all(req.user.id);
+    for (const p of presets) {
+      const ids = JSON.parse(p.party_ids);
+      if (ids.includes(materialId)) {
+        const cleaned = ids.filter(id => id !== materialId);
+        db.prepare('UPDATE party_presets SET party_ids = ? WHERE user_id = ? AND slot = ?')
+          .run(JSON.stringify(cleaned), req.user.id, p.slot);
+      }
+    }
+    // 대표 캐릭터가 재료로 소모됐으면 해제
+    db.prepare('UPDATE users SET representative_inventory_id = NULL WHERE id = ? AND representative_inventory_id = ?')
+      .run(req.user.id, materialId);
   });
   doAwaken();
 
@@ -345,10 +442,178 @@ router.post('/awaken', authMiddleware, (req, res) => {
 
   res.json({
     awakening: newAwakening,
-    maxLevel: (MAX_LEVELS[target.rarity] || 40) + newAwakening * 10,
+    maxLevel: calcMaxLevel(target.rarity, target.promotion),
     goldSpent: goldCost,
     grantedSkills,
   });
+});
+
+// 캐릭터별 승급 요구사항 조회 (per-character → fallback global)
+function getPromoTiers(characterId) {
+  const promoData = loadPromotions();
+  return promoData[characterId]?.tiers || [];
+}
+
+// 승급
+router.post('/promote', authMiddleware, (req, res) => {
+  const { inventoryId } = req.body;
+
+  const inv = db.prepare(`
+    SELECT i.*, c.rarity, c.element, c.name FROM inventory i JOIN characters c ON i.character_id = c.id
+    WHERE i.id = ? AND i.user_id = ?
+  `).get(inventoryId, req.user.id);
+  if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
+
+  const curPromo = inv.promotion || 0;
+  const tiers = getPromoTiers(inv.character_id);
+  if (tiers.length === 0) return res.status(400).json({ error: '이 캐릭터의 승급 데이터가 설정되지 않았습니다' });
+  if (curPromo >= tiers.length) return res.status(400).json({ error: '이미 최대 승급입니다' });
+
+  const maxLevel = calcMaxLevel(inv.rarity, curPromo);
+  if (inv.level < maxLevel) return res.status(400).json({ error: `최대 레벨(${maxLevel})에 도달해야 승급할 수 있습니다` });
+
+  const tier = tiers[curPromo];
+  const goldCost = tier.gold || 0;
+
+  const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
+  if (user.gold < goldCost) return res.status(400).json({ error: `비트가 부족합니다 (필요: ${goldCost.toLocaleString()})` });
+
+  for (const mat of (tier.items || [])) {
+    const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, mat.itemId);
+    const have = row?.quantity || 0;
+    if (have < mat.quantity) {
+      const matName = itemDefs[mat.itemId]?.name || mat.itemId;
+      return res.status(400).json({ error: `${matName}이(가) 부족합니다 (보유: ${have}/${mat.quantity})` });
+    }
+  }
+
+  const doPromote = db.transaction(() => {
+    if (goldCost > 0) db.prepare('UPDATE users SET gold = gold - ? WHERE id = ?').run(goldCost, req.user.id);
+    for (const mat of (tier.items || [])) {
+      db.prepare('UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?')
+        .run(mat.quantity, req.user.id, mat.itemId);
+    }
+    db.prepare('UPDATE inventory SET promotion = ? WHERE id = ?').run(curPromo + 1, inventoryId);
+  });
+  doPromote();
+
+  const newPromo = curPromo + 1;
+  const { grantPromotionSkills } = require('../db');
+  const grantedSkills = grantPromotionSkills(req.user.id, inventoryId, inv.character_id, newPromo);
+
+  res.json({
+    promotion: newPromo,
+    maxPromotion: tiers.length,
+    maxLevel: calcMaxLevel(inv.rarity, newPromo),
+    goldSpent: goldCost,
+    grantedSkills,
+  });
+});
+
+// 승급 요구사항 조회
+router.get('/promote-info/:inventoryId', authMiddleware, (req, res) => {
+  const inv = db.prepare(`
+    SELECT i.*, c.rarity, c.element, c.name FROM inventory i JOIN characters c ON i.character_id = c.id
+    WHERE i.id = ? AND i.user_id = ?
+  `).get(req.params.inventoryId, req.user.id);
+  if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
+
+  const curPromo = inv.promotion || 0;
+  const tiers = getPromoTiers(inv.character_id);
+
+  if (tiers.length === 0) {
+    return res.json({ maxed: true, promotion: curPromo, maxPromotion: 0, noData: true });
+  }
+  if (curPromo >= tiers.length) {
+    return res.json({ maxed: true, promotion: curPromo, maxPromotion: tiers.length });
+  }
+
+  const tier = tiers[curPromo];
+  const maxLevel = calcMaxLevel(inv.rarity, curPromo);
+  const levelReached = inv.level >= maxLevel;
+  const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
+
+  const materials = (tier.items || []).map(mat => {
+    const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, mat.itemId);
+    const def = itemDefs[mat.itemId];
+    return {
+      itemId: mat.itemId,
+      name: def?.name || mat.itemId,
+      icon: def?.icon || '',
+      need: mat.quantity,
+      have: row?.quantity || 0,
+    };
+  });
+
+  const rewards = {};
+  if (tier.attackSlots) rewards.attackSlots = tier.attackSlots;
+  if (tier.defenseSlots) rewards.defenseSlots = tier.defenseSlots;
+  if (tier.bonusNotes) rewards.bonusNotes = tier.bonusNotes;
+  if (tier.unlockTalent) rewards.unlockTalent = true;
+
+  res.json({
+    maxed: false,
+    promotion: curPromo,
+    maxPromotion: tiers.length,
+    levelReached,
+    currentMaxLevel: maxLevel,
+    nextMaxLevel: calcMaxLevel(inv.rarity, curPromo + 1),
+    requirements: {
+      gold: { need: tier.gold || 0, have: user.gold },
+      materials,
+    },
+    rewards,
+  });
+});
+
+// 잠금 토글
+router.post('/toggle-lock', authMiddleware, (req, res) => {
+  const { inventoryId } = req.body;
+  const inv = db.prepare('SELECT is_locked FROM inventory WHERE id = ? AND user_id = ?').get(inventoryId, req.user.id);
+  if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
+  const newVal = inv.is_locked ? 0 : 1;
+  db.prepare('UPDATE inventory SET is_locked = ? WHERE id = ?').run(newVal, inventoryId);
+  res.json({ isLocked: !!newVal });
+});
+
+router.post('/batch-lock', authMiddleware, (req, res) => {
+  const { lockIds } = req.body;
+  if (!Array.isArray(lockIds)) return res.status(400).json({ error: '잘못된 요청' });
+  const myItems = db.prepare('SELECT id FROM inventory WHERE user_id = ?').all(req.user.id).map(r => r.id);
+  const mySet = new Set(myItems);
+  const validLockIds = lockIds.filter(id => mySet.has(id));
+  db.prepare('UPDATE inventory SET is_locked = 0 WHERE user_id = ?').run(req.user.id);
+  if (validLockIds.length > 0) {
+    const placeholders = validLockIds.map(() => '?').join(',');
+    db.prepare(`UPDATE inventory SET is_locked = 1 WHERE id IN (${placeholders}) AND user_id = ?`).run(...validLockIds, req.user.id);
+  }
+  res.json({ locked: validLockIds.length });
+});
+
+// 특기 변경
+router.post('/equip-talent', authMiddleware, (req, res) => {
+  const { inventoryId, talentIndex } = req.body;
+
+  const inv = db.prepare(`
+    SELECT i.*, c.id as char_id FROM inventory i JOIN characters c ON i.character_id = c.id
+    WHERE i.id = ? AND i.user_id = ?
+  `).get(inventoryId, req.user.id);
+  if (!inv) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
+
+  const charTalents = loadTalents()[inv.char_id];
+  if (!charTalents) return res.status(400).json({ error: '특기 데이터가 없습니다' });
+
+  const talentPromoBonuses = calcPromoBonuses(inv.char_id, inv.promotion);
+  const maxIndex = talentPromoBonuses.talentCount;
+  if (talentIndex < 0 || talentIndex > maxIndex) {
+    return res.status(400).json({ error: '아직 해금되지 않은 특기입니다' });
+  }
+  if (!charTalents.talents[talentIndex]) {
+    return res.status(400).json({ error: '존재하지 않는 특기입니다' });
+  }
+
+  db.prepare('UPDATE inventory SET equipped_talent = ? WHERE id = ?').run(talentIndex, inventoryId);
+  res.json({ success: true, equippedTalent: talentIndex });
 });
 
 // 스킬 인벤토리 목록
@@ -376,7 +641,7 @@ router.get('/skill-inventory', authMiddleware, (req, res) => {
       skillInventoryId: s.skill_inventory_id,
       id: s.id, name: s.name, description: s.description,
       type: s.type, cost: s.cost, power: s.power, element: s.element,
-      target: s.target, defense_mult: s.defense_mult,
+      target: s.target, defense_mult: s.defense_mult, cooldown: s.cooldown || 0,
       rarity: s.rarity, obtainedFrom: s.obtained_from,
       slotType: getSlotTypeForSkill(s.type),
       equippedOn: equippedMap[s.skill_inventory_id] || null,
@@ -388,7 +653,7 @@ router.get('/skill-inventory', authMiddleware, (req, res) => {
 // 파티 편성용 목록
 router.get('/party-list', authMiddleware, (req, res) => {
   const items = db.prepare(`
-    SELECT i.id as inventory_id, i.level, i.awakening, i.is_favorite,
+    SELECT i.id as inventory_id, i.level, i.awakening, i.promotion, i.is_favorite, i.is_locked,
            c.id as character_id, c.name, c.rarity, c.element, c.origin, c.title,
            c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes,
            c.image_url, c.image_bust, c.image_sd, c.image_ld
@@ -401,10 +666,43 @@ router.get('/party-list', authMiddleware, (req, res) => {
 
   const result = items.map(item => ({
     ...item,
-    stats: calcStats(item, item.level, item.awakening),
+    stats: calcStats(item, item.level, item.awakening, item.promotion),
   }));
 
   res.json({ characters: result });
+});
+
+// 파티 프리셋 조회
+router.get('/party-presets', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT slot, name, party_ids FROM party_presets WHERE user_id = ? ORDER BY slot').all(req.user.id);
+  const presets = [];
+  for (let i = 0; i < 5; i++) {
+    const row = rows.find(r => r.slot === i);
+    presets.push({
+      slot: i,
+      name: row ? row.name : `파티 ${i + 1}`,
+      partyIds: row ? JSON.parse(row.party_ids) : [],
+    });
+  }
+  res.json({ presets });
+});
+
+// 파티 프리셋 저장
+router.put('/party-presets/:slot', authMiddleware, (req, res) => {
+  const slot = Number(req.params.slot);
+  if (slot < 0 || slot > 4) return res.status(400).json({ error: '유효하지 않은 슬롯' });
+  const { name, partyIds } = req.body;
+  if (!Array.isArray(partyIds) || partyIds.length > 3) return res.status(400).json({ error: '파티는 최대 3명' });
+
+  const existing = db.prepare('SELECT 1 FROM party_presets WHERE user_id = ? AND slot = ?').get(req.user.id, slot);
+  if (existing) {
+    db.prepare('UPDATE party_presets SET name = ?, party_ids = ? WHERE user_id = ? AND slot = ?')
+      .run(name || `파티 ${slot + 1}`, JSON.stringify(partyIds), req.user.id, slot);
+  } else {
+    db.prepare('INSERT INTO party_presets (user_id, slot, name, party_ids) VALUES (?, ?, ?, ?)')
+      .run(req.user.id, slot, name || `파티 ${slot + 1}`, JSON.stringify(partyIds));
+  }
+  res.json({ ok: true });
 });
 
 // 대표 캐릭터 설정
@@ -425,8 +723,8 @@ router.get('/lobby', authMiddleware, (req, res) => {
   let representative = null;
   if (user.representative_inventory_id) {
     representative = db.prepare(`
-      SELECT i.id as inventory_id, i.level, i.awakening,
-             c.name, c.rarity, c.element, c.origin, c.title, c.quote,
+      SELECT i.id as inventory_id, i.level, i.awakening, i.promotion,
+             c.id as character_id, c.name, c.rarity, c.element, c.origin, c.title, c.quote,
              c.image_url, c.image_bust, c.image_sd, c.image_ld
       FROM inventory i JOIN characters c ON i.character_id = c.id
       WHERE i.id = ? AND i.user_id = ?
@@ -436,8 +734,8 @@ router.get('/lobby', authMiddleware, (req, res) => {
   // 대표 없으면 가장 높은 레어도 캐릭터 자동
   if (!representative) {
     representative = db.prepare(`
-      SELECT i.id as inventory_id, i.level, i.awakening,
-             c.name, c.rarity, c.element, c.origin, c.title, c.quote,
+      SELECT i.id as inventory_id, i.level, i.awakening, i.promotion,
+             c.id as character_id, c.name, c.rarity, c.element, c.origin, c.title, c.quote,
              c.image_url, c.image_bust, c.image_sd, c.image_ld
       FROM inventory i JOIN characters c ON i.character_id = c.id
       WHERE i.user_id = ?
@@ -445,6 +743,8 @@ router.get('/lobby', authMiddleware, (req, res) => {
       LIMIT 1
     `).get(req.user.id);
   }
+
+  const ownedCharIds = db.prepare('SELECT DISTINCT character_id FROM inventory WHERE user_id = ?').all(req.user.id).map(r => r.character_id);
 
   // 미완료 미션 수
   const today = new Date().toISOString().split('T')[0];
@@ -461,6 +761,7 @@ router.get('/lobby', authMiddleware, (req, res) => {
       stamina: user.stamina,
     },
     representative,
+    ownedCharIds,
     notifications: {
       pendingMissions: pendingMissions.cnt,
       pendingTrades: pendingTrades.cnt,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api, setToken, clearToken } from './utils/api';
 import { connectSocket, disconnectSocket, getSocket } from './utils/socket';
 import { addToast } from './utils/toast';
@@ -6,12 +6,15 @@ import LoginPage from './pages/LoginPage';
 import LobbyPage from './pages/LobbyPage';
 import GachaPage from './pages/GachaPage';
 import CollectionPage from './pages/CollectionPage';
+import PartyPage from './pages/PartyPage';
 import SocialPage from './pages/SocialPage';
-import StagePage from './pages/StagePage';
-import RaidPage from './pages/RaidPage';
+import BattleHub from './pages/BattleHub';
+import StoryPage from './pages/StoryPage';
 import GrowthPage from './pages/GrowthPage';
 import InventoryPage from './pages/InventoryPage';
 import AdminPage from './pages/AdminPage';
+import TutorialPage from './pages/TutorialPage';
+import TutorialGuide from './components/TutorialGuide';
 import ToastContainer from './components/Toast';
 import './styles/app.css';
 
@@ -21,6 +24,7 @@ export default function App() {
   const [subPage, setSubPage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [missions, setMissions] = useState([]);
+  const tutorialRef = useRef(null);
 
   const refreshUser = async () => {
     try { const u = await api.userStatus(); setUser(u); } catch {}
@@ -91,15 +95,25 @@ export default function App() {
     } catch (err) { addToast(err.message, 'error'); }
   };
 
+  const completeTutorial = async () => {
+    try {
+      await api.tutorialDone();
+      await api.tutorialAdvance(1);
+    } catch {}
+    setUser(prev => ({ ...prev, tutorialDone: true, tutorialStep: 1 }));
+  };
+
   if (loading) return <div className="loading-screen">로딩 중...</div>;
   if (!user) return <LoginPage onLogin={handleLogin} />;
+  if (!user.tutorialDone) return <TutorialPage onComplete={completeTutorial} />;
 
   // 하단 탭 정의
   const tabs = [
     { key: 'lobby', label: '로비', icon: '🏠' },
+    { key: 'story', label: '스토리', icon: '📖' },
     { key: 'character', label: '캐릭터', icon: '👤' },
     { key: 'inventory', label: '보관함', icon: '🎒' },
-    { key: 'battle', label: '배틀', icon: '⚔️' },
+    { key: 'battle', label: '작전', icon: '⚔️' },
     { key: 'gacha', label: '뽑기', icon: '🎰' },
     { key: 'social', label: '소셜', icon: '💬' },
   ];
@@ -108,6 +122,14 @@ export default function App() {
 
   return (
     <div className="app">
+      {page === 'character' && (
+        <div className="sub-tabs">
+          <button className={`sub-tab ${!subPage ? 'active' : ''}`} onClick={() => setSubPage(null)}>육성</button>
+          <button className={`sub-tab ${subPage === 'party' ? 'active' : ''}`} onClick={() => setSubPage('party')}>편성</button>
+          <button className={`sub-tab ${subPage === 'collection' ? 'active' : ''}`} onClick={() => setSubPage('collection')}>도감</button>
+        </div>
+      )}
+
       <main className={`main-content ${isLobby ? 'main-lobby' : ''}`}>
         {page === 'lobby' && (
           <LobbyPage
@@ -123,44 +145,45 @@ export default function App() {
         {page === 'character' && (
           subPage === 'collection'
             ? <CollectionPage user={user} />
+            : subPage === 'party'
+            ? <PartyPage addToast={addToast} />
             : <GrowthPage user={user} onRefresh={refreshUser} addToast={addToast} />
         )}
-        {page === 'battle' && (
-          subPage === 'raid'
-            ? <RaidPage user={user} onRefresh={refreshUser} addToast={addToast} />
-            : <StagePage user={user} onRefresh={refreshUser} addToast={addToast} />
-        )}
-        {page === 'gacha' && <GachaPage user={user} onPull={() => { refreshUser(); loadMissions(); }} addToast={addToast} />}
-        {page === 'inventory' && <InventoryPage user={user} />}
+        {page === 'story' && <StoryPage user={user} onRefresh={refreshUser} addToast={addToast} />}
+        {page === 'battle' && <BattleHub user={user} onRefresh={refreshUser} addToast={addToast} />}
+        {page === 'gacha' && <GachaPage user={user} onPull={() => { refreshUser(); loadMissions(); tutorialRef.current?.completeAction('gacha_pull'); }} addToast={addToast} />}
+        {page === 'inventory' && <InventoryPage user={user} onRefresh={refreshUser} addToast={addToast} />}
         {page === 'social' && <SocialPage user={user} addToast={addToast} onRefresh={refreshUser} />}
         {page === 'admin' && <AdminPage />}
       </main>
 
-      {/* 서브탭 (캐릭터/배틀/소셜) */}
-      {page === 'character' && (
-        <div className="sub-tabs">
-          <button className={`sub-tab ${subPage !== 'collection' ? 'active' : ''}`} onClick={() => setSubPage(null)}>육성</button>
-          <button className={`sub-tab ${subPage === 'collection' ? 'active' : ''}`} onClick={() => setSubPage('collection')}>도감</button>
-        </div>
-      )}
-      {page === 'battle' && (
-        <div className="sub-tabs">
-          <button className={`sub-tab ${subPage !== 'raid' ? 'active' : ''}`} onClick={() => setSubPage(null)}>스테이지</button>
-          <button className={`sub-tab ${subPage === 'raid' ? 'active' : ''}`} onClick={() => setSubPage('raid')}>레이드</button>
-        </div>
-      )}
-
       {/* 하단 탭바 */}
       <nav className="tab-bar">
-        {tabs.map(tab => (
-          <button key={tab.key}
-            className={'tab-item' + (page === tab.key ? ' active' : '')}
-            onClick={() => navigate(tab.key)}>
-            <span className="tab-icon">{tab.icon}</span>
-            <span className="tab-label">{tab.label}</span>
-          </button>
-        ))}
+        {tabs.map(tab => {
+          const blocked = tutorialRef.current?.isTabBlocked(tab.key);
+          return (
+            <button key={tab.key}
+              data-tab={tab.key}
+              className={'tab-item' + (page === tab.key ? ' active' : '') + (blocked ? ' tab-blocked' : '')}
+              onClick={() => {
+                if (blocked) return;
+                const handled = tutorialRef.current?.completeAction('tab_click');
+                if (!handled) navigate(tab.key);
+              }}>
+              <span className="tab-icon">{tab.icon}</span>
+              <span className="tab-label">{tab.label}</span>
+            </button>
+          );
+        })}
       </nav>
+
+      <TutorialGuide
+        ref={tutorialRef}
+        user={user}
+        currentPage={page}
+        onNavigate={navigate}
+        onUserUpdate={setUser}
+      />
 
       <ToastContainer />
     </div>

@@ -267,7 +267,8 @@ async function initDb() {
       target TEXT DEFAULT 'single',
       defense_mult REAL DEFAULT 0.0,
       cooldown INTEGER DEFAULT 0,
-      extra TEXT DEFAULT '{}'
+      extra TEXT DEFAULT '{}',
+      obtainable INTEGER DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS character_skills (
@@ -486,6 +487,30 @@ async function initDb() {
     console.log('[DB] inventory skills_initialized 마이그레이션 완료');
   }
 
+  // 특기(talent) 마이그레이션
+  try {
+    db.prepare("SELECT equipped_talent FROM inventory LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE inventory ADD COLUMN equipped_talent INTEGER DEFAULT 0");
+    console.log('[DB] inventory equipped_talent 마이그레이션 완료');
+  }
+
+  // 잠금 마이그레이션
+  try {
+    db.prepare("SELECT is_locked FROM inventory LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE inventory ADD COLUMN is_locked INTEGER DEFAULT 0");
+    console.log('[DB] inventory is_locked 마이그레이션 완료');
+  }
+
+  // 승급 마이그레이션
+  try {
+    db.prepare("SELECT promotion FROM inventory LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE inventory ADD COLUMN promotion INTEGER DEFAULT 0");
+    console.log('[DB] inventory promotion 마이그레이션 완료');
+  }
+
   // 이미지 타입 확장 마이그레이션
   try {
     db.prepare("SELECT image_bust FROM characters LIMIT 1").get();
@@ -513,12 +538,45 @@ async function initDb() {
     console.log('[DB] users 프로필 마이그레이션 완료');
   }
 
+  // 튜토리얼 완료 플래그 마이그레이션
+  try {
+    db.prepare("SELECT tutorial_done FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN tutorial_done INTEGER DEFAULT 0");
+    db.exec("UPDATE users SET tutorial_done = 1");
+    console.log('[DB] users.tutorial_done 마이그레이션 완료');
+  }
+
+  // tutorial_step 마이그레이션
+  try {
+    db.prepare("SELECT tutorial_step FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN tutorial_step INTEGER DEFAULT 0");
+    db.exec("UPDATE users SET tutorial_step = 999 WHERE tutorial_done = 1");
+    console.log('[DB] users.tutorial_step 마이그레이션 완료');
+  }
+
   // skills.equip_condition 마이그레이션
   try {
     db.prepare("SELECT equip_condition FROM skills LIMIT 1").get();
   } catch {
     db.exec("ALTER TABLE skills ADD COLUMN equip_condition TEXT DEFAULT '{}'");
     console.log('[DB] skills.equip_condition 마이그레이션 완료');
+  }
+
+  // skills.obtainable 마이그레이션
+  try {
+    db.prepare("SELECT obtainable FROM skills LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE skills ADD COLUMN obtainable INTEGER DEFAULT 1");
+    console.log('[DB] skills.obtainable 마이그레이션 완료');
+  }
+
+  try {
+    db.prepare("SELECT icon FROM skills LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE skills ADD COLUMN icon TEXT DEFAULT ''");
+    console.log('[DB] skills.icon 마이그레이션 완료');
   }
 
   // character_skills.awakening_required 마이그레이션
@@ -528,6 +586,192 @@ async function initDb() {
     db.exec("ALTER TABLE character_skills ADD COLUMN awakening_required INTEGER DEFAULT -1");
     db.exec("UPDATE character_skills SET awakening_required = 0 WHERE is_default = 1");
     console.log('[DB] character_skills.awakening_required 마이그레이션 완료');
+  }
+
+  // stages.story_script 마이그레이션
+  try {
+    db.prepare("SELECT story_script FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN story_script TEXT DEFAULT NULL");
+    console.log('[DB] stages.story_script 마이그레이션 완료');
+  }
+
+  // stages.type 마이그레이션 (story / farming / event)
+  try {
+    db.prepare("SELECT type FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN type TEXT DEFAULT 'story'");
+    console.log('[DB] stages.type 마이그레이션 완료');
+  }
+
+  // stages 파밍/이벤트 필드 마이그레이션
+  try {
+    db.prepare("SELECT open_days FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN open_days TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE stages ADD COLUMN always_open INTEGER DEFAULT 0");
+    db.exec("ALTER TABLE stages ADD COLUMN unlock_condition TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE stages ADD COLUMN dungeon_group TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE stages ADD COLUMN description TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE stages ADD COLUMN icon TEXT DEFAULT NULL");
+    console.log('[DB] stages 파밍/이벤트 필드 마이그레이션 완료');
+  }
+
+  // 계정 레벨 시스템 마이그레이션
+  try {
+    db.prepare("SELECT account_level FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN account_level INTEGER DEFAULT 1");
+    db.exec("ALTER TABLE users ADD COLUMN account_exp INTEGER DEFAULT 0");
+    console.log('[DB] 계정 레벨 시스템 마이그레이션 완료');
+  }
+
+  // 스토리 노드 테이블
+  db.exec(`CREATE TABLE IF NOT EXISTS story_nodes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL DEFAULT 'main',
+    chapter INTEGER NOT NULL DEFAULT 1,
+    node_number INTEGER NOT NULL DEFAULT 1,
+    title TEXT NOT NULL,
+    node_type TEXT NOT NULL DEFAULT 'story',
+    story_script TEXT DEFAULT NULL,
+    enemy_data TEXT DEFAULT NULL,
+    stamina_cost INTEGER DEFAULT 0,
+    rewards TEXT DEFAULT NULL,
+    recommended_level INTEGER DEFAULT 1,
+    difficulty TEXT DEFAULT 'normal',
+    character_id INTEGER DEFAULT NULL,
+    event_id TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS story_clears (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    node_id INTEGER NOT NULL,
+    stars INTEGER DEFAULT 0,
+    best_turns INTEGER,
+    cleared_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (node_id) REFERENCES story_nodes(id),
+    UNIQUE(user_id, node_id)
+  )`);
+
+  // tags 정의 테이블
+  db.exec(`CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT NOT NULL UNIQUE
+  )`);
+
+  // character_tags 테이블 (tag_id 기반)
+  try {
+    db.prepare("SELECT tag_id FROM character_tags LIMIT 1").get();
+  } catch {
+    db.exec("DROP TABLE IF EXISTS character_tags");
+    db.exec(`CREATE TABLE IF NOT EXISTS character_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      character_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      FOREIGN KEY (character_id) REFERENCES characters(id),
+      FOREIGN KEY (tag_id) REFERENCES tags(id),
+      UNIQUE(character_id, tag_id)
+    )`);
+  }
+
+  // monster_tags 테이블
+  db.exec(`CREATE TABLE IF NOT EXISTS monster_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monster_id TEXT NOT NULL,
+    tag_id INTEGER NOT NULL,
+    FOREIGN KEY (monster_id) REFERENCES monsters(id),
+    FOREIGN KEY (tag_id) REFERENCES tags(id),
+    UNIQUE(monster_id, tag_id)
+  )`);
+
+  // party_presets 테이블
+  db.exec(`CREATE TABLE IF NOT EXISTS party_presets (
+    user_id INTEGER NOT NULL,
+    slot INTEGER NOT NULL DEFAULT 0,
+    name TEXT DEFAULT '',
+    party_ids TEXT DEFAULT '[]',
+    PRIMARY KEY (user_id, slot)
+  )`);
+
+  // user_items 테이블 (아이템 인벤토리)
+  db.exec(`CREATE TABLE IF NOT EXISTS user_items (
+    user_id INTEGER NOT NULL,
+    item_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  )`);
+
+  // 스킬 extra 데이터 패치
+  const skillExtraPatches = {
+    125: { hpLostCostReduce: { trackerKey: 'skill_125', hpPercentPerStack: 0.05, reductionPerStack: 1 } },
+    160: { effects: [{ type: 'applyStatus', statusKey: 'submerge', displayName: '수몰', turns: 2, scope: 'enemies' }] },
+  };
+  for (const [skillId, extraData] of Object.entries(skillExtraPatches)) {
+    try {
+      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(Number(skillId));
+      if (row && (!row.extra || row.extra === '{}')) {
+        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(extraData), Number(skillId));
+        console.log(`[DB] 스킬 ${skillId} extra 패치 완료`);
+      }
+    } catch {}
+  }
+
+  // 메타포 스킬 extra + target 패치
+  const metaphorPatches = [
+    { id: 124, extra: { effects: [{ type: 'applyStatus', statusKey: 'light_vulnerability', displayName: '광 속성 취약', turns: 1, scope: 'target' }] } },
+    { id: 155, extra: { stat: 'spd', turns: 3, taunt_gain: 3 }, power: 0.2 },
+    { id: 156, extra: { illusion_gain: 1, ally_heal_ratio: 0.5 }, target: 'any_single' },
+    { id: 157, extra: { consume_illusion: true, power_per_stack: 0.25 } },
+    { id: 158, extra: { effects: [{ type: 'applyStatus', statusKey: 'dark_vulnerability', displayName: '암 속성 취약', turns: 1, scope: 'target' }] } },
+    { id: 159, extra: { next_cycle_spd_buff: { amount: 0.15, turns: 1 } } },
+  ];
+  for (const patch of metaphorPatches) {
+    try {
+      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(patch.id);
+      if (row) {
+        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(patch.extra), patch.id);
+        if (patch.target) db.prepare('UPDATE skills SET target = ? WHERE id = ?').run(patch.target, patch.id);
+        if (patch.power !== undefined) db.prepare('UPDATE skills SET power = ? WHERE id = ?').run(patch.power, patch.id);
+        console.log(`[DB] 스킬 ${patch.id} 메타포 패치 완료`);
+      }
+    } catch {}
+  }
+
+  // 시스투스/베르트랑/아우라 스킬 extra 패치
+  const charSkillPatches = [
+    { id: 4, extra: { noteRestore: 3 } },
+    { id: 123, extra: { effects: [{ type: 'applyStatus', statusKey: 'color_extract', displayName: '색 추출', turns: 99, scope: 'target' }], color_extract: { atkRatio: 3.0 } } },
+    { id: 127, extra: { hpCost: 0.1, taunt_gain: 5 } },
+    { id: 131, extra: { selfHeal: 0.5 } },
+    { id: 132, extra: { deflect: { hpThreshold: 0.1 } } },
+    { id: 133, extra: { encore_grant: 1 } },
+    { id: 135, extra: { noteRestoreIfZero: 5 } },
+    { id: 136, extra: { grantExtraTurn: true } },
+    { id: 162, extra: { taunt_gain: 1, bonus_taunt_on_prior_defense: 2 } },
+    { id: 163, extra: { shield: { atkRatio: 4.0, scope: 'party' } } },
+    { id: 164, extra: { taunt_gain: 4, cleanse_def_debuff: 1 } },
+    { id: 165, extra: { shield: { atkRatio: 1.5 } } },
+    { id: 7, extra: { stat: 'def', turns: 3 } },
+    { id: 161, extra: { attackCountCostReduce: 1 } },
+    { id: 166, extra: { prepare: { damageMult: 2, costMult: 2 }, ignore_overload: true } },
+    { id: 167, extra: { storm_stacks: 2 } },
+    { id: 160, extra: { party_ignore_def: { amount: 0.5, turns: 2 }, cd_reduce_on_buff: true } },
+    { id: 168, extra: { cycle_taunt_grant: { stacks: 2, turns: 3 } } },
+    { id: 169, extra: { light_damage_boost: { amount: 0.5, turns: 3 } } },
+  ];
+  for (const patch of charSkillPatches) {
+    try {
+      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(patch.id);
+      if (row) {
+        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(patch.extra), patch.id);
+        console.log(`[DB] 스킬 ${patch.id} extra 패치 완료`);
+      }
+    } catch {}
   }
 
   // ============ 게임 데이터 시드 (JSON 우선, 없으면 하드코딩 폴백) ============
@@ -555,10 +799,11 @@ async function initDb() {
       }
       console.log(`[DB] ${seedData.characters.length}개 캐릭터 시드 완료 (JSON)`);
 
-      const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra','equip_condition'];
+      const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra','equip_condition','obtainable'];
       for (const s of seedData.skills) {
         const vals = sCols.map(k => {
           if (k === 'equip_condition') return typeof s[k] === 'object' ? JSON.stringify(s[k]) : (s[k] ?? '{}');
+          if (k === 'obtainable') return s[k] !== undefined ? s[k] : 1;
           return s[k] ?? '';
         });
         const placeholders = sCols.map(() => '?').join(', ');
@@ -711,38 +956,90 @@ async function initDb() {
     }
   }
 
-  // ============ 스테이지 시드 ============
-  const stageCount = db.prepare('SELECT COUNT(*) as cnt FROM stages').get();
-  if (stageCount.cnt === 0) {
-    const elements = ['fire','water','wind','dark','light'];
-    const chapterNames = ['시작의 마을','어둠의 숲','불꽃의 산','심해 동굴','빛의 탑'];
+  // ============ 몬스터 테이블 ============
+  db.exec(`CREATE TABLE IF NOT EXISTS monsters (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    element TEXT DEFAULT 'neutral',
+    origin TEXT DEFAULT 'force',
+    image_sd TEXT DEFAULT NULL,
+    is_boss INTEGER DEFAULT 0,
+    hp INTEGER DEFAULT 100,
+    atk INTEGER DEFAULT 10,
+    def INTEGER DEFAULT 5,
+    spd INTEGER DEFAULT 5,
+    turn_notes INTEGER DEFAULT 3,
+    skills TEXT DEFAULT '[]',
+    drops TEXT DEFAULT '[]'
+  )`);
 
-    for (let ch = 1; ch <= 5; ch++) {
-      for (let st = 1; st <= 8; st++) {
-        const lvl = (ch - 1) * 8 + st;
-        const enemyCount = st <= 3 ? 2 : st <= 6 ? 3 : 4;
-        const isBoss = st === 8;
-        const enemies = [];
-        for (let e = 0; e < enemyCount; e++) {
-          const eBoss = isBoss && e === enemyCount - 1;
-          enemies.push({
-                name: eBoss ? chapterNames[ch-1] + ' 보스' : '몬스터 Lv.' + lvl,
-            element: elements[(ch - 1 + e) % 5],
-            hp: Math.round((800 + lvl * 200) * (eBoss ? 3 : 1)),
-            atk: Math.round(60 + lvl * 15 * (eBoss ? 1.5 : 1)),
-            def: Math.round(40 + lvl * 8), spd: Math.round(70 + lvl * 3),
-            turn_notes: eBoss ? 5 : 3, isBoss: eBoss,
-            skills: eBoss
-              ? [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.0, target: 'single' }, { name: '강타', type: 'attack', cost: 2, power: 1.8, target: 'single' }, { name: '전체 공격', type: 'attack', cost: 3, power: 1.3, target: 'aoe' }, { name: '방어', type: 'defense', cost: 1, defense_mult: 0.5, target: 'self' }]
-              : [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.0, target: 'single' }, { name: '강타', type: 'attack', cost: 2, power: 1.5, target: 'single' }, { name: '방어', type: 'defense', cost: 1, defense_mult: 0.4, target: 'self' }]
-          });
-        }
-        db.prepare('INSERT INTO stages (chapter, stage_number, name, difficulty, stamina_cost, recommended_level, enemy_data, rewards) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(ch, st, chapterNames[ch-1] + ' ' + st + (isBoss ? ' (보스)' : ''), 'normal', isBoss ? 10 : 6, lvl,
-            JSON.stringify(enemies), JSON.stringify({ gold: 100 + lvl * 30, exp: 50 + lvl * 20, first_clear_diamond: isBoss ? 50 : 20 }));
+  // 몬스터 시드 (monsters.js → DB, 최초 1회)
+  const monsterCount = db.prepare('SELECT COUNT(*) as cnt FROM monsters').get();
+  if (monsterCount.cnt === 0) {
+    const monstersFile = require('../data/monsters');
+    for (const mon of Object.values(monstersFile)) {
+      db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(mon.id, mon.name, mon.element, mon.origin, mon.image_sd || null, mon.isBoss ? 1 : 0,
+          mon.hp, mon.atk, mon.def, mon.spd, mon.turn_notes || 3,
+          JSON.stringify(mon.skills || []), JSON.stringify(mon.drops || []));
+    }
+    console.log(`[DB] ${Object.keys(monstersFile).length}개 몬스터 시드 완료`);
+  }
+
+  // 몬스터 스킬 등록 (skills 테이블에 obtainable=0으로)
+  {
+    const allMonsters = db.prepare('SELECT * FROM monsters').all();
+    const allMonsterSkills = [];
+    for (const mon of allMonsters) {
+      for (const sk of JSON.parse(mon.skills || '[]')) {
+        if (!allMonsterSkills.find(s => s.id === sk.id)) allMonsterSkills.push(sk);
       }
     }
-    console.log('[DB] 40개 스테이지 시드 완료');
+    let registered = 0;
+    for (const sk of allMonsterSkills) {
+      const exists = db.prepare('SELECT id FROM skills WHERE id = ?').get(sk.id);
+      if (exists) continue;
+      const extraStr = sk.extra ? JSON.stringify(sk.extra) : '{}';
+      db.prepare('INSERT INTO skills (id, name, description, type, rarity, cost, power, element, target, defense_mult, cooldown, extra, obtainable) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(sk.id, sk.name, '', sk.type, 'faint', sk.cost, sk.power || 0, sk.element || 'neutral', sk.target || 'single', sk.defense_mult || 0, 0, extraStr, 0);
+      registered++;
+    }
+    if (registered > 0) console.log(`[DB] ${registered}개 몬스터 스킬 등록 완료 (obtainable=0)`);
+  }
+
+  // ============ 스테이지 시드 (monsters DB + stages.js) ============
+  const stageCount = db.prepare('SELECT COUNT(*) as cnt FROM stages').get();
+  if (stageCount.cnt === 0) {
+    const stageDefs = require('../data/stages');
+
+    for (const stage of stageDefs) {
+      const enemies = stage.enemies.map(e => {
+        const monRow = db.prepare('SELECT * FROM monsters WHERE id = ?').get(e.id);
+        if (!monRow) { console.warn(`[DB] 몬스터 '${e.id}' 없음, 스킵`); return null; }
+        const scale = e.level_scale || 1.0;
+        return {
+          monsterId: e.id,
+          name: e.name_override || monRow.name,
+          element: monRow.element,
+          origin: monRow.origin,
+          hp: Math.round(monRow.hp * scale),
+          atk: Math.round(monRow.atk * scale),
+          def: Math.round(monRow.def * scale),
+          spd: Math.round(monRow.spd * scale),
+          turn_notes: monRow.turn_notes,
+          isBoss: !!monRow.is_boss,
+          image_sd: monRow.image_sd || null,
+          skills: JSON.parse(monRow.skills || '[]'),
+          drops: JSON.parse(monRow.drops || '[]'),
+        };
+      }).filter(Boolean);
+
+      db.prepare('INSERT INTO stages (chapter, stage_number, name, difficulty, stamina_cost, recommended_level, enemy_data, rewards) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(stage.chapter, stage.stage_number, stage.name, stage.difficulty || 'normal',
+          stage.stamina_cost, stage.recommended_level,
+          JSON.stringify(enemies), JSON.stringify(stage.rewards));
+    }
+    console.log(`[DB] ${stageDefs.length}개 스테이지 시드 완료`);
   }
 
   // ============ 레이드 시드 ============
@@ -751,7 +1048,7 @@ async function initDb() {
     const now = new Date();
     const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
     db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run('거대 슬라임 킹', 'water', 2000000, 2000000, 250, 120, 85, 6,
+      .run('거대 슬라임 킹', 'water', 5000, 5000, 20, 12, 8, 6,
         JSON.stringify([
           { hp_threshold: 1.0, skills: [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.2, target: 'single' }, { name: '전체 공격', type: 'attack', cost: 3, power: 1.0, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.5, target: 'self' }] },
           { hp_threshold: 0.5, skills: [{ name: '강화 공격', type: 'attack', cost: 2, power: 2.0, target: 'single' }, { name: '전체 강타', type: 'attack', cost: 3, power: 1.5, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.6, target: 'self' }] },
@@ -891,9 +1188,47 @@ function exportGameData() {
   }
 }
 
+// 승급 시 해당 단계 스킬 부여 (awakening_required: 11=1차, 12=2차, 13=3차)
+function grantPromotionSkills(userId, inventoryId, characterId, promotionLevel) {
+  const reqValue = 10 + promotionLevel; // 1→11, 2→12, 3→13
+  const skills = dbProxy.prepare(`
+    SELECT s.*, cs.is_fixed FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+    WHERE cs.character_id = ? AND cs.awakening_required = ?
+  `).all(characterId, reqValue);
+  if (skills.length === 0) return [];
+
+  const occupied = dbProxy.prepare('SELECT slot_type, slot_number FROM equipped_skills WHERE inventory_id = ?').all(inventoryId);
+  const atkOccupied = new Set(occupied.filter(o => o.slot_type === 'attack').map(o => o.slot_number));
+  const defOccupied = new Set(occupied.filter(o => o.slot_type === 'defense').map(o => o.slot_number));
+  const granted = [];
+
+  for (const s of skills) {
+    const st = getSlotTypeForSkill(s.type);
+    const occ = st === 'attack' ? atkOccupied : defOccupied;
+    let nextSlot = -1;
+    for (let i = 0; i < 10; i++) { if (!occ.has(i)) { nextSlot = i; break; } }
+
+    let siId = null;
+    if (!s.is_fixed) {
+      const si = dbProxy.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
+        .run(userId, s.id, 'promotion');
+      siId = si.lastInsertRowid;
+    }
+
+    if (nextSlot !== -1) {
+      occ.add(nextSlot);
+      dbProxy.prepare('INSERT INTO equipped_skills (inventory_id, skill_id, slot_number, slot_type, is_fixed, skill_inventory_id) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(inventoryId, s.id, nextSlot, st, s.is_fixed ? 1 : 0, siId);
+    }
+    granted.push({ id: s.id, name: s.name, type: s.type, equipped: nextSlot !== -1 });
+  }
+  return granted;
+}
+
 module.exports = dbProxy;
 module.exports.initDb = initDb;
 module.exports.initCharacterSkills = initCharacterSkills;
 module.exports.grantAwakeningSkills = grantAwakeningSkills;
+module.exports.grantPromotionSkills = grantPromotionSkills;
 module.exports.checkEquipCondition = checkEquipCondition;
 module.exports.exportGameData = exportGameData;

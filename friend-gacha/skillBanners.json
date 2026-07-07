@@ -1,0 +1,20 @@
+{
+  "banners": [
+    {
+      "id": "permanent_skill",
+      "name": "상시 스킬 가챠",
+      "type": "permanent",
+      "description": "모든 스킬이 등장하는 상시 스킬 가챠",
+      "image": null,
+      "skillPool": "all",
+      "featuredSkillIds": [],
+      "rates": null,
+      "featuredRateUp": 0,
+      "active": true,
+      "startDate": null,
+      "endDate": null,
+      "showTitle": true,
+      "showRates": true
+    }
+  ]
+}

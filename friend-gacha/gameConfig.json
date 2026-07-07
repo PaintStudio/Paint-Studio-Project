@@ -1,85 +1,225 @@
 {
   "rarities": {
-    "N":   { "label": "N",   "color": "#aaaaaa" },
-    "R":   { "label": "R",   "color": "#5dadec" },
-    "SR":  { "label": "SR",  "color": "#c77dff" },
-    "SSR": { "label": "SSR", "color": "#ffd700" },
-    "CR":  { "label": "CR",  "color": "rainbow" }
+    "N": {
+      "label": "N",
+      "color": "#aaaaaa"
+    },
+    "R": {
+      "label": "R",
+      "color": "#5dadec"
+    },
+    "SR": {
+      "label": "SR",
+      "color": "#c77dff"
+    },
+    "SSR": {
+      "label": "SSR",
+      "color": "#ffd700"
+    },
+    "CR": {
+      "label": "CR",
+      "color": "rainbow"
+    }
   },
-
   "elements": {
-    "neutral": { "label": "무",  "color": "#95a5a6", "strong": null,    "weak": null },
-    "fire":    { "label": "염",  "color": "#e74c3c", "strong": "wind", "weak": "water" },
-    "water":   { "label": "수",  "color": "#3498db", "strong": "fire",  "weak": "wind" },
-    "wind":    { "label": "풍",  "color": "#2ecc71", "strong": "water", "weak": "fire" },
-    "light":   { "label": "광",  "color": "#f1c40f", "strong": "dark",  "weak": "dark" },
-    "dark":    { "label": "암",  "color": "#8e44ad", "strong": "light", "weak": "light" }
+    "neutral": {
+      "label": "무",
+      "color": "#95a5a6",
+      "strong": null,
+      "weak": null
+    },
+    "fire": {
+      "label": "염",
+      "color": "#e74c3c",
+      "strong": "wind",
+      "weak": "water"
+    },
+    "water": {
+      "label": "수",
+      "color": "#3498db",
+      "strong": "fire",
+      "weak": "wind"
+    },
+    "wind": {
+      "label": "풍",
+      "color": "#2ecc71",
+      "strong": "water",
+      "weak": "fire"
+    },
+    "light": {
+      "label": "광",
+      "color": "#f1c40f",
+      "strong": "dark",
+      "weak": "dark"
+    },
+    "dark": {
+      "label": "암",
+      "color": "#8e44ad",
+      "strong": "light",
+      "weak": "light"
+    }
   },
-
   "elementMultipliers": {
     "normal": 1.5,
     "normalResist": 0.5,
     "lightDark": 1.5,
     "lightDarkResist": 0.5
   },
-
   "origins": {
-    "time":      { "label": "시간", "color": "#4fc3f7" },
-    "space":     { "label": "공간", "color": "#7e57c2" },
-    "life":      { "label": "생명", "color": "#66bb6a" },
-    "heart":     { "label": "마음", "color": "#ef5350" },
-    "intellect": { "label": "지성", "color": "#42a5f5" },
-    "memory":    { "label": "기억", "color": "#ab47bc" },
-    "sound":     { "label": "소리", "color": "#ffa726" },
-    "season":    { "label": "계절", "color": "#26a69a" },
-    "force":     { "label": "마력", "color": "#ec407a" }
+    "time": {
+      "label": "시간",
+      "color": "#4fc3f7"
+    },
+    "space": {
+      "label": "공간",
+      "color": "#7e57c2"
+    },
+    "life": {
+      "label": "생명",
+      "color": "#66bb6a"
+    },
+    "heart": {
+      "label": "마음",
+      "color": "#ef5350"
+    },
+    "intellect": {
+      "label": "지성",
+      "color": "#42a5f5"
+    },
+    "memory": {
+      "label": "기억",
+      "color": "#ab47bc"
+    },
+    "sound": {
+      "label": "소리",
+      "color": "#ffa726"
+    },
+    "season": {
+      "label": "계절",
+      "color": "#26a69a"
+    },
+    "force": {
+      "label": "마력",
+      "color": "#ec407a"
+    }
   },
-
   "skillRarities": {
-    "faint":      { "label": "흐림", "color": "#b0bec5", "opacity": 0.4 },
-    "pale":       { "label": "담",   "color": "#78909c", "opacity": 0.65 },
-    "deep":       { "label": "짙음", "color": "#37474f", "opacity": 0.85 },
-    "iridescent": { "label": "영롱", "color": "rainbow", "opacity": 1.0 }
+    "faint": {
+      "label": "흐림",
+      "color": "#b0bec5",
+      "opacity": 0.4
+    },
+    "pale": {
+      "label": "담",
+      "color": "#78909c",
+      "opacity": 0.65
+    },
+    "deep": {
+      "label": "짙음",
+      "color": "#37474f",
+      "opacity": 0.85
+    },
+    "iridescent": {
+      "label": "영롱",
+      "color": "rainbow",
+      "opacity": 1
+    }
   },
-
   "skillSlots": {
-    "attack": { "label": "공격", "base": 2, "maxByRarity": { "N": 2, "R": 3, "SR": 3, "SSR": 4, "CR": 4 } },
-    "defense": { "label": "방어", "base": 1, "maxByRarity": { "N": 1, "R": 2, "SR": 2, "SSR": 3, "CR": 3 } }
+    "attack": {
+      "label": "공격",
+      "base": 2,
+      "maxByRarity": {
+        "N": 2,
+        "R": 3,
+        "SR": 3,
+        "SSR": 4,
+        "CR": 4
+      }
+    },
+    "defense": {
+      "label": "방어",
+      "base": 1,
+      "maxByRarity": {
+        "N": 1,
+        "R": 2,
+        "SR": 2,
+        "SSR": 3,
+        "CR": 3
+      }
+    }
   },
-
   "skillGacha": {
-    "rates": { "faint": 0.55, "pale": 0.30, "deep": 0.13, "iridescent": 0.02 },
+    "rates": {
+      "faint": 0.55,
+      "pale": 0.3,
+      "deep": 0.13,
+      "iridescent": 0.02
+    },
     "pullCost": 80,
     "multiPullCount": 10
   },
-
   "skillTypes": {
-    "attack":  { "label": "공격",   "color": "#e74c3c" },
-    "defense": { "label": "방어",   "color": "#3498db" },
-    "ultimate":{ "label": "필살기", "color": "#f39c12" },
-    "heal":    { "label": "회복",   "color": "#2ecc71" },
-    "buff":    { "label": "버프",   "color": "#9b59b6" },
-    "debuff":  { "label": "디버프", "color": "#e67e22" },
-    "support": { "label": "지원",   "color": "#1abc9c" }
+    "attack": {
+      "label": "공격",
+      "color": "#e74c3c"
+    },
+    "defense": {
+      "label": "방어",
+      "color": "#3498db"
+    },
+    "ultimate": {
+      "label": "EXC",
+      "color": "#f39c12"
+    },
+    "heal": {
+      "label": "회복",
+      "color": "#2ecc71"
+    },
+    "buff": {
+      "label": "버프",
+      "color": "#9b59b6"
+    },
+    "debuff": {
+      "label": "디버프",
+      "color": "#e67e22"
+    },
+    "support": {
+      "label": "지원",
+      "color": "#1abc9c"
+    }
   },
-
   "targets": {
-    "single":     { "label": "단일" },
-    "aoe":        { "label": "전체" },
-    "self":       { "label": "자신" },
-    "ally_single":{ "label": "아군 1" },
-    "ally_all":   { "label": "아군 전체" }
+    "single": {
+      "label": "단일"
+    },
+    "aoe": {
+      "label": "전체"
+    },
+    "self": {
+      "label": "자신"
+    },
+    "ally_single": {
+      "label": "아군 1"
+    },
+    "ally_all": {
+      "label": "아군 전체"
+    }
   },
-
   "gacha": {
-    "rates": { "N": 0.49, "R": 0.35, "SR": 0.13, "SSR": 0.025, "CR": 0.005 },
+    "rates": {
+      "N": 0.49,
+      "R": 0.35,
+      "SR": 0.13,
+      "SSR": 0.03,
+      "CR": 0
+    },
     "pullCost": 100,
     "multiPullCount": 10,
     "pityThreshold": 90,
     "softPityStart": 75,
     "softPityBonusPerPull": 0.03
   },
-
   "battle": {
     "undefendedPenalty": 1.5,
     "critRate": 0.15,
@@ -87,19 +227,71 @@
     "varianceMin": 0.9,
     "varianceMax": 1.1
   },
-
   "growth": {
-    "maxLevels": { "N": 40, "R": 50, "SR": 60, "SSR": 70, "CR": 80 },
+    "maxLevels": {
+      "N": 20,
+      "R": 30,
+      "SR": 40,
+      "SSR": 50,
+      "CR": 60
+    },
     "maxAwakening": 5,
     "awakeningLevelBonus": 10,
-    "awakeningGoldCosts": [1000, 2000, 5000, 10000, 20000],
+    "awakeningGoldCosts": [
+      1000,
+      2000,
+      5000,
+      10000,
+      20000
+    ],
     "expPerGold": 1,
-    "levelExpFormula": "level * 100",
+    "levelExpFormula": "level^2 * 10 + level * 50",
+    "expOriginBonus": 1.5,
     "statGrowthPerLevel": 0.03,
     "statGrowthPerAwakening": 0.1,
-    "spdGrowthPerLevel": 0.01
+    "spdGrowthPerLevel": 0.01,
+    "promotion": {
+      "maxByRarity": {
+        "N": 2,
+        "R": 3,
+        "SR": 4,
+        "SSR": 5,
+        "CR": 6
+      },
+      "levelBonusPerTier": 15,
+      "statGrowthPerPromotion": 0.05,
+      "requirements": [
+        {
+          "gold": 3000,
+          "crystals": 3
+        },
+        {
+          "gold": 8000,
+          "crystals": 6
+        },
+        {
+          "gold": 15000,
+          "crystals": 10,
+          "bossMaterial": 1
+        },
+        {
+          "gold": 30000,
+          "crystals": 15,
+          "bossMaterial": 3
+        },
+        {
+          "gold": 50000,
+          "crystals": 22,
+          "bossMaterial": 5
+        },
+        {
+          "gold": 80000,
+          "crystals": 30,
+          "bossMaterial": 8
+        }
+      ]
+    }
   },
-
   "stamina": {
     "max": 120,
     "recoveryMinutes": 5

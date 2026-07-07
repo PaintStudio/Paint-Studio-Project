@@ -15,7 +15,12 @@ async function request(path, options = {}) {
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`서버 응답 파싱 실패 (${res.status})`);
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
@@ -24,13 +29,17 @@ export const api = {
   login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
   register: (username, password, displayName) => request('/auth/register', { method: 'POST', body: { username, password, displayName } }),
   me: () => request('/auth/me'),
+  tutorialDone: () => request('/auth/tutorial-done', { method: 'POST' }),
+  tutorialAdvance: (step) => request('/auth/tutorial-advance', { method: 'POST', body: step !== undefined ? { step } : {} }),
+  tutorialBattle: (data) => request('/auth/tutorial-battle', { method: 'POST', body: data }),
   pull: (bannerId) => request('/gacha/pull', { method: 'POST', body: { bannerId } }),
   pull10: (bannerId) => request('/gacha/pull10', { method: 'POST', body: { bannerId } }),
   rates: (bannerId) => request('/gacha/rates' + (bannerId ? '?bannerId=' + bannerId : '')),
   banners: () => request('/gacha/banners'),
-  skillPull: () => request('/gacha/skill-pull', { method: 'POST' }),
-  skillPull10: () => request('/gacha/skill-pull10', { method: 'POST' }),
-  skillRates: () => request('/gacha/skill-rates'),
+  skillPull: (bannerId) => request('/gacha/skill-pull', { method: 'POST', body: { bannerId } }),
+  skillPull10: (bannerId) => request('/gacha/skill-pull10', { method: 'POST', body: { bannerId } }),
+  skillBanners: () => request('/gacha/skill-banners'),
+  skillRates: (bannerId) => request('/gacha/skill-rates' + (bannerId ? '?bannerId=' + bannerId : '')),
   myCollection: () => request('/collection/my'),
   userCollection: (userId) => request('/collection/user/' + userId),
   markSeen: (invId) => request('/collection/mark-seen/' + invId, { method: 'PATCH' }),
@@ -53,6 +62,12 @@ export const api = {
   // 레거시 호환
   stageBattle: (stageId, partyIds) =>
     request('/stage/battle', { method: 'POST', body: { stageId, partyIds } }),
+  // 파밍 던전
+  farmingList: () => request('/farming/list'),
+  farmingBattleStart: (stageId, partyIds) =>
+    request('/farming/battle-start', { method: 'POST', body: { stageId, partyIds } }),
+  farmingBattleEnd: (stageId, battleLog) =>
+    request('/farming/battle-end', { method: 'POST', body: { stageId, battleLog } }),
   // 레이드
   raidCurrent: () => request('/raid/current'),
   raidBattleStart: (partyIds) =>
@@ -66,7 +81,7 @@ export const api = {
   userStatus: () => request('/daily/status'),
   // 육성
   charDetail: (invId) => request('/growth/detail/' + invId),
-  levelUp: (inventoryId, amount) => request('/growth/levelup', { method: 'POST', body: { inventoryId, amount } }),
+  levelUp: (inventoryId, items) => request('/growth/levelup', { method: 'POST', body: { inventoryId, items } }),
   awaken: (inventoryId, materialId) => request('/growth/awaken', { method: 'POST', body: { inventoryId, materialId } }),
   equipSkill: (inventoryId, skillId, slotNumber, slotType, skillInventoryId) =>
     request('/growth/equip-skill', { method: 'POST', body: { inventoryId, skillId, slotNumber, slotType, skillInventoryId } }),
@@ -75,7 +90,19 @@ export const api = {
   equipSkillsBulk: (inventoryId, skillIds) =>
     request('/growth/equip-skills-bulk', { method: 'POST', body: { inventoryId, skillIds } }),
   skillInventory: () => request('/growth/skill-inventory'),
+  equipTalent: (inventoryId, talentIndex) =>
+    request('/growth/equip-talent', { method: 'POST', body: { inventoryId, talentIndex } }),
+  promote: (inventoryId) =>
+    request('/growth/promote', { method: 'POST', body: { inventoryId } }),
+  promoteInfo: (inventoryId) => request('/growth/promote-info/' + inventoryId),
+  toggleLock: (inventoryId) =>
+    request('/growth/toggle-lock', { method: 'POST', body: { inventoryId } }),
+  batchLock: (lockIds) =>
+    request('/growth/batch-lock', { method: 'POST', body: { lockIds } }),
   partyList: () => request('/growth/party-list'),
+  partyPresets: () => request('/growth/party-presets'),
+  savePartyPreset: (slot, name, partyIds) =>
+    request('/growth/party-presets/' + slot, { method: 'PUT', body: { name, partyIds } }),
   // 로비
   lobby: () => request('/growth/lobby'),
   setRepresentative: (inventoryId) => request('/growth/set-representative', { method: 'POST', body: { inventoryId } }),
@@ -83,11 +110,35 @@ export const api = {
   mailList: () => request('/mail/list'),
   mailRead: (id) => request('/mail/read/' + id, { method: 'PATCH' }),
   mailClaim: (id) => request('/mail/claim/' + id, { method: 'POST' }),
+  mailClaimAll: () => request('/mail/claim-all', { method: 'POST' }),
   mailDelete: (id) => request('/mail/' + id, { method: 'DELETE' }),
   mailCleanup: () => request('/mail/cleanup/read', { method: 'DELETE' }),
   mailUnreadCount: () => request('/mail/unread-count'),
+  // 아이템
+  myItems: () => request('/collection/items'),
+  sellItem: (itemId, quantity) => request('/collection/items/sell', { method: 'POST', body: { itemId, quantity } }),
+  useItem: (itemId, targetInventoryId) => request('/collection/items/use', { method: 'POST', body: { itemId, targetInventoryId } }),
   // 프로필
   profile: () => request('/profile/me'),
   updateProfile: (data) => request('/profile/me', { method: 'PUT', body: data }),
   profileIcons: () => request('/profile/icons'),
+  // 스토리
+  storyList: (category) => request('/story/list?category=' + (category || 'main')),
+  storyNode: (id) => request('/story/node/' + id),
+  storyRead: (nodeId) => request('/story/read', { method: 'POST', body: { nodeId } }),
+  storyBattleStart: (nodeId, partyIds) =>
+    request('/story/battle-start', { method: 'POST', body: { nodeId, partyIds } }),
+  storyBattleEnd: (nodeId, battleLog) =>
+    request('/story/battle-end', { method: 'POST', body: { nodeId, battleLog } }),
+  // 어드민 - 스토리 노드
+  adminStoryNodes: (adminKey) => request('/admin/story-nodes', { headers: { 'x-admin-key': adminKey } }),
+  adminCreateStoryNode: (adminKey, data) => request('/admin/story-nodes', { method: 'POST', body: data, headers: { 'x-admin-key': adminKey } }),
+  adminUpdateStoryNode: (adminKey, id, data) => request('/admin/story-nodes/' + id, { method: 'PUT', body: data, headers: { 'x-admin-key': adminKey } }),
+  adminDeleteStoryNode: (adminKey, id) => request('/admin/story-nodes/' + id, { method: 'DELETE', headers: { 'x-admin-key': adminKey } }),
+  // 어드민 - 몬스터
+  adminMonsters: (adminKey) => request('/admin/monsters', { headers: { 'x-admin-key': adminKey } }),
+  adminMonster: (adminKey, id) => request('/admin/monsters/' + id, { headers: { 'x-admin-key': adminKey } }),
+  adminCreateMonster: (adminKey, data) => request('/admin/monsters', { method: 'POST', body: data, headers: { 'x-admin-key': adminKey } }),
+  adminUpdateMonster: (adminKey, id, data) => request('/admin/monsters/' + id, { method: 'PUT', body: data, headers: { 'x-admin-key': adminKey } }),
+  adminDeleteMonster: (adminKey, id) => request('/admin/monsters/' + id, { method: 'DELETE', headers: { 'x-admin-key': adminKey } }),
 };

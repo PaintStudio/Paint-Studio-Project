@@ -1,6 +1,7 @@
 /* ========== 프로필 모달 오버레이 ========== */
 .profile-overlay {
-  position: fixed; inset: 0; z-index: 500;
+  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  z-index: 500;
   background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   animation: profileFadeIn 0.2s ease;

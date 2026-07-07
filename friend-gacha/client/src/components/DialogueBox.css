@@ -1,0 +1,125 @@
+/* ========== 대화창 오버레이 ========== */
+.dialogue-overlay {
+  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  z-index: 500;
+  display: flex; flex-direction: column;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+/* 배경 이미지 */
+.dialogue-bg {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  z-index: 0;
+}
+.dialogue-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.5) 100%);
+}
+
+/* ========== 캐릭터 무대 ========== */
+.dialogue-stage {
+  flex: 1; position: relative; z-index: 1;
+  display: flex; align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 80px;
+  pointer-events: none;
+}
+
+.dialogue-char {
+  max-height: 85vh; display: flex; align-items: flex-end;
+  transition: opacity 0.4s, filter 0.4s, transform 0.4s;
+  animation: charEnter 0.4s ease-out;
+}
+.dialogue-char img {
+  max-height: 75vh; width: auto; object-fit: contain;
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5));
+}
+.dialogue-char.left { margin-right: auto; }
+.dialogue-char.center { margin: 0 auto; }
+.dialogue-char.right { margin-left: auto; }
+.dialogue-char.right img { transform: scaleX(-1); }
+.dialogue-char.dim {
+  opacity: 0.4; filter: brightness(0.5);
+}
+
+@keyframes charEnter {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== 하단 대화 영역 ========== */
+.dialogue-bottom {
+  position: relative; z-index: 2;
+  padding: 0 60px 40px;
+  cursor: default;
+}
+
+/* 대화 박스 */
+.dialogue-box {
+  position: relative;
+  background: rgba(10, 12, 20, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 28px 36px 24px;
+  min-height: 120px;
+  cursor: pointer;
+}
+
+/* 화자 이름 */
+.dialogue-speaker {
+  position: absolute; top: -16px; left: 24px;
+}
+.dialogue-speaker-name {
+  background: var(--accent);
+  color: #fff; font-size: 0.85rem; font-weight: 800;
+  padding: 5px 18px; border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(233, 69, 96, 0.3);
+}
+
+/* 대사 텍스트 */
+.dialogue-text {
+  font-size: 1.05rem; line-height: 1.7;
+  color: var(--text-primary);
+  min-height: 3.4em;
+  white-space: pre-wrap;
+}
+
+/* 다음 표시기 */
+.dialogue-next-indicator {
+  position: absolute; bottom: 10px; right: 20px;
+  font-size: 0.7rem; color: var(--text-muted);
+  animation: indicatorBounce 1s ease-in-out infinite;
+}
+@keyframes indicatorBounce {
+  0%, 100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(4px); opacity: 1; }
+}
+
+/* ========== 선택지 ========== */
+.dialogue-choices {
+  display: flex; flex-direction: column; gap: 8px;
+  margin-top: 12px; padding: 0 20px;
+  animation: choicesFadeIn 0.3s ease;
+}
+.dialogue-choice-btn {
+  padding: 14px 24px; border-radius: 12px;
+  background: rgba(10, 12, 20, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary); font-size: 0.95rem; font-weight: 600;
+  text-align: left; cursor: pointer;
+  transition: all 0.15s;
+}
+.dialogue-choice-btn:hover {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.1);
+  transform: translateX(6px);
+}
+
+@keyframes choicesFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

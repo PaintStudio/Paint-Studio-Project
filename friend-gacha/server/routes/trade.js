@@ -11,10 +11,12 @@ router.post('/offer', authMiddleware, (req, res) => {
   // 내 아이템 확인
   const myItem = db.prepare('SELECT * FROM inventory WHERE id = ? AND user_id = ?').get(offerInventoryId, req.user.id);
   if (!myItem) return res.status(400).json({ error: '보유하지 않은 아이템입니다' });
+  if (myItem.is_locked) return res.status(400).json({ error: '잠금된 캐릭터는 교환할 수 없습니다' });
 
   // 상대 아이템 확인
   const theirItem = db.prepare('SELECT * FROM inventory WHERE id = ? AND user_id = ?').get(wantInventoryId, toUserId);
   if (!theirItem) return res.status(400).json({ error: '상대가 보유하지 않은 아이템입니다' });
+  if (theirItem.is_locked) return res.status(400).json({ error: '상대의 잠금된 캐릭터는 교환할 수 없습니다' });
 
   // 이미 거래 중인 아이템인지 확인
   const pending = db.prepare('SELECT id FROM trades WHERE status = "pending" AND (offer_inventory_id = ? OR want_inventory_id = ? OR offer_inventory_id = ? OR want_inventory_id = ?)')
@@ -58,6 +60,19 @@ router.post('/accept/:tradeId', authMiddleware, (req, res) => {
     // 아이템 소유권 교환
     db.prepare('UPDATE inventory SET user_id = ? WHERE id = ?').run(trade.to_user_id, trade.offer_inventory_id);
     db.prepare('UPDATE inventory SET user_id = ? WHERE id = ?').run(trade.from_user_id, trade.want_inventory_id);
+    // 양쪽 파티 프리셋에서 교환된 캐릭터 제거
+    for (const [userId, invId] of [[trade.from_user_id, trade.offer_inventory_id], [trade.to_user_id, trade.want_inventory_id]]) {
+      const presets = db.prepare('SELECT slot, party_ids FROM party_presets WHERE user_id = ?').all(userId);
+      for (const p of presets) {
+        const ids = JSON.parse(p.party_ids);
+        if (ids.includes(invId)) {
+          db.prepare('UPDATE party_presets SET party_ids = ? WHERE user_id = ? AND slot = ?')
+            .run(JSON.stringify(ids.filter(id => id !== invId)), userId, p.slot);
+        }
+      }
+      db.prepare('UPDATE users SET representative_inventory_id = NULL WHERE id = ? AND representative_inventory_id = ?')
+        .run(userId, invId);
+    }
     // 거래 완료
     db.prepare('UPDATE trades SET status = "accepted", resolved_at = CURRENT_TIMESTAMP WHERE id = ?').run(trade.id);
   });

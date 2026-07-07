@@ -32,14 +32,15 @@ function getElementMultiplier(atkElem, defElem) {
 
 const growthCfg = gameConfig.growth;
 
-// 레벨/각성에 따른 스탯 계산 (순수 base stat 기반, 레어도 배율 없음)
-function calcStats(char, level, awakening) {
+// 레벨/각성/승급에 따른 스탯 계산 (순수 base stat 기반, 레어도 배율 없음)
+function calcStats(char, level, awakening, promotion) {
   const lvlMult = 1 + (level - 1) * growthCfg.statGrowthPerLevel;
   const awkMult = 1 + awakening * growthCfg.statGrowthPerAwakening;
+  const promoMult = 1 + (promotion || 0) * (growthCfg.promotion?.statGrowthPerPromotion || 0);
   return {
-    hp:  Math.round(char.base_hp  * lvlMult * awkMult),
-    atk: Math.round(char.base_atk * lvlMult * awkMult),
-    def: Math.round(char.base_def * lvlMult * awkMult),
+    hp:  Math.round(char.base_hp  * lvlMult * awkMult * promoMult),
+    atk: Math.round(char.base_atk * lvlMult * awkMult * promoMult),
+    def: Math.round(char.base_def * lvlMult * awkMult * promoMult),
     spd: Math.round(char.base_spd * (1 + (level - 1) * growthCfg.spdGrowthPerLevel)),
   };
 }
@@ -52,35 +53,53 @@ function calcStats(char, level, awakening) {
  * @param {boolean} isEnemy
  * @param {Array} equippedSkills - 장착된 스킬 배열 [{name, type, cost, power, element, target, defense_mult, extra}]
  */
-function createUnit(charData, level = 1, awakening = 0, isEnemy = false, equippedSkills = []) {
+function loadPromotions() {
+  delete require.cache[require.resolve('../data/promotions')];
+  return require('../data/promotions');
+}
+
+function createUnit(charData, level = 1, awakening = 0, isEnemy = false, equippedSkills = [], talent = null, promotion = 0) {
   const stats = isEnemy
     ? { hp: charData.hp, atk: charData.atk, def: charData.def, spd: charData.spd }
-    : calcStats(charData, level, awakening);
+    : calcStats(charData, level, awakening, promotion);
 
   const turnNotes = charData.turn_notes || (isEnemy ? 3 : 4);
+  let noteBonus = 0;
+
+  if (!isEnemy) {
+    // 레벨 보너스: 10렙당 +1
+    noteBonus += Math.floor(level / 10);
+    // 각성 보너스: 각성당 +2
+    noteBonus += awakening * 2;
+    // 승급 보너스: 티어별 bonusNotes
+    if (promotion > 0) {
+      const promoData = loadPromotions();
+      const tiers = promoData[charData.character_id || charData.id]?.tiers || [];
+      for (let i = 0; i < Math.min(promotion, tiers.length); i++) {
+        noteBonus += (tiers[i].bonusNotes || 0);
+      }
+    }
+  }
+
+  // stat_boost / note_bonus → 클라이언트 Effect 시스템으로 이관됨 (StatBoostPassive, NoteBonusPassive)
 
   return {
     id: charData.id || charData.name,
+    characterId: charData.character_id || charData.id || null,
     name: charData.name,
     element: charData.element || 'neutral',
+    origin: charData.origin || null,
     rarity: charData.rarity || 'N',
     isEnemy,
     isBoss: charData.isBoss || false,
-    // 전투 스탯
-    maxHp: stats.hp,
-    hp: stats.hp,
-    atk: stats.atk,
-    def: stats.def,
-    spd: stats.spd,
-    // 턴 노트
-    maxNotes: turnNotes,
-    notes: turnNotes,
-    // 스킬
+    maxHp: stats.hp, hp: stats.hp,
+    atk: stats.atk, def: stats.def, spd: stats.spd,
+    maxNotes: turnNotes + noteBonus, notes: turnNotes + noteBonus,
     skills: isEnemy ? (charData.skills || []) : equippedSkills,
-    // 상태
-    buffs: [],
-    debuffs: [],
-    alive: true,
+    image_sd: charData.image_sd || null,
+    image_url: charData.image_url || null,
+    talent: talent || null,
+    buffs: [], debuffs: [], alive: true,
   };
 }
 
@@ -132,27 +151,49 @@ function calcDamageIgnoreDef(attacker, power, skillElement, defenderElement) {
  * 전투 셋업 정보 생성 (클라이언트에 전달)
  * 실제 전투는 클라이언트에서 인터랙티브로 진행
  */
-function createBattleSetup(partyUnits, enemyUnits) {
+function createBattleSetup(partyUnits, enemyUnits, tagCounts = {}) {
   return {
-    party: partyUnits.map(u => serializeUnit(u)),
+    party: partyUnits.map(u => serializeUnit(u, tagCounts)),
     enemies: enemyUnits.map(u => serializeUnit(u)),
     elementChart: ELEMENT_CHART,
   };
 }
 
-function serializeUnit(u) {
+function meetsTagCondition(cond, tagCounts) {
+  if (!cond) return true;
+  return (tagCounts[cond.tag] || 0) >= (cond.min || 1);
+}
+
+function serializeUnit(u, tagCounts) {
+  let talent = u.talent || null;
+  if (talent?.effects && tagCounts) {
+    talent = { ...talent, effects: talent.effects.filter(eff => meetsTagCondition(eff.tagCondition, tagCounts)) };
+  }
+
   return {
-    id: u.id, name: u.name, element: u.element, rarity: u.rarity,
+    id: u.id, characterId: u.characterId || null, name: u.name, element: u.element, origin: u.origin, rarity: u.rarity,
     isEnemy: u.isEnemy, isBoss: u.isBoss,
     maxHp: u.maxHp, hp: u.hp, atk: u.atk, def: u.def, spd: u.spd,
     maxNotes: u.maxNotes, notes: u.notes,
-    skills: u.skills.map(s => ({
-      name: s.name, type: s.type, cost: s.cost, power: s.power || 0,
-      element: s.element || u.element, target: s.target,
-      defense_mult: s.defense_mult || 0,
-      extra: typeof s.extra === 'string' ? JSON.parse(s.extra || '{}') : (s.extra || {}),
-    })),
+    image_sd: u.image_sd || null,
+    image_url: u.image_url || null,
+    skills: u.skills.map(s => {
+      const extra = typeof s.extra === 'string' ? JSON.parse(s.extra || '{}') : (s.extra || {});
+      const { effectIds, ...restExtra } = extra;
+      const filtered = (effectIds || []).filter(e =>
+        typeof e !== 'object' || meetsTagCondition(e.tagCondition, tagCounts)
+      );
+      return {
+        id: s.id, name: s.name, type: s.type, cost: s.cost, power: s.power || 0,
+        element: s.element || u.element, target: s.target,
+        defense_mult: s.defense_mult || 0, cooldown: s.cooldown || 0,
+        extra: restExtra,
+        effectIds: filtered,
+      };
+    }),
     buffs: u.buffs, debuffs: u.debuffs, alive: u.alive,
+    talent,
+    tags: u.tags || [],
   };
 }
 

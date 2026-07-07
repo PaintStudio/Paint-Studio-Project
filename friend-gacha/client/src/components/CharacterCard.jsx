@@ -1,8 +1,8 @@
 import React from 'react';
 import './CharacterCard.css';
 
-const RARITY_EMOJI = { N: '', R: '💧', SR: '⚡', SSR: '🌟' };
-const RARITY_STARS = { N: 1, R: 2, SR: 3, SSR: 5 };
+const RARITY_EMOJI = { N: '', R: '&#128167;', SR: '&#9889;', SSR: '&#11088;', CR: '&#127752;' };
+const RARITY_STARS = { N: 1, R: 2, SR: 3, SSR: 5, CR: 6 };
 
 export default function CharacterCard({ character, rarity, isNew, onClick, compact }) {
   const r = rarity || character?.rarity;

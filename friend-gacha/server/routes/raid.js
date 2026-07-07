@@ -74,7 +74,7 @@ router.post('/battle-start', authMiddleware, (req, res) => {
   const partyUnits = [];
   for (const invId of partyIds) {
     const inv = db.prepare(`
-      SELECT i.*, c.name, c.rarity, c.element, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes
+      SELECT i.*, c.name, c.rarity, c.element, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes, c.image_url, c.image_sd
       FROM inventory i JOIN characters c ON i.character_id = c.id
       WHERE i.id = ? AND i.user_id = ?
     `).get(invId, req.user.id);
@@ -93,7 +93,22 @@ router.post('/battle-start', authMiddleware, (req, res) => {
       `).all(inv.character_id);
     }
 
-    partyUnits.push(createUnit(inv, inv.level, inv.awakening, false, skills));
+    const talentData = require('../../data/talents');
+    const charTalents = talentData[inv.character_id];
+    const equippedTalentIdx = inv.equipped_talent ?? 0;
+    const activeTalent = charTalents?.talents?.[equippedTalentIdx] || null;
+
+    const unit = createUnit(inv, inv.level, inv.awakening, false, skills, activeTalent, inv.promotion || 0);
+    unit.characterId = inv.character_id;
+    partyUnits.push(unit);
+  }
+
+  // 태그 조건 해석 (tag ID 기반)
+  const tagCounts = {};
+  for (const u of partyUnits) {
+    const tags = db.prepare('SELECT t.id, t.label FROM character_tags ct JOIN tags t ON ct.tag_id = t.id WHERE ct.character_id = ?').all(u.characterId);
+    u.tags = tags.map(t => ({ id: t.id, label: t.label }));
+    for (const t of tags) tagCounts[t.id] = (tagCounts[t.id] || 0) + 1;
   }
 
   // 레이드 보스 유닛
@@ -106,14 +121,15 @@ router.post('/battle-start', authMiddleware, (req, res) => {
 
   const bossData = {
     id: 'raid_boss', name: raid.name, element: raid.element,
-    hp: Math.min(raid.current_hp, 500000), // 전투용 HP (실제 레이드 HP와 별도)
+    hp: Math.min(raid.current_hp, 200), // 전투용 HP (실제 레이드 HP와 별도)
     atk: raid.base_atk, def: raid.base_def, spd: raid.base_spd,
     turn_notes: raid.turn_notes || 6,
     isBoss: true, skills: currentSkills,
+    talent: raid.talent ? JSON.parse(raid.talent) : null,
   };
 
-  const enemyUnits = [createUnit(bossData, 1, 0, true, currentSkills)];
-  const setup = createBattleSetup(partyUnits, enemyUnits);
+  const enemyUnits = [createUnit(bossData, 1, 0, true, currentSkills, bossData.talent)];
+  const setup = createBattleSetup(partyUnits, enemyUnits, tagCounts);
   setup.raidId = raid.id;
   setup.actualBossHp = raid.current_hp;
 

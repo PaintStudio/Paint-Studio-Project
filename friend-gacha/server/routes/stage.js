@@ -3,6 +3,7 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { createUnit, createBattleSetup, validateBattleResult, calcStats } = require('../battle');
 const gameConfig = require('../../gameConfig.json');
+const itemDefs = require('../../data/items');
 
 const router = express.Router();
 
@@ -12,6 +13,7 @@ router.get('/list', authMiddleware, (req, res) => {
     SELECT s.*, sc.stars, sc.best_turns
     FROM stages s
     LEFT JOIN stage_clears sc ON s.id = sc.stage_id AND sc.user_id = ?
+    WHERE COALESCE(s.type, 'story') = 'story'
     ORDER BY s.chapter, s.stage_number
   `).all(req.user.id);
 
@@ -39,8 +41,8 @@ router.get('/list', authMiddleware, (req, res) => {
 router.post('/battle-start', authMiddleware, (req, res) => {
   const { stageId, partyIds } = req.body;
 
-  if (!partyIds || partyIds.length === 0 || partyIds.length > 4) {
-    return res.status(400).json({ error: '파티는 1~4명으로 편성하세요' });
+  if (!partyIds || partyIds.length === 0 || partyIds.length > 3) {
+    return res.status(400).json({ error: '파티는 1~3명으로 편성하세요' });
   }
 
   const stage = db.prepare('SELECT * FROM stages WHERE id = ?').get(stageId);
@@ -58,7 +60,7 @@ router.post('/battle-start', authMiddleware, (req, res) => {
   const partyUnits = [];
   for (const invId of partyIds) {
     const inv = db.prepare(`
-      SELECT i.*, c.name, c.rarity, c.element, c.origin, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes, c.image_url
+      SELECT i.*, c.name, c.rarity, c.element, c.origin, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes, c.image_url, c.image_sd
       FROM inventory i JOIN characters c ON i.character_id = c.id
       WHERE i.id = ? AND i.user_id = ?
     `).get(invId, req.user.id);
@@ -79,16 +81,43 @@ router.post('/battle-start', authMiddleware, (req, res) => {
       `).all(inv.character_id);
     }
 
-    partyUnits.push(createUnit(inv, inv.level, inv.awakening, false, skills));
+    const talentData = require('../../data/talents');
+    const charTalents = talentData[inv.character_id];
+    const equippedTalentIdx = inv.equipped_talent ?? 0;
+    const activeTalent = charTalents?.talents?.[equippedTalentIdx] || null;
+
+    const unit = createUnit(inv, inv.level, inv.awakening, false, skills, activeTalent, inv.promotion || 0);
+    unit.characterId = inv.character_id;
+    partyUnits.push(unit);
+  }
+
+  // 태그 조건 해석 (tag ID 기반)
+  const tagCounts = {};
+  for (const u of partyUnits) {
+    const tags = db.prepare('SELECT t.id, t.label FROM character_tags ct JOIN tags t ON ct.tag_id = t.id WHERE ct.character_id = ?').all(u.characterId);
+    u.tags = tags.map(t => ({ id: t.id, label: t.label }));
+    for (const t of tags) tagCounts[t.id] = (tagCounts[t.id] || 0) + 1;
   }
 
   // 적 유닛 생성
   const enemies = JSON.parse(stage.enemy_data);
-  const enemyUnits = enemies.map((e, idx) => createUnit({ ...e, id: `enemy_${idx}` }, 1, 0, true, e.skills || []));
+  const enemyUnits = enemies.map((e, idx) => {
+    const unit = createUnit({ ...e, id: `enemy_${idx}` }, 1, 0, true, e.skills || [], e.talent || null, 0);
+    if (e.monsterId) {
+      const eTags = db.prepare('SELECT t.id, t.label FROM monster_tags mt JOIN tags t ON mt.tag_id = t.id WHERE mt.monster_id = ?').all(e.monsterId);
+      unit.tags = eTags.map(t => ({ id: t.id, label: t.label }));
+    }
+    return unit;
+  });
 
-  const setup = createBattleSetup(partyUnits, enemyUnits);
+  const setup = createBattleSetup(partyUnits, enemyUnits, tagCounts);
   setup.stageId = stageId;
+  setup.chapter = stage.chapter;
+  setup.stageName = stage.name;
   setup.rewards = JSON.parse(stage.rewards);
+  if (stage.story_script) {
+    try { setup.storyScript = JSON.parse(stage.story_script); } catch {}
+  }
 
   const updatedUser = db.prepare('SELECT stamina, gold, currency FROM users WHERE id = ?').get(req.user.id);
   res.json({ setup, user: updatedUser });
@@ -113,7 +142,7 @@ router.post('/battle-end', authMiddleware, (req, res) => {
     const stars = battleLog.allSurvived && battleLog.turnCycles <= 15 ? 3
       : battleLog.allSurvived ? 2 : 1;
 
-    earnedRewards = { gold: rewards.gold, exp: rewards.exp, stars };
+    earnedRewards = { gold: rewards.gold, stars };
 
     const existing = db.prepare('SELECT * FROM stage_clears WHERE user_id = ? AND stage_id = ?').get(req.user.id, stageId);
     if (!existing) {
@@ -128,18 +157,32 @@ router.post('/battle-end', authMiddleware, (req, res) => {
 
     db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
 
-    // 경험치 분배 (partyIds를 battleLog에서 가져옴)
-    if (battleLog.partyIds && battleLog.partyIds.length > 0) {
-      const expPerUnit = Math.floor(rewards.exp / battleLog.partyIds.length);
-      for (const invId of battleLog.partyIds) {
-        addExp(invId, expPerUnit);
+    progressMission(req.user.id, 'battle', 1);
+
+    const accExp = rewards.exp || 20;
+    addAccountExp(req.user.id, accExp);
+    earnedRewards.accountExp = accExp;
+
+    // 드롭 아이템 처리
+    const enemies = JSON.parse(stage.enemy_data);
+    const droppedItems = [];
+    for (const enemy of enemies) {
+      if (!enemy.drops) continue;
+      for (const drop of enemy.drops) {
+        if (Math.random() < drop.rate) {
+          const qty = drop.quantity || 1;
+          db.prepare(`INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)
+            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?`)
+            .run(req.user.id, drop.itemId, qty, qty);
+          const def = itemDefs[drop.itemId];
+          droppedItems.push({ itemId: drop.itemId, name: def?.name || drop.itemId, quantity: qty, rarity: def?.rarity || 'N' });
+        }
       }
     }
-
-    progressMission(req.user.id, 'battle', 1);
+    earnedRewards.items = droppedItems;
   }
 
-  const updatedUser = db.prepare('SELECT stamina, gold, currency FROM users WHERE id = ?').get(req.user.id);
+  const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
   res.json({ rewards: earnedRewards, user: updatedUser });
 });
 
@@ -150,8 +193,8 @@ router.post('/battle', authMiddleware, (req, res) => {
   // 기존 방식도 지원
   const { stageId, partyIds } = req.body;
 
-  if (!partyIds || partyIds.length === 0 || partyIds.length > 4) {
-    return res.status(400).json({ error: '파티는 1~4명으로 편성하세요' });
+  if (!partyIds || partyIds.length === 0 || partyIds.length > 3) {
+    return res.status(400).json({ error: '파티는 1~3명으로 편성하세요' });
   }
 
   const stage = db.prepare('SELECT * FROM stages WHERE id = ?').get(stageId);
@@ -167,6 +210,7 @@ router.post('/battle', authMiddleware, (req, res) => {
   // 간단한 자동전투 결과 생성 (레거시 호환)
   const rewards = JSON.parse(stage.rewards);
   const victory = Math.random() > 0.3; // 70% 승률 (임시)
+  let victoryRewards = null;
 
   if (victory) {
     db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
@@ -176,14 +220,34 @@ router.post('/battle', authMiddleware, (req, res) => {
       db.prepare('INSERT INTO stage_clears (user_id, stage_id, stars, best_turns) VALUES (?, ?, ?, ?)')
         .run(req.user.id, stageId, 1, 10);
     }
-    for (const invId of partyIds) addExp(invId, Math.floor(rewards.exp / partyIds.length));
     progressMission(req.user.id, 'battle', 1);
+
+    const accExp = rewards.exp || 20;
+    addAccountExp(req.user.id, accExp);
+
+    // 드롭 아이템 처리
+    const enemies = JSON.parse(stage.enemy_data);
+    const droppedItems = [];
+    for (const enemy of enemies) {
+      if (!enemy.drops) continue;
+      for (const drop of enemy.drops) {
+        if (Math.random() < drop.rate) {
+          const qty = drop.quantity || 1;
+          db.prepare(`INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)
+            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?`)
+            .run(req.user.id, drop.itemId, qty, qty);
+          const def = itemDefs[drop.itemId];
+          droppedItems.push({ itemId: drop.itemId, name: def?.name || drop.itemId, quantity: qty, rarity: def?.rarity || 'N' });
+        }
+      }
+    }
+    victoryRewards = { gold: rewards.gold, accountExp: accExp, items: droppedItems };
   }
 
-  const updatedUser = db.prepare('SELECT stamina, gold, currency FROM users WHERE id = ?').get(req.user.id);
+  const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
   res.json({
     battle: { result: victory ? 'victory' : 'defeat', turns: 10, stars: victory ? 1 : 0, log: [], totalDamage: 0, partyState: [], enemyState: [] },
-    rewards: victory ? { gold: rewards.gold, exp: rewards.exp } : null,
+    rewards: victory ? victoryRewards : null,
     user: updatedUser,
   });
 });
@@ -196,7 +260,7 @@ function refreshStamina(userId) {
   const elapsed = Math.floor((now - lastUpdate) / 1000 / 60);
   const recovered = Math.floor(elapsed / 5);
   if (recovered > 0 && user.stamina < gameConfig.stamina.max) {
-    const newStamina = Math.min(120, user.stamina + recovered);
+    const newStamina = Math.min(gameConfig.stamina.max, user.stamina + recovered);
     db.prepare('UPDATE users SET stamina = ?, stamina_updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newStamina, userId);
   }
 }
@@ -205,13 +269,15 @@ function addExp(inventoryId, amount) {
   const inv = db.prepare('SELECT i.*, c.rarity FROM inventory i JOIN characters c ON i.character_id = c.id WHERE i.id = ?').get(inventoryId);
   if (!inv) return;
   const maxLevels = gameConfig.growth.maxLevels;
-  const maxLevel = (maxLevels[inv.rarity] || 40) + inv.awakening * gameConfig.growth.awakeningLevelBonus;
+  const maxLevel = (maxLevels[inv.rarity] || 40);
+  if (inv.level >= maxLevel) return;
   let exp = inv.exp + amount;
   let level = inv.level;
   while (level < maxLevel) {
-    const needed = level * 100;
+    const needed = level * level * 10 + level * 50;
     if (exp >= needed) { exp -= needed; level++; } else break;
   }
+  if (level >= maxLevel) exp = 0;
   db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(exp, level, inventoryId);
 }
 
@@ -226,7 +292,28 @@ function progressMission(userId, type, count) {
   }
 }
 
+const ACCOUNT_MAX_LEVEL = 80;
+
+function getAccountExpNeeded(level) {
+  return Math.floor(40 * Math.pow(level, 1.15));
+}
+
+function addAccountExp(userId, amount) {
+  const user = db.prepare('SELECT account_level, account_exp FROM users WHERE id = ?').get(userId);
+  let level = user.account_level || 1;
+  if (level >= ACCOUNT_MAX_LEVEL) return { level, exp: 0, needed: 0 };
+  let exp = (user.account_exp || 0) + amount;
+  while (level < ACCOUNT_MAX_LEVEL) {
+    const needed = getAccountExpNeeded(level);
+    if (exp >= needed) { exp -= needed; level++; } else break;
+  }
+  if (level >= ACCOUNT_MAX_LEVEL) exp = 0;
+  db.prepare('UPDATE users SET account_level = ?, account_exp = ? WHERE id = ?').run(level, exp, userId);
+  return { level, exp, needed: level >= ACCOUNT_MAX_LEVEL ? 0 : getAccountExpNeeded(level) };
+}
+
 module.exports = router;
 module.exports.refreshStamina = refreshStamina;
 module.exports.progressMission = progressMission;
 module.exports.addExp = addExp;
+module.exports.addAccountExp = addAccountExp;

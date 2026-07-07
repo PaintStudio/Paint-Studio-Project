@@ -53,6 +53,7 @@ registerEffect('buff', (ctx, params) => {
   return targets.map(t => ({
     mut: 'addBuff', targetId: t.id,
     stat: params.stat, amount: params.amount, turns,
+    skillId: ctx.skill?.id, skillName: ctx.skill?.name,
     log: `  → ${t.name}: ${params.stat.toUpperCase()} ${Math.round(params.amount * 100)}% 증가 (${turns}턴)`,
   }));
 });
@@ -64,6 +65,7 @@ registerEffect('debuff', (ctx, params) => {
   return targets.map(t => ({
     mut: 'addDebuff', targetId: t.id,
     stat: params.stat, amount: params.amount, turns,
+    skillId: ctx.skill?.id, skillName: ctx.skill?.name,
     log: `  → ${t.name}: ${params.stat.toUpperCase()} ${Math.round(params.amount * 100)}% 감소 (${turns}턴)`,
   }));
 });
@@ -75,6 +77,37 @@ registerEffect('cleanse', (ctx, params) => {
   return targets.map(t => ({
     mut: 'cleanse', targetId: t.id, count,
     log: `  → ${t.name}: 디버프 해제`,
+  }));
+});
+
+// 좌표 마크 (아군 행동 시 추가 피해)
+registerEffect('mark', (ctx, params) => {
+  const targets = resolveTargets(params.scope, ctx);
+  const turns = params.turns || 2;
+  return targets.map(t => ({
+    mut: 'addMark', targetId: t.id,
+    casterId: ctx.caster.id,
+    atkSnapshot: ctx.caster.atk,
+    damageRatio: params.damageRatio || 0.1,
+    element: params.element || ctx.caster.element,
+    turns,
+    log: `  → ${t.name}: 좌표 고정 (${turns}턴)`,
+  }));
+});
+
+// 특수 상태이상 부여 (수몰 등)
+registerEffect('applyStatus', (ctx, params) => {
+  const targets = resolveTargets(params.scope || 'enemies', ctx);
+  const turns = params.turns || 2;
+  const skillExtra = ctx.skillExtra || {};
+  return targets.map(t => ({
+    mut: 'addStatus', targetId: t.id,
+    statusKey: params.statusKey,
+    displayName: params.displayName || params.statusKey,
+    turns,
+    casterId: ctx.caster.id,
+    atkRatio: skillExtra[params.statusKey]?.atkRatio,
+    log: `  → ${t.name}: ${params.displayName || params.statusKey} (${turns >= 99 ? '영구' : turns + '턴'})`,
   }));
 });
 

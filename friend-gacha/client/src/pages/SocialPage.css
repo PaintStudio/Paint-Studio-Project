@@ -113,6 +113,12 @@
   display: flex; justify-content: space-between; align-items: center;
 }
 .mailbox-header h3 { font-size: 0.95rem; margin: 0; }
+.mailbox-actions { display: flex; gap: 6px; }
+.btn-claim-all {
+  padding: 4px 10px; font-size: 0.7rem; background: var(--accent);
+  border: none; color: #fff; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.btn-claim-all:hover { opacity: 0.85; }
 .btn-cleanup {
   padding: 4px 10px; font-size: 0.7rem; background: var(--bg-card);
   border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px;

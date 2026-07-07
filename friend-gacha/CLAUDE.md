@@ -121,9 +121,84 @@ try {
 - 어드민 UI에 스킬 관리 섹션 추가
 - 스킬 가챠 클라이언트 UI
 
+## 스킬/전투 설계 원칙
+
+모든 스킬/특기 동작은 `Effect` 클래스 + `effectIds`로 구현한다. `extra` 키-값 핸들러는 레거시이며 신규 작성 금지.
+
+### Effect 시스템 구조
+- `client/src/battle/effects/` 하위 디렉토리별 자동 등록 (`import.meta.glob`)
+- 각 Effect는 `static ID`를 가진 클래스, `registerEffect()`로 등록
+- `runCalc(hookName, units, value, ctx)` — 값 변환 체인 (스탯, 코스트, 데미지 등)
+- `runEvent(hookName, units, ctx)` — 이벤트 결과 수집 → `processResults()`로 일괄 적용
+- `Effect.PRIORITY` (기본 0) — 높을수록 나중에 처리 (최종 결정권)
+
+### Effect ID 범위
+| 범위 | 용도 | 디렉토리 | 예시 |
+|---|---|---|---|
+| 1~99 | 패시브 | `effects/passive/` | ElementBoost(1), StatBoostPassive(16) |
+| 101~199 | 트리거 (조건부 발동) | `effects/trigger/` | SkillUseStack(101), Prepare(127) |
+| 136~199 | 특기 (캐릭터 고유) | `effects/talent/` | TagPartyAtkScaling(136), TauntDamageReduce(148) |
+| 201~299 | 상태이상 | `effects/status/` | StatusSubmerge(201), StatusStorm(204) |
+| 301~399 | 스킬 이펙트 | `effects/skill/` | SelfHealOnAttack(301), NoteSteal(326) |
+| 401~499 | 버프/디버프 | `effects/buff/` | StatBuff(401), StatDebuff(402) |
+| 501~599 | 스택 (자체 효과) | `effects/stack/` | StackTaunt(501), StackEcho(504) |
+
+### 스킬에 effectIds 연결하기
+`game_seed.json`의 스킬 `extra` 필드에 JSON으로 저장:
+```json
+"extra": "{\"effectIds\":[{\"id\":329,\"args\":[1.5]},{\"id\":330,\"args\":[1,3]}]}"
+```
+서버(`battle.js`)가 파싱하여 `skill.effectIds` 배열로 분리. args는 **인덱스 배열** (`[0, 1, 2]`), key-value 금지.
+
+### 핵심 규칙
+1. **extra 핸들러 신규 작성 금지** — 모든 스킬 동작은 effectIds + Effect 클래스로 구현
+2. **다른 효과 = 다른 ID** — 보호막 부여와 도발 부여는 별도 Effect (329, 330)
+3. **args는 인덱스 배열** — `this.params[0]`, `this.params[1]`로 접근. key-value 사용 금지
+4. **modSkill 가드** — 스킬 Effect는 반드시 `modSkill?.id !== skill?.id` 체크로 자기 스킬에만 발동
+5. **owner 가드** — `owner.id !== unit.id` 체크로 소유자만 발동 (파티 전체에 훅이 전파되므로)
+
+### 스택 시스템
+- **STACK_REGISTRY** (`battleActions.js`): 아이콘/이모지/CSS 클래스 등록 → UI 자동 표시
+- **자체 효과 스택**: `mapStack(key, effectId)`로 등록, `getEffects()`가 combatStacks에서 자동 수집
+- **카운터 전용 스택**: Effect 없이 데이터만 (다른 Effect가 값을 읽어서 사용)
+
+### processResults 결과 타입 (주요)
+| 키 | 타입 | 동작 |
+|---|---|---|
+| `combatStackUpdates` | `{key: value}` | 소유자 스택 갱신 |
+| `partyStackUpdates` | `[{targetId, stacks}]` | 지정 아군 스택 갱신 |
+| `partyHeal` | `[{unitId, amount}]` | 아군 HP 회복 |
+| `partyNoteRestore` | `[{unitId, amount}]` | 아군 노트 회복 (maxNotes 캡) |
+| `noteRecoverUncapped` | `number` | 소유자 노트 회복 (캡 없음, 누적) |
+| `enemyNoteReduce` | `[{targetId, amount}]` | 적 노트 감소 |
+| `enemyDamage` | `{targetId, damage, ...}` | 적 단일 피해 |
+| `bonusDamage` | `[{targetId, damage}]` | 적 추가 피해 (다수) |
+| `grantShield` | `number` | 소유자 보호막 |
+| `partyShieldGrant` | `[{unitId, amount}]` | 지정 아군 보호막 |
+| `selfCleanse` | `number` | 소유자 디버프 제거 |
+| `selfHeal` | `number` | 소유자 HP 회복 |
+| `repeatAttack` | `{attackerId, defenderId}` | 앵콜 (공격 1회 반복) |
+| `log` / `logs` | `string` / `string[]` | 전투 로그 |
+
+## 전투 상태 카테고리
+새 메카닉 추가 시 아래 4가지 중 어디에 해당하는지 먼저 판단할 것:
+
+| 카테고리 | 저장 위치 | 슬롯 제한 | 용도 | 예시 |
+|---|---|---|---|---|
+| **버프/디버프** | `unit.buffs[]` / `unit.debuffs[]` | 각 5슬롯 | 스탯 증감 (ATK/DEF/SPD %) | 견고(DEF+), 탈색(ATK-) |
+| **전투 스택** | `unit.combatStacks` | 없음 | 카운터, 마킹, 플래그 | 환영, 도발, 앵콜, 파트너, 탈색 카운터 |
+| **상태이상** | `unit.statuses[]` | 없음 | 지속 효과 (턴 기반 자동 소멸) | 수몰, 색 추출, 속성 취약 |
+| **마크** | `unit.marks[]` | 없음 | 아군 행동 시 추가 피해 트리거 | 좌표 고정 |
+
+- **버프/디버프**: `skillId` 기준 연장 판정. 같은 스킬 재시전 → 턴 합산 + 시전자/수치 갱신. 6번째 다른 스킬 → 가장 오래된 슬롯 밀림. `effectSystem.js`의 `attachBuff`/`attachDebuff` API 사용, `StatBuff`/`StatDebuff` Effect가 `modifyStat`으로 적용
+- **전투 스택**: 키 이름 `_` 접두사 관례 (`_tauntStacks`, `_illusionStacks`). 사이클 종료 시 필요한 것만 수동 리셋
+- **상태이상**: `statusKey`로 식별, `effects/` 디렉토리에 `Status*` 이펙트 클래스로 등록
+- **보호막**: `unit.shield` (숫자). 데미지 흡수 → HP 이전에 소모. 버프/디버프 슬롯과 무관
+
 ## 코딩 컨벤션
 - 한국어 주석/로그 사용
 - CSS: BEM 아님, 컴포넌트별 .css 파일 (className 기반)
 - HTML 엔티티 사용 (&#9998; 등) - 이모지 직접 사용 시 빌드 에러 가능성
+- **레이아웃 1920px 기준**: 앱 전체 `width: 1920px; margin: 0 auto`. 모든 `position: fixed` 오버레이/모달도 `left: 50%; width: 1920px; transform: translateX(-50%)`로 맞출 것. `inset: 0` 사용 금지
 - DB 쿼리: prepare().get/all/run 패턴
 - API 응답: `{ error: '메시지' }` 또는 데이터 객체 직접 반환

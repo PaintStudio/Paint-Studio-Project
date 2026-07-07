@@ -133,7 +133,8 @@
 .no-img { color: #555; font-size: 20px; }
 
 .item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 4px; }
+.char-id-badge { font-size: 10px; font-weight: 700; color: var(--text-muted); opacity: 0.6; flex-shrink: 0; }
 .item-meta { display: flex; gap: 4px; align-items: center; }
 
 .rarity-badge, .elem-badge, .notes-badge {
@@ -359,8 +360,14 @@
 .btn-cancel { padding: 6px 20px; background: #444; color: #ccc; border: none; border-radius: 4px; cursor: pointer; }
 
 /* 스킬 탭 */
-.admin-skills-tab { background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px; }
-.skills-table { overflow-x: auto; margin-top: 12px; }
+.admin-skills-tab {
+  background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px;
+  display: flex; flex-direction: column; max-height: calc(100vh - 160px); overflow: hidden;
+}
+.admin-skills-tab .list-header { flex-shrink: 0; }
+.admin-skills-tab .admin-filter-bar { flex-shrink: 0; }
+.admin-skills-tab .admin-form { flex-shrink: 0; }
+.skills-table { overflow: auto; flex: 1; min-height: 0; margin-top: 12px; }
 .skills-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .skills-table th {
   text-align: left;
@@ -370,6 +377,14 @@
   color: #888;
 }
 .skills-table td { padding: 6px 8px; border-bottom: 1px solid #2a2a3e; }
+.skill-icon-cell { width: 36px; text-align: center; }
+.skill-icon-upload { cursor: pointer; display: inline-block; }
+.skill-icon-upload img { width: 28px; height: 28px; border-radius: 4px; object-fit: cover; vertical-align: middle; }
+.skill-icon-upload .no-icon {
+  display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center;
+  border: 1px dashed #555; border-radius: 4px; color: #555; font-size: 14px;
+}
+.skill-icon-upload:hover .no-icon { border-color: var(--accent); color: var(--accent); }
 .skill-name-cell { font-weight: 600; }
 .desc-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-sm {
@@ -384,8 +399,13 @@
 }
 
 /* 배너 관리 탭 */
-.admin-banners-tab { background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px; }
-.banner-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.admin-banners-tab {
+  background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px;
+  display: flex; flex-direction: column; max-height: calc(100vh - 160px); overflow: hidden;
+}
+.admin-banners-tab .list-header { flex-shrink: 0; }
+.admin-banners-tab .admin-form { flex-shrink: 0; max-height: 50vh; overflow-y: auto; }
+.banner-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; flex: 1; min-height: 0; overflow-y: auto; }
 .banner-card {
   display: flex; gap: 12px; padding: 12px;
   background: #252538; border-radius: 8px; border: 1px solid #333;
@@ -435,6 +455,7 @@
 /* 우편 발송 탭 */
 .admin-mail-tab {
   background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px;
+  max-height: calc(100vh - 160px); overflow-y: auto;
 }
 .mail-target-row {
   display: flex; gap: 16px; margin-bottom: 12px;
@@ -499,8 +520,430 @@
 .mail-rewards-section h4 {
   margin: 0 0 8px; font-size: 13px; color: #aaa;
 }
+.mail-items-section { margin-top: 10px; }
+.mail-items-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; font-size: 13px; color: #aaa;
+}
+.mail-item-row {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+}
+.mail-item-row select { flex: 1; font-size: 12px; }
+.mail-item-row input { font-size: 12px; }
+.btn-small {
+  padding: 2px 8px; font-size: 11px; border-radius: 4px;
+  background: #333; color: #ccc; border: 1px solid #555; cursor: pointer;
+}
+.btn-small:hover { background: #444; }
+.btn-small.btn-danger { color: #e74c3c; border-color: #e74c3c; }
+.btn-small.btn-danger:hover { background: rgba(231,76,60,0.15); }
+
+.btn-danger { background: #e74c3c; color: #fff; border: none; border-radius: 6px; padding: 6px 16px; cursor: pointer; }
+.btn-danger:hover { background: #c0392b; }
+
+.btn-del-sm { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.btn-del-sm:hover { color: #ff6b6b; }
+.btn-add-sm { background: none; border: 1px dashed #555; color: #aaa; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 12px; }
+.btn-add-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+/* 스테이지 요일 선택 */
+.stage-open-days { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.stage-day-checks { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.stage-day-chip { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.06); color: #888; font-size: 12px; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; }
+.stage-day-chip.active { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+.stage-day-chip:hover { border-color: var(--accent); }
 
 .origin-badge {
   font-size: 10px; padding: 1px 5px; border-radius: 3px;
   font-weight: 600; color: #fff;
+}
+
+/* 아이템 관리 탭 */
+.admin-items-tab {
+  background: #1e1e2e; border-radius: 8px; border: 1px solid #333; padding: 12px;
+  display: flex; flex-direction: column; max-height: calc(100vh - 160px); overflow: hidden;
+}
+.admin-items-tab .list-header { flex-shrink: 0; }
+.admin-items-tab .admin-form { flex-shrink: 0; }
+.item-grid-list { flex: 1; min-height: 0; overflow-y: auto; }
+.item-category-section { margin-bottom: 16px; }
+.item-category-title {
+  margin: 12px 0 8px; font-size: 14px; color: #aaa;
+  border-bottom: 1px solid #333; padding-bottom: 4px;
+}
+.item-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+.item-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; background: #252538; border-radius: 6px;
+  border: 1px solid #333;
+}
+.item-card:hover { border-color: #5b4fcf; }
+.item-card-img {
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: 6px; overflow: hidden;
+  background: #1a1a2e; display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.item-card-img img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.item-card-icon {
+  font-size: 22px; display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+.item-card-info {
+  flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0;
+}
+.item-card-name {
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-card-meta {
+  display: flex; align-items: center; gap: 6px;
+}
+.item-sell-price { font-size: 11px; color: #888; }
+.item-card-desc {
+  font-size: 11px; color: #666;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item-card-actions {
+  display: flex; gap: 3px; flex-shrink: 0;
+}
+
+/* 어드민 필터 바 */
+.admin-filter-bar {
+  display: flex; gap: 6px; padding: 8px 12px; align-items: center; flex-wrap: wrap;
+  background: #1a1a2e; border-bottom: 1px solid #333; flex-shrink: 0;
+}
+.admin-filter-search {
+  flex: 1; min-width: 100px; max-width: 180px;
+  padding: 5px 10px; font-size: 12px;
+  background: #252538; border: 1px solid #444; color: #e0e0e0;
+  border-radius: 4px;
+}
+.admin-filter-search:focus { border-color: #5b4fcf; outline: none; }
+.admin-filter-bar select {
+  padding: 5px 8px; font-size: 12px;
+  background: #252538; border: 1px solid #444; color: #ccc;
+  border-radius: 4px; cursor: pointer;
+}
+.admin-filter-bar select:focus { border-color: #5b4fcf; outline: none; }
+.admin-filter-clear {
+  padding: 4px 8px; font-size: 12px; line-height: 1;
+  background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3);
+  color: #e74c3c; border-radius: 4px; cursor: pointer;
+}
+.admin-filter-clear:hover { background: rgba(231,76,60,0.3); }
+.pool-filter-bar {
+  background: #252538; border: 1px solid #333; border-radius: 6px;
+  margin-bottom: 6px; padding: 6px 10px;
+}
+
+/* ========== 특기 편집 ========== */
+.char-talents-section {
+  border-top: 1px solid #333; padding-top: 16px; margin-top: 8px;
+}
+.talents-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.talents-section-header h4 { margin: 0; font-size: 15px; }
+
+.talent-edit-item {
+  border: 1px solid #333; border-radius: 6px; margin-bottom: 6px;
+  overflow: hidden;
+}
+.talent-edit-item.editing { border-color: #5b4fcf; }
+
+.talent-edit-summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; cursor: pointer; transition: background 0.15s;
+}
+.talent-edit-summary:hover { background: #2a2a3e; }
+.talent-slot-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 3px;
+  background: rgba(243,156,18,0.15); color: #f39c12; flex-shrink: 0;
+}
+.talent-slot-badge.promo-badge {
+  background: rgba(46,204,113,0.15); color: #2ecc71;
+}
+.promo-rewards-section {
+  margin: 6px 0; padding: 6px 8px; background: rgba(46,204,113,0.08);
+  border-radius: 6px; border: 1px solid rgba(46,204,113,0.2);
+}
+.promo-rewards-label {
+  font-size: 12px; color: #2ecc71; font-weight: 600; display: block; margin-bottom: 4px;
+}
+.promo-rewards-grid {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.promo-rewards-grid label {
+  font-size: 12px; color: #ccc; display: flex; align-items: center; gap: 3px;
+}
+.promo-check-label { cursor: pointer; }
+.promo-check-label input[type="checkbox"] { accent-color: #2ecc71; }
+.talent-edit-name { font-size: 13px; font-weight: 600; flex-shrink: 0; }
+.talent-edit-desc {
+  font-size: 12px; color: #888; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.talent-edit-fx { font-size: 11px; color: #666; flex-shrink: 0; }
+
+.talent-edit-form { padding: 12px; background: #252538; }
+.talent-edit-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.talent-effects-section { margin-top: 8px; }
+.talent-effects-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; font-size: 13px; color: #aaa;
+}
+.talent-effect-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px; flex-wrap: wrap;
+}
+.talent-effect-row select {
+  padding: 4px 6px; font-size: 12px;
+  background: #1e1e2e; border: 1px solid #444; color: #ccc;
+  border-radius: 4px;
+}
+.talent-effect-row input[type="number"] {
+  width: 70px; padding: 4px 6px; font-size: 12px;
+  background: #1e1e2e; border: 1px solid #444; color: #e0e0e0;
+  border-radius: 4px;
+}
+.talent-effect-row input[type="text"], .talent-effect-row input:not([type]) {
+  padding: 4px 6px; font-size: 12px;
+  background: #1e1e2e; border: 1px solid #444; color: #e0e0e0;
+  border-radius: 4px;
+}
+.effect-id-block {
+  border-left: 2px solid #555; padding-left: 6px; margin-bottom: 6px;
+}
+
+/* ========== 가챠 설정 ========== */
+.gacha-config-section {
+  margin-bottom: 12px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.gacha-config-header {
+  padding: 10px 14px;
+  background: #1a1a2e;
+  cursor: pointer;
+  user-select: none;
+}
+.gacha-config-header h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #ccc;
+}
+.gacha-config-body {
+  padding: 14px;
+  background: #181825;
+}
+.gacha-config-group {
+  margin-bottom: 14px;
+}
+.gacha-config-group:last-of-type {
+  margin-bottom: 8px;
+}
+.gacha-config-group h5 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #aaa;
+  border-bottom: 1px solid #2a2a3e;
+  padding-bottom: 4px;
+}
+.gacha-rates-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.gacha-rate-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  flex-direction: row !important;
+}
+.gacha-rate-item .rate-label {
+  font-weight: bold;
+  min-width: 28px;
+  text-align: right;
+}
+.gacha-rate-item input[type="number"] {
+  width: 75px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #1e1e2e;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  border-radius: 4px;
+}
+.rate-pct {
+  color: #888;
+  font-size: 11px;
+  min-width: 38px;
+}
+.rate-total {
+  font-size: 13px;
+  padding: 4px 0;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.rate-total.ok { color: #2ecc71; }
+.rate-total.warn { color: #e74c3c; }
+.gacha-params-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gacha-params-grid label {
+  font-size: 12px;
+  color: #aaa;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.gacha-params-grid input[type="number"] {
+  width: 80px;
+  padding: 4px 6px;
+  font-size: 12px;
+  background: #1e1e2e;
+  border: 1px solid #444;
+  color: #e0e0e0;
+  border-radius: 4px;
+}
+
+/* ========== 몬스터 관리 ========== */
+.boss-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 3px;
+  background: rgba(231,76,60,0.2); color: #e74c3c;
+}
+.monster-drops-list {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0;
+}
+.monster-drop-item {
+  font-size: 12px; color: #aaa; background: #1a1a2e;
+  padding: 3px 8px; border-radius: 4px; border: 1px solid #333;
+}
+
+/* ========== 스킬 호버 툴팁 ========== */
+.skill-has-tip, .pool-skill-wrap {
+  position: relative;
+}
+.skill-hover-tip {
+  display: none; position: absolute; z-index: 100;
+  left: 0; top: 100%; margin-top: 4px;
+  width: 280px; padding: 10px 12px;
+  background: #1a1a30; border: 1px solid #444;
+  border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+.pool-skill-wrap .skill-hover-tip {
+  bottom: 100%; top: auto; margin-top: 0; margin-bottom: 4px;
+}
+.skill-has-tip:hover > .skill-hover-tip,
+.pool-skill-wrap:hover > .skill-hover-tip {
+  display: block;
+}
+.tip-desc {
+  font-size: 12px; color: #ccc; margin-bottom: 6px;
+  line-height: 1.5;
+}
+.tip-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  font-size: 11px; color: #999;
+}
+.tip-row .elem-badge { font-size: 10px; padding: 1px 6px; }
+.tip-extra {
+  font-size: 11px; color: #7c5cbf; margin-top: 4px;
+  font-family: monospace;
+}
+
+/* ========== 태그 관리 ========== */
+.char-tags-section {
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid #2a2a40;
+}
+.char-tags-section h4 { margin: 0 0 8px; font-size: 13px; }
+.tag-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;
+}
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 12px;
+  background: rgba(124, 92, 191, 0.2); border: 1px solid rgba(124, 92, 191, 0.4);
+  color: #c9b0ff; font-size: 12px; font-weight: 600;
+}
+.tag-chip-sm { font-size: 11px; padding: 2px 8px; }
+.tag-remove {
+  background: none; border: none; color: rgba(255,255,255,0.4);
+  cursor: pointer; font-size: 10px; padding: 0 2px; line-height: 1;
+}
+.tag-remove:hover { color: #e74c3c; }
+.tag-add-row {
+  display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+.tag-add-btn {
+  background: rgba(124, 92, 191, 0.1) !important;
+  border-color: rgba(124, 92, 191, 0.3) !important;
+  color: #c9b0ff !important;
+}
+.tag-add-btn:hover { background: rgba(124, 92, 191, 0.25) !important; }
+.tag-manage-section { margin-top: 8px; }
+.tag-manage-toggle {
+  font-size: 11px; color: #888; cursor: pointer;
+  user-select: none;
+}
+.tag-manage-toggle:hover { color: #bbb; }
+.tag-def-list {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 6px; padding: 8px;
+  background: rgba(0,0,0,0.2); border-radius: 6px;
+}
+.tag-def-item {
+  display: flex; align-items: center; gap: 6px;
+}
+.tag-def-item input {
+  flex: 1; padding: 2px 6px; background: #1a1a2e;
+  border: 1px solid #444; border-radius: 4px; color: #e0e0e0;
+  font-size: 12px;
+}
+.tag-def-add {
+  display: flex; gap: 6px; align-items: center; margin-top: 4px;
+  padding-top: 6px; border-top: 1px solid #2a2a40;
+}
+.tag-def-add input {
+  flex: 1; padding: 3px 8px; background: #1a1a2e;
+  border: 1px solid #333; border-radius: 4px; color: #e0e0e0;
+  font-size: 12px;
+}
+
+/* ========== 태그 조건 (특기 효과) ========== */
+.tag-condition-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 0 2px 8px; margin-top: 2px;
+}
+.tag-cond-label {
+  font-size: 11px; color: #c9b0ff; font-weight: 600;
+}
+.tag-condition-row input {
+  padding: 2px 6px; background: #1a1a2e;
+  border: 1px solid rgba(124, 92, 191, 0.4); border-radius: 4px;
+  color: #e0e0e0; font-size: 12px;
+}
+.tag-cond-add {
+  color: #888 !important; border-color: #333 !important;
+  font-size: 11px !important;
 }

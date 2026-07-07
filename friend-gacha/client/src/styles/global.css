@@ -24,7 +24,8 @@
   --rarity-SSR: #ffd700;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 
 body {
   font-family: 'Noto Sans KR', sans-serif;
@@ -57,13 +58,31 @@ input {
 .rarity-R { color: var(--rarity-R); }
 .rarity-SR { color: var(--rarity-SR); }
 .rarity-SSR { color: var(--rarity-SSR); }
+.rarity-CR { background: linear-gradient(90deg, #ff6b6b, #ffa500, #ffd700, #48bb78, #4299e1, #9f7aea, #ff6b6b); background-size: 200% 100%; -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: rainbow-text 3s linear infinite; }
 
 .rarity-border-N { border-color: var(--rarity-N); }
 .rarity-border-R { border-color: var(--rarity-R); }
 .rarity-border-SR { border-color: var(--rarity-SR); }
 .rarity-border-SSR { border-color: var(--rarity-SSR); }
+.rarity-border-CR {
+  border-color: #ff6b6b;
+  animation: rainbow-border 3s linear infinite;
+}
+@keyframes rainbow-border {
+  0% { border-color: #ff6b6b; box-shadow: 0 0 8px #ff6b6b80; }
+  16% { border-color: #ffa500; box-shadow: 0 0 8px #ffa50080; }
+  33% { border-color: #ffd700; box-shadow: 0 0 8px #ffd70080; }
+  50% { border-color: #48bb78; box-shadow: 0 0 8px #48bb7880; }
+  66% { border-color: #4299e1; box-shadow: 0 0 8px #4299e180; }
+  83% { border-color: #9f7aea; box-shadow: 0 0 8px #9f7aea80; }
+  100% { border-color: #ff6b6b; box-shadow: 0 0 8px #ff6b6b80; }
+}
 
 .rarity-bg-N { background: linear-gradient(135deg, #88888820, #88888808); }
 .rarity-bg-R { background: linear-gradient(135deg, #3b82f620, #3b82f608); }
 .rarity-bg-SR { background: linear-gradient(135deg, #a855f720, #a855f708); }
 .rarity-bg-SSR { background: linear-gradient(135deg, #ffd70030, #ffd70010); }
+.rarity-bg-CR { background: linear-gradient(135deg, #ff6b6b18, #ffd70018, #48bb7818, #4299e118, #9f7aea18); background-size: 300% 300%; animation: rainbow-bg 4s ease infinite; }
+
+@keyframes rainbow-text { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+@keyframes rainbow-bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }

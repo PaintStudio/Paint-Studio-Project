@@ -1,0 +1,45 @@
+.battle-hub {
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* 모드 탭 */
+.battle-mode-tabs {
+  display: flex; gap: 12px;
+}
+.battle-mode-tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 20px 12px; border-radius: 14px;
+  background: var(--bg-card); border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.battle-mode-tab:hover {
+  border-color: rgba(233,69,96,0.4); transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.battle-mode-tab.active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--bg-card), rgba(233,69,96,0.08));
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.mode-icon { font-size: 1.8rem; }
+.mode-label { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.battle-mode-tab.active .mode-label { color: var(--accent); }
+.mode-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.3; }
+
+/* 컨텐츠 */
+.battle-mode-content {
+  min-height: 400px;
+}
+
+/* 준비중 플레이스홀더 */
+.mode-placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; min-height: 300px; color: var(--text-muted);
+}
+.placeholder-icon { font-size: 3rem; opacity: 0.3; }
+.mode-placeholder h3 { font-size: 1.2rem; font-weight: 700; color: var(--text-secondary); }
+.mode-placeholder p { font-size: 0.9rem; }
+
+/* 전투 진입 시 모드탭 숨김 */
+.battle-hub:has(.battle-page) .battle-mode-tabs { display: none; }
+.battle-hub:has(.battle-page) .battle-mode-content { min-height: 0; }

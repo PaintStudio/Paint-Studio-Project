@@ -1,0 +1,12 @@
+.tutorial-page {
+  position: fixed; top: 0; bottom: 0; left: 50%; z-index: 600;
+  width: 1920px; transform: translateX(-50%);
+  background: #000;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tutorial-page img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}

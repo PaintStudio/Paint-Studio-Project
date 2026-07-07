@@ -11,8 +11,10 @@
       "rates": null,
       "featuredRateUp": 0,
       "active": true,
-      "startDate": null,
-      "endDate": null
+      "startDate": "",
+      "endDate": "",
+      "showTitle": false,
+      "showRates": false
     },
     {
       "id": "YukariPickup",
@@ -29,7 +31,9 @@
       "featuredRateUp": 0.5,
       "active": true,
       "startDate": "2026-06-17",
-      "endDate": "2026-06-23"
+      "endDate": "2026-07-15",
+      "showTitle": false,
+      "showRates": false
     }
   ]
 }

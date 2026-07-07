@@ -1,0 +1,133 @@
+/* ========== 파밍 던전 ========== */
+
+/* 던전 종류 선택 */
+.farming-type-grid {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  padding: 8px 0;
+}
+.farming-type-card {
+  flex: 1; min-width: 200px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px 20px; cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.farming-type-card:hover {
+  border-color: var(--accent); transform: translateY(-2px);
+}
+.farming-type-icon { font-size: 2rem; }
+.farming-type-label { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+.farming-type-desc { font-size: 0.8rem; color: var(--text-secondary); text-align: center; }
+
+/* 난이도 선택 */
+.farming-diff-select { display: flex; flex-direction: column; gap: 16px; }
+.farming-dungeon-title { font-size: 1.3rem; font-weight: 800; margin: 0; }
+.farming-dungeon-desc { font-size: 0.85rem; color: var(--text-secondary); margin: 0; }
+
+.farming-diff-grid {
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.farming-diff-card {
+  flex: 1; min-width: 160px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: var(--card-bg); border: 2px solid var(--border);
+  border-radius: 12px; padding: 20px 16px; cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.farming-diff-card:hover { transform: translateY(-2px); }
+.farming-diff-card.diff-low:hover { border-color: #66bb6a; }
+.farming-diff-card.diff-mid:hover { border-color: #ffa726; }
+.farming-diff-card.diff-high:hover { border-color: #ef5350; }
+
+.farming-diff-label {
+  font-size: 1.1rem; font-weight: 800;
+}
+.diff-low .farming-diff-label { color: #66bb6a; }
+.diff-mid .farming-diff-label { color: #ffa726; }
+.diff-high .farming-diff-label { color: #ef5350; }
+
+.farming-diff-lv { font-size: 0.8rem; color: var(--text-secondary); }
+.farming-diff-cost { font-size: 0.85rem; color: var(--text-secondary); }
+.farming-diff-gold { font-size: 0.8rem; color: #ffd54f; display: flex; align-items: center; gap: 4px; }
+.farming-diff-days { font-size: 0.75rem; color: #90caf9; }
+.farming-diff-card.closed { opacity: 0.4; cursor: not-allowed; }
+.farming-diff-card.closed:hover { transform: none; }
+.farming-diff-card.locked { opacity: 0.5; cursor: not-allowed; }
+.farming-diff-card.locked:hover { transform: none; }
+.farming-closed-label { font-size: 0.75rem; color: #ef5350; font-weight: 700; }
+.farming-locked-label { font-size: 1.2rem; }
+.farming-open-days { color: #90caf9; font-size: 0.8rem; }
+.farming-type-count { font-size: 0.75rem; color: var(--text-secondary); }
+.farming-empty { text-align: center; color: var(--text-secondary); padding: 40px 0; }
+
+/* 파티 선택 */
+.farming-party-select { display: flex; flex-direction: column; gap: 12px; }
+.farming-diff-info {
+  display: flex; gap: 16px; font-size: 0.85rem; color: var(--text-secondary);
+}
+.farming-stamina-cost { color: #ffa726; }
+.farming-section-title { font-size: 1rem; font-weight: 700; margin: 8px 0 0; }
+
+.farming-preset-list { display: flex; flex-direction: column; gap: 8px; }
+.farming-preset {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card-bg); border: 2px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.farming-preset.selected { border-color: var(--accent); }
+.farming-preset-name { font-weight: 700; font-size: 0.9rem; min-width: 60px; }
+.farming-preset-members { display: flex; gap: 6px; flex: 1; }
+.farming-preset-empty { font-size: 0.8rem; color: var(--text-secondary); }
+.farming-preset-char {
+  width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+  border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;
+  background: var(--surface);
+}
+.farming-preset-char img { width: 100%; height: 100%; object-fit: cover; }
+.btn-edit-preset {
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 1rem; cursor: pointer; padding: 4px;
+}
+.btn-edit-preset:hover { color: var(--accent); }
+
+.farming-btn-start {
+  margin-top: 8px; align-self: center;
+  min-width: 200px; font-size: 1.05rem;
+}
+
+/* 보상 화면 */
+.farming-rewards-screen {
+  display: flex; flex-direction: column; align-items: center; gap: 20px;
+  padding: 40px 20px;
+}
+.farming-rewards-title {
+  font-size: 1.4rem; font-weight: 900; color: var(--accent);
+}
+.farming-rewards-list {
+  display: flex; flex-direction: column; gap: 8px;
+  width: 100%; max-width: 500px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+}
+.farming-reward-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 8px; border-radius: 6px;
+}
+.farming-reward-item.gold { color: #ffd54f; font-weight: 700; }
+.farming-reward-value { font-weight: 700; font-size: 1.1rem; }
+.farming-reward-name { font-size: 0.9rem; }
+.farming-reward-qty { font-weight: 700; font-size: 0.9rem; color: var(--text-secondary); }
+.farming-reward-item.rarity-N { color: var(--text-secondary); }
+.farming-reward-item.rarity-R { color: #4fc3f7; }
+.farming-reward-item.rarity-SR { color: #ab47bc; }
+.farming-reward-item.rarity-SSR { color: #ffd54f; }
+.farming-no-drops { font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin: 8px 0; }
+
+.farming-rewards-actions {
+  display: flex; gap: 12px;
+}
+.farming-rewards-actions .btn-primary,
+.farming-rewards-actions .btn-secondary {
+  min-width: 140px;
+}

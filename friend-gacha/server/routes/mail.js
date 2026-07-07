@@ -58,10 +58,83 @@ router.post('/claim/:id', authMiddleware, (req, res) => {
         initCharacterSkills(req.user.id, inv.lastInsertRowid, rewards.characterId);
       }
     }
+    if (rewards.items && Array.isArray(rewards.items)) {
+      for (const { itemId, count } of rewards.items) {
+        if (!itemId || !count || count <= 0) continue;
+        const existing = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
+        if (existing) {
+          db.prepare('UPDATE user_items SET quantity = quantity + ? WHERE user_id = ? AND item_id = ?').run(count, req.user.id, itemId);
+        } else {
+          db.prepare('INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)').run(req.user.id, itemId, count);
+        }
+      }
+    }
   }
 
   db.prepare('UPDATE mail SET is_claimed = 1, is_read = 1 WHERE id = ?').run(req.params.id);
   res.json({ ok: true, rewards });
+});
+
+// 일괄 수령
+router.post('/claim-all', authMiddleware, (req, res) => {
+  const unclaimed = db.prepare(`
+    SELECT * FROM mail
+    WHERE recipient_id = ? AND is_claimed = 0 AND rewards IS NOT NULL
+      AND (expires_at IS NULL OR expires_at > datetime('now'))
+  `).all(req.user.id);
+
+  if (unclaimed.length === 0) return res.json({ ok: true, claimed: 0, totalRewards: {} });
+
+  let totalCurrency = 0, totalGold = 0;
+  const itemTotals = {};
+
+  for (const mail of unclaimed) {
+    const rewards = JSON.parse(mail.rewards);
+    if (rewards.currency) totalCurrency += rewards.currency;
+    if (rewards.gold) totalGold += rewards.gold;
+    if (rewards.characterId) {
+      const char = db.prepare('SELECT id FROM characters WHERE id = ?').get(rewards.characterId);
+      if (char) {
+        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)')
+          .run(req.user.id, rewards.characterId);
+        initCharacterSkills(req.user.id, inv.lastInsertRowid, rewards.characterId);
+      }
+    }
+    if (rewards.items && Array.isArray(rewards.items)) {
+      for (const { itemId, count } of rewards.items) {
+        if (!itemId || !count || count <= 0) continue;
+        itemTotals[itemId] = (itemTotals[itemId] || 0) + count;
+      }
+    }
+  }
+
+  if (totalCurrency > 0) {
+    db.prepare('UPDATE users SET currency = currency + ? WHERE id = ?').run(totalCurrency, req.user.id);
+  }
+  if (totalGold > 0) {
+    db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(totalGold, req.user.id);
+  }
+  for (const [itemId, count] of Object.entries(itemTotals)) {
+    const existing = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
+    if (existing) {
+      db.prepare('UPDATE user_items SET quantity = quantity + ? WHERE user_id = ? AND item_id = ?').run(count, req.user.id, itemId);
+    } else {
+      db.prepare('INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)').run(req.user.id, itemId, count);
+    }
+  }
+
+  const ids = unclaimed.map(m => m.id);
+  db.prepare(`UPDATE mail SET is_claimed = 1, is_read = 1 WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+
+  res.json({
+    ok: true,
+    claimed: unclaimed.length,
+    totalRewards: {
+      ...(totalCurrency > 0 && { currency: totalCurrency }),
+      ...(totalGold > 0 && { gold: totalGold }),
+      ...(Object.keys(itemTotals).length > 0 && { items: itemTotals })
+    }
+  });
 });
 
 // 우편 삭제

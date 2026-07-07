@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api';
 import gameConfig from '@gameConfig';
 import ProfileModal from '../components/ProfileModal';
+import CurrencyIcon from '../components/CurrencyIcon';
+import DialogueBubble from '../components/DialogueBubble';
+import { loadDialogues, getLobbyLine } from '../utils/dialogues';
 import './LobbyPage.css';
 
 const RARITY_COLORS = {};
@@ -9,15 +12,13 @@ for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.c
 const ORIGIN_LABELS = {};
 for (const [k, v] of Object.entries(gameConfig.origins)) ORIGIN_LABELS[k] = v.label;
 
-const getAccountLevel = (totalPulls) => {
-  const p = totalPulls || 0;
-  const level = Math.floor((1 + Math.sqrt(1 + 8 * p / 5)) / 2);
-  const curr = 5 * (level - 1) * level / 2;
-  const next = 5 * level * (level + 1) / 2;
-  const exp = p - curr;
-  const need = next - curr;
+function getAccountLevelInfo(profile) {
+  const level = profile?.accountLevel || 1;
+  const exp = profile?.accountExp || 0;
+  if (level >= 80) return { level, exp: 0, need: 0, progress: 1 };
+  const need = Math.floor(40 * Math.pow(level, 1.15));
   return { level, exp, need, progress: need > 0 ? exp / need : 0 };
-};
+}
 
 export default function LobbyPage({ user, navigate, addToast, onLogout, missions, onClaimMission, onRefresh }) {
   const [lobbyData, setLobbyData] = useState(null);
@@ -26,8 +27,16 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
   const [profile, setProfile] = useState(null);
 
   const [unreadMail, setUnreadMail] = useState(0);
+  const [bubbleText, setBubbleText] = useState(null);
 
-  useEffect(() => { loadLobby(); loadProfile(); loadUnread(); }, []);
+  useEffect(() => { loadLobby(); loadProfile(); loadUnread(); loadDialogues(); }, []);
+
+  const handleCharTap = useCallback(() => {
+    if (!lobbyData?.representative) return;
+    const rep = lobbyData.representative;
+    const line = getLobbyLine(rep.character_id, rep.awakening || 0, rep.promotion || 0, lobbyData.ownedCharIds || []);
+    if (line) setBubbleText(line);
+  }, [lobbyData]);
 
   const loadUnread = async () => {
     try { const d = await api.mailUnreadCount(); setUnreadMail(d.count); } catch {}
@@ -53,7 +62,7 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
 
   const pendingMissions = missions?.filter(m => m.completed && !m.claimed).length || 0;
   const totalNotifs = (notifications.pendingMissions || 0) + (notifications.pendingTrades || 0);
-  const accountLevel = getAccountLevel(profile?.totalPulls);
+  const accountLevel = getAccountLevelInfo(profile);
 
   return (
     <div className="lobby-page">
@@ -82,9 +91,9 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
           </span>
         </button>
         <div className="lobby-header-resources">
-          <span className="lobby-res">&#9889;{user.stamina || 0}</span>
-          <span className="lobby-res gold">&#129689;{(user.gold || 0).toLocaleString()}</span>
-          <span className="lobby-res diamond">&#128142;{(user.currency || 0).toLocaleString()}</span>
+          <span className="lobby-res"><CurrencyIcon type="stamina" />{user.stamina || 0}</span>
+          <span className="lobby-res gold"><CurrencyIcon type="bit" />{(user.gold || 0).toLocaleString()}</span>
+          <span className="lobby-res diamond"><CurrencyIcon type="prism" />{(user.currency || 0).toLocaleString()}</span>
         </div>
         <button className="lobby-mail-btn" onClick={() => navigate('social', 'mail')}>
           &#128236;
@@ -106,22 +115,25 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
         {/* 캐릭터 LD - 좌측 */}
         <div className="lobby-character-area">
           {rep ? (
-            <div className="lobby-char-standing">
+            <div className="lobby-char-standing" onClick={handleCharTap} style={{ cursor: 'pointer' }}>
+              {bubbleText && (
+                <DialogueBubble
+                  speaker={rep.name}
+                  text={bubbleText}
+                  duration={4000}
+                  variant="lobby"
+                  onDone={() => setBubbleText(null)}
+                />
+              )}
               {rep.image_ld ? (
                 <img src={rep.image_ld} alt={rep.name} className="lobby-char-ld" />
               ) : rep.image_url ? (
                 <img src={rep.image_url} alt={rep.name} className="lobby-char-fallback" />
               ) : (
-                <div className="lobby-char-placeholder" style={{ borderColor: rarityColor }}>
+                <div className={`lobby-char-placeholder ${rep.rarity === 'CR' ? 'rarity-border-CR' : ''}`} style={rep.rarity !== 'CR' ? { borderColor: rarityColor } : undefined}>
                   {rep.name[0]}
                 </div>
               )}
-              <div className="lobby-char-info">
-                <span className="lobby-char-name" style={{ color: rarityColor === 'rainbow' ? '#ffd700' : rarityColor }}>
-                  {rep.name}
-                </span>
-                <span className="lobby-char-title">{rep.title}</span>
-              </div>
             </div>
           ) : (
             <div className="lobby-no-char">
@@ -153,13 +165,6 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
           )}
         </div>
       </div>
-
-      {/* 캐릭터 대사 */}
-      {rep?.quote && (
-        <div className="lobby-quote-area">
-          <span className="lobby-char-quote">"{rep.quote}"</span>
-        </div>
-      )}
 
       {/* 프로필 모달 */}
       {showProfile && (

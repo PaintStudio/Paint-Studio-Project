@@ -1,0 +1,125 @@
+/* ========== 대사 말풍선 (원라인) ========== */
+.dialogue-bubble {
+  position: absolute;
+  z-index: 50;
+  max-width: 420px;
+  animation: bubbleIn 0.3s ease-out;
+  pointer-events: none;
+}
+.dialogue-bubble.fade-out {
+  animation: bubbleOut 0.5s ease-in forwards;
+}
+
+.dialogue-bubble-inner {
+  position: relative;
+  background: rgba(10, 12, 24, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 14px 22px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dialogue-bubble-inner::after {
+  content: '';
+  position: absolute;
+  bottom: -8px; left: 40px;
+  width: 16px; height: 16px;
+  background: rgba(10, 12, 24, 0.92);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  transform: rotate(45deg);
+}
+
+.dialogue-bubble-speaker {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 4px;
+  letter-spacing: 0.02em;
+}
+
+.dialogue-bubble-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+/* 전투용 - 화면 상단 중앙, 꼬리 없음 */
+.dialogue-bubble.battle {
+  left: 50% !important;
+  top: 120px !important;
+  bottom: auto !important;
+  transform: translateX(-50%);
+  max-width: 500px;
+}
+.dialogue-bubble.battle .dialogue-bubble-inner::after {
+  display: none;
+}
+.dialogue-bubble.battle .dialogue-bubble-inner {
+  text-align: center;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(10, 12, 24, 0.95);
+}
+
+/* 로비용 - LD 이미지 바로 위 */
+.dialogue-bubble.lobby {
+  position: absolute;
+  bottom: 100%; left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  max-width: 860px;
+  min-width: 360px;
+  animation: bubbleInLobby 0.3s ease-out;
+}
+.dialogue-bubble.lobby.fade-out {
+  animation: bubbleOutLobby 0.5s ease-in forwards;
+}
+.dialogue-bubble.lobby .dialogue-bubble-inner::after {
+  bottom: -8px; left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes bubbleInLobby {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes bubbleOutLobby {
+  from { opacity: 1; transform: translateX(-50%); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+}
+
+/* 가챠용 - 카드 하단 중앙 */
+.dialogue-bubble.gacha {
+  position: absolute;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 600px;
+  min-width: 300px;
+  animation: bubbleInLobby 0.3s ease-out;
+}
+.dialogue-bubble.gacha.fade-out {
+  animation: bubbleOutLobby 0.5s ease-in forwards;
+}
+.dialogue-bubble.gacha .dialogue-bubble-inner::after {
+  display: none;
+}
+.dialogue-bubble.gacha .dialogue-bubble-inner {
+  text-align: center;
+}
+
+/* 성장용 - 포트레이트 옆 */
+.dialogue-bubble.growth {
+  max-width: 340px;
+}
+
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bubbleOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-6px); }
+}

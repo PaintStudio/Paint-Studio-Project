@@ -1,0 +1,61 @@
+.party-page { display: flex; flex-direction: column; gap: 20px; }
+.party-page-title {
+  font-size: 1.4rem; font-weight: 900;
+  background: linear-gradient(90deg, var(--accent), #f39c12);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* 프리셋 카드 그리드 */
+.preset-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+}
+.preset-card {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 18px; border-radius: 14px;
+  background: var(--bg-card); border: 2px solid var(--border);
+  cursor: pointer; transition: all 0.2s; min-height: 200px;
+}
+.preset-card:hover {
+  border-color: rgba(233,69,96,0.4); transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.preset-card.has-members { border-color: rgba(34,197,94,0.25); }
+.preset-card-header {
+  display: flex; align-items: center; gap: 10px;
+}
+.preset-slot-num {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 0.85rem; flex-shrink: 0;
+}
+.preset-card-name { font-size: 0.95rem; font-weight: 700; }
+
+.preset-members {
+  flex: 1; display: flex; flex-direction: column; gap: 8px;
+}
+.preset-member {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px; background: var(--bg-secondary);
+}
+.pm-avatar {
+  width: 32px; height: 32px; border-radius: 50%; overflow: hidden;
+  background: var(--bg-primary); display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8rem; flex-shrink: 0;
+}
+.pm-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.pm-name { font-size: 0.8rem; font-weight: 600; flex: 1; }
+.pm-lv { font-size: 0.7rem; color: var(--text-muted); }
+
+.preset-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 0.85rem;
+}
+
+.preset-card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.75rem; color: var(--text-muted);
+}
+.preset-power { color: var(--text-secondary); font-weight: 600; }
+.preset-edit-hint { color: var(--accent); font-weight: 600; }
+
