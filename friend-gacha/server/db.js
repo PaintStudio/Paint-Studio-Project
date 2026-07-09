@@ -973,17 +973,32 @@ async function initDb() {
     drops TEXT DEFAULT '[]'
   )`);
 
-  // 몬스터 시드 (monsters.js → DB, 최초 1회)
+  // ============ 몬스터 시드 (game_seed.json 우선, 없으면 monsters.js 폴백) ============
   const monsterCount = db.prepare('SELECT COUNT(*) as cnt FROM monsters').get();
   if (monsterCount.cnt === 0) {
-    const monstersFile = require('../data/monsters');
-    for (const mon of Object.values(monstersFile)) {
-      db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(mon.id, mon.name, mon.element, mon.origin, mon.image_sd || null, mon.isBoss ? 1 : 0,
-          mon.hp, mon.atk, mon.def, mon.spd, mon.turn_notes || 3,
-          JSON.stringify(mon.skills || []), JSON.stringify(mon.drops || []));
+    let seedMonsters = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try { seedMonsters = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).monsters; } catch {}
     }
-    console.log(`[DB] ${Object.keys(monstersFile).length}개 몬스터 시드 완료`);
+    if (seedMonsters && seedMonsters.length > 0) {
+      for (const mon of seedMonsters) {
+        db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(mon.id, mon.name, mon.element, mon.origin, mon.image_sd || null, mon.is_boss || 0,
+            mon.hp, mon.atk, mon.def, mon.spd, mon.turn_notes || 3,
+            typeof mon.skills === 'string' ? mon.skills : JSON.stringify(mon.skills || []),
+            typeof mon.drops === 'string' ? mon.drops : JSON.stringify(mon.drops || []));
+      }
+      console.log(`[DB] ${seedMonsters.length}개 몬스터 시드 완료 (game_seed.json)`);
+    } else {
+      const monstersFile = require('../data/monsters');
+      for (const mon of Object.values(monstersFile)) {
+        db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(mon.id, mon.name, mon.element, mon.origin, mon.image_sd || null, mon.isBoss ? 1 : 0,
+            mon.hp, mon.atk, mon.def, mon.spd, mon.turn_notes || 3,
+            JSON.stringify(mon.skills || []), JSON.stringify(mon.drops || []));
+      }
+      console.log(`[DB] ${Object.keys(monstersFile).length}개 몬스터 시드 완료 (monsters.js)`);
+    }
   }
 
   // 몬스터 스킬 등록 (skills 테이블에 obtainable=0으로)
@@ -1007,56 +1022,135 @@ async function initDb() {
     if (registered > 0) console.log(`[DB] ${registered}개 몬스터 스킬 등록 완료 (obtainable=0)`);
   }
 
-  // ============ 스테이지 시드 (monsters DB + stages.js) ============
+  // ============ 스테이지 시드 (game_seed.json 우선, 없으면 stages.js 폴백) ============
   const stageCount = db.prepare('SELECT COUNT(*) as cnt FROM stages').get();
   if (stageCount.cnt === 0) {
-    const stageDefs = require('../data/stages');
-
-    for (const stage of stageDefs) {
-      const enemies = stage.enemies.map(e => {
-        const monRow = db.prepare('SELECT * FROM monsters WHERE id = ?').get(e.id);
-        if (!monRow) { console.warn(`[DB] 몬스터 '${e.id}' 없음, 스킵`); return null; }
-        const scale = e.level_scale || 1.0;
-        return {
-          monsterId: e.id,
-          name: e.name_override || monRow.name,
-          element: monRow.element,
-          origin: monRow.origin,
-          hp: Math.round(monRow.hp * scale),
-          atk: Math.round(monRow.atk * scale),
-          def: Math.round(monRow.def * scale),
-          spd: Math.round(monRow.spd * scale),
-          turn_notes: monRow.turn_notes,
-          isBoss: !!monRow.is_boss,
-          image_sd: monRow.image_sd || null,
-          skills: JSON.parse(monRow.skills || '[]'),
-          drops: JSON.parse(monRow.drops || '[]'),
-        };
-      }).filter(Boolean);
-
-      db.prepare('INSERT INTO stages (chapter, stage_number, name, difficulty, stamina_cost, recommended_level, enemy_data, rewards) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .run(stage.chapter, stage.stage_number, stage.name, stage.difficulty || 'normal',
-          stage.stamina_cost, stage.recommended_level,
-          JSON.stringify(enemies), JSON.stringify(stage.rewards));
+    let seedStages = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try { seedStages = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).stages; } catch {}
     }
-    console.log(`[DB] ${stageDefs.length}개 스테이지 시드 완료`);
+    if (seedStages && seedStages.length > 0) {
+      const stageCols = ['chapter','stage_number','name','difficulty','stamina_cost','recommended_level',
+        'enemy_data','rewards','story_script','type','open_days','always_open','unlock_condition',
+        'dungeon_group','description','icon'];
+      for (const s of seedStages) {
+        const vals = stageCols.map(k => {
+          const v = s[k];
+          if (v === undefined || v === null) return null;
+          if (typeof v === 'object') return JSON.stringify(v);
+          return v;
+        });
+        db.prepare(`INSERT INTO stages (${stageCols.join(',')}) VALUES (${stageCols.map(() => '?').join(',')})`)
+          .run(...vals);
+      }
+      console.log(`[DB] ${seedStages.length}개 스테이지 시드 완료 (game_seed.json)`);
+    } else {
+      const stageDefs = require('../data/stages');
+      for (const stage of stageDefs) {
+        const enemies = stage.enemies.map(e => {
+          const monRow = db.prepare('SELECT * FROM monsters WHERE id = ?').get(e.id);
+          if (!monRow) { console.warn(`[DB] 몬스터 '${e.id}' 없음, 스킵`); return null; }
+          const scale = e.level_scale || 1.0;
+          return {
+            monsterId: e.id, name: e.name_override || monRow.name,
+            element: monRow.element, origin: monRow.origin,
+            hp: Math.round(monRow.hp * scale), atk: Math.round(monRow.atk * scale),
+            def: Math.round(monRow.def * scale), spd: Math.round(monRow.spd * scale),
+            turn_notes: monRow.turn_notes, isBoss: !!monRow.is_boss,
+            image_sd: monRow.image_sd || null,
+            skills: JSON.parse(monRow.skills || '[]'), drops: JSON.parse(monRow.drops || '[]'),
+          };
+        }).filter(Boolean);
+        db.prepare('INSERT INTO stages (chapter, stage_number, name, difficulty, stamina_cost, recommended_level, enemy_data, rewards) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(stage.chapter, stage.stage_number, stage.name, stage.difficulty || 'normal',
+            stage.stamina_cost, stage.recommended_level,
+            JSON.stringify(enemies), JSON.stringify(stage.rewards));
+      }
+      console.log(`[DB] ${stageDefs.length}개 스테이지 시드 완료 (stages.js)`);
+    }
   }
 
-  // ============ 레이드 시드 ============
+  // ============ 스토리 노드 시드 (game_seed.json) ============
+  const storyNodeCount = db.prepare('SELECT COUNT(*) as cnt FROM story_nodes').get();
+  if (storyNodeCount.cnt === 0) {
+    let seedStoryNodes = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try { seedStoryNodes = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).storyNodes; } catch {}
+    }
+    if (seedStoryNodes && seedStoryNodes.length > 0) {
+      const snCols = ['category','chapter','node_number','title','node_type','story_script',
+        'enemy_data','stamina_cost','rewards','recommended_level','difficulty','character_id','event_id'];
+      for (const n of seedStoryNodes) {
+        const vals = snCols.map(k => {
+          const v = n[k];
+          if (v === undefined || v === null) return null;
+          if (typeof v === 'object') return JSON.stringify(v);
+          return v;
+        });
+        db.prepare(`INSERT INTO story_nodes (${snCols.join(',')}) VALUES (${snCols.map(() => '?').join(',')})`)
+          .run(...vals);
+      }
+      console.log(`[DB] ${seedStoryNodes.length}개 스토리 노드 시드 완료 (game_seed.json)`);
+    }
+  }
+
+  // ============ 태그 시드 (game_seed.json) ============
+  const tagCount = db.prepare('SELECT COUNT(*) as cnt FROM tags').get();
+  if (tagCount.cnt === 0) {
+    let seedData = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try { seedData = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')); } catch {}
+    }
+    if (seedData?.tags && seedData.tags.length > 0) {
+      for (const t of seedData.tags) {
+        db.prepare('INSERT INTO tags (id, label) VALUES (?, ?)').run(t.id, t.label);
+      }
+      console.log(`[DB] ${seedData.tags.length}개 태그 시드 완료`);
+      if (seedData.characterTags) {
+        for (const ct of seedData.characterTags) {
+          try { db.prepare('INSERT OR IGNORE INTO character_tags (character_id, tag_id) VALUES (?, ?)').run(ct.character_id, ct.tag_id); } catch {}
+        }
+        console.log(`[DB] ${seedData.characterTags.length}개 캐릭터 태그 시드 완료`);
+      }
+      if (seedData.monsterTags) {
+        for (const mt of seedData.monsterTags) {
+          try { db.prepare('INSERT OR IGNORE INTO monster_tags (monster_id, tag_id) VALUES (?, ?)').run(mt.monster_id, mt.tag_id); } catch {}
+        }
+        console.log(`[DB] ${seedData.monsterTags.length}개 몬스터 태그 시드 완료`);
+      }
+    }
+  }
+
+  // ============ 레이드 시드 (game_seed.json 우선, 없으면 하드코딩 폴백) ============
   const raidCount = db.prepare('SELECT COUNT(*) as cnt FROM raids').get();
   if (raidCount.cnt === 0) {
-    const now = new Date();
-    const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
-    db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run('거대 슬라임 킹', 'water', 5000, 5000, 20, 12, 8, 6,
-        JSON.stringify([
-          { hp_threshold: 1.0, skills: [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.2, target: 'single' }, { name: '전체 공격', type: 'attack', cost: 3, power: 1.0, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.5, target: 'self' }] },
-          { hp_threshold: 0.5, skills: [{ name: '강화 공격', type: 'attack', cost: 2, power: 2.0, target: 'single' }, { name: '전체 강타', type: 'attack', cost: 3, power: 1.5, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.6, target: 'self' }] },
-          { hp_threshold: 0.2, skills: [{ name: '폭주 공격', type: 'attack', cost: 2, power: 2.5, target: 'single' }, { name: '전체 폭주', type: 'attack', cost: 3, power: 2.0, target: 'aoe' }] }
+    let seedRaids = null;
+    if (fs.existsSync(SEED_PATH)) {
+      try { seedRaids = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).raids; } catch {}
+    }
+    if (seedRaids && seedRaids.length > 0) {
+      for (const r of seedRaids) {
+        db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .run(r.name, r.element, r.max_hp, r.current_hp ?? r.max_hp, r.base_atk, r.base_def, r.base_spd, r.turn_notes,
+            typeof r.attack_pattern === 'string' ? r.attack_pattern : JSON.stringify(r.attack_pattern),
+            typeof r.rewards === 'string' ? r.rewards : JSON.stringify(r.rewards),
+            r.starts_at, r.ends_at, r.is_active ?? 1);
+      }
+      console.log(`[DB] ${seedRaids.length}개 레이드 시드 완료 (game_seed.json)`);
+    } else {
+      const now = new Date();
+      const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
+      db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run('거대 슬라임 킹', 'water', 5000, 5000, 20, 12, 8, 6,
+          JSON.stringify([
+            { hp_threshold: 1.0, skills: [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.2, target: 'single' }, { name: '전체 공격', type: 'attack', cost: 3, power: 1.0, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.5, target: 'self' }] },
+            { hp_threshold: 0.5, skills: [{ name: '강화 공격', type: 'attack', cost: 2, power: 2.0, target: 'single' }, { name: '전체 강타', type: 'attack', cost: 3, power: 1.5, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.6, target: 'self' }] },
+            { hp_threshold: 0.2, skills: [{ name: '폭주 공격', type: 'attack', cost: 2, power: 2.5, target: 'single' }, { name: '전체 폭주', type: 'attack', cost: 3, power: 2.0, target: 'aoe' }] }
           ]),
-        JSON.stringify({ gold: 5000, diamond: 100, exp: 2000 }),
-        now.toISOString(), weekEnd.toISOString());
-    console.log('[DB] 레이드 시드 완료');
+          JSON.stringify({ gold: 5000, diamond: 100, exp: 2000 }),
+          now.toISOString(), weekEnd.toISOString());
+      console.log('[DB] 레이드 시드 완료 (하드코딩)');
+    }
   }
 
   db._saveSync();
@@ -1169,6 +1263,13 @@ function exportGameData() {
       JOIN skills s ON cs.skill_id = s.id
       ORDER BY cs.character_id, cs.skill_id
     `).all();
+    const monsters = dbProxy.prepare('SELECT * FROM monsters ORDER BY id').all();
+    const stages = dbProxy.prepare('SELECT * FROM stages ORDER BY id').all();
+    const storyNodes = dbProxy.prepare('SELECT * FROM story_nodes ORDER BY id').all();
+    const tags = dbProxy.prepare('SELECT * FROM tags ORDER BY id').all();
+    const characterTags = dbProxy.prepare('SELECT * FROM character_tags ORDER BY character_id, tag_id').all();
+    const monsterTags = dbProxy.prepare('SELECT * FROM monster_tags ORDER BY monster_id, tag_id').all();
+    const raids = dbProxy.prepare('SELECT * FROM raids ORDER BY id').all();
 
     const data = {
       characters,
@@ -1179,6 +1280,13 @@ function exportGameData() {
         awakening_required: m.awakening_required ?? 0,
         is_fixed: m.is_fixed,
       })),
+      monsters,
+      stages,
+      storyNodes,
+      tags,
+      characterTags,
+      monsterTags,
+      raids,
     };
 
     fs.writeFileSync(SEED_PATH, JSON.stringify(data, null, 2), 'utf-8');
@@ -1186,6 +1294,19 @@ function exportGameData() {
   } catch (e) {
     console.error('[DB] game_seed.json 저장 실패:', e.message);
   }
+}
+
+function resetUserData() {
+  const tables = [
+    'user_items', 'party_presets', 'mail', 'daily_missions',
+    'raid_entries', 'story_clears', 'stage_clears', 'pull_log',
+    'trades', 'equipped_skills', 'skill_inventory', 'inventory', 'users'
+  ];
+  for (const t of tables) {
+    dbProxy.prepare(`DELETE FROM ${t}`).run();
+  }
+  dbProxy._saveSync();
+  console.log('[DB] 유저 데이터 리셋 완료');
 }
 
 // 승급 시 해당 단계 스킬 부여 (awakening_required: 11=1차, 12=2차, 13=3차)
@@ -1232,3 +1353,4 @@ module.exports.grantAwakeningSkills = grantAwakeningSkills;
 module.exports.grantPromotionSkills = grantPromotionSkills;
 module.exports.checkEquipCondition = checkEquipCondition;
 module.exports.exportGameData = exportGameData;
+module.exports.resetUserData = resetUserData;

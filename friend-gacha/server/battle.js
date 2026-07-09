@@ -204,7 +204,7 @@ function serializeUnit(u, tagCounts) {
 function validateBattleResult(battleLog, partyCount, enemyCount) {
   if (!battleLog || !Array.isArray(battleLog.actions)) return false;
   if (typeof battleLog.result !== 'string') return false;
-  if (!['victory', 'defeat', 'timeout'].includes(battleLog.result)) return false;
+  if (!['victory', 'defeat'].includes(battleLog.result)) return false;
   if (typeof battleLog.totalDamage !== 'number') return false;
   if (typeof battleLog.turnCycles !== 'number') return false;
   return true;

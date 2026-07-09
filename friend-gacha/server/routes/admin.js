@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { exportGameData } = require('../db');
+const { exportGameData, resetUserData } = require('../db');
 const path = require('path');
 const fs = require('fs');
 
@@ -29,6 +29,21 @@ router.post('/verify', (req, res) => {
 
 // 이하 모든 라우트에 어드민 인증 적용
 router.use(adminAuth);
+
+// 게임 데이터 수동 내보내기
+router.post('/export-game-data', (req, res) => {
+  exportGameData();
+  res.json({ ok: true });
+});
+
+// 유저 데이터 리셋
+router.post('/reset-user-data', (req, res) => {
+  const { confirm } = req.body;
+  if (confirm !== 'RESET') return res.status(400).json({ error: '확인 코드를 입력하세요 (RESET)' });
+  exportGameData();
+  resetUserData();
+  res.json({ ok: true });
+});
 
 // 이미지 저장 경로 (data/ 아래에 저장 → Express가 직접 서빙)
 const IMAGE_DIR = path.join(__dirname, '..', '..', 'data', 'images', 'characters');

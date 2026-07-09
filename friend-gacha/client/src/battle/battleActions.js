@@ -203,19 +203,6 @@ function applySkillExtras(extra, csUpdates, unit, skill, logs) {
   for (const key of Object.keys(extra)) {
     SKILL_EXTRA_HANDLERS[key]?.(ctx);
   }
-  if (skill.type === 'attack' || skill.type === 'ultimate') {
-    if ((unit.combatStacks || {})._prepared) {
-      csUpdates._prepared = false;
-      logs.push(`  [프리페어] 소모됨`);
-    }
-    const curOrigin = csUpdates._originStacks !== undefined
-      ? csUpdates._originStacks
-      : ((unit.combatStacks || {})._originStacks || 0);
-    if (curOrigin > 0) {
-      csUpdates._originStacks = curOrigin - 1;
-      logs.push(`  [천의] 근원 1스택 소모 (잔여 ${curOrigin - 1})`);
-    }
-  }
   return ctx;
 }
 
@@ -459,12 +446,18 @@ function processResults(results, ctx, { accumulateStacks = false } = {}) {
       }));
     }
 
-    if (r.selfDamage && ctx.setParty) {
+    if (r.selfDamage) {
       const ownerId = r._ownerId || ctx.unitId;
-      ctx.addFloatingDmg?.(ownerId, r.selfDamage, 'damage');
-      ctx.setParty(prev => prev.map(u => u.id !== ownerId ? u : {
-        ...u, hp: Math.max(1, u.hp - r.selfDamage)
-      }));
+      const isOwnerEnemy = (ctx.enemies || []).some(u => u.id === ownerId);
+      const dmgSetter = isOwnerEnemy ? ctx.setEnemies : ctx.setParty;
+      if (dmgSetter) {
+        ctx.addFloatingDmg?.(ownerId, r.selfDamage, 'damage');
+        dmgSetter(prev => prev.map(u => {
+          if (u.id !== ownerId) return u;
+          const newHp = isOwnerEnemy ? Math.max(0, u.hp - r.selfDamage) : Math.max(1, u.hp - r.selfDamage);
+          return { ...u, hp: newHp, alive: newHp > 0 };
+        }));
+      }
     }
 
     if (r.consumeAllShields && ctx.setParty) {

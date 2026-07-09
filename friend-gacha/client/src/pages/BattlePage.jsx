@@ -70,8 +70,7 @@ function calcDmg(attacker, defender, power, skillElem, ignoreDef = false, isUlti
   const baseDmg = atk * power;
   const defRed = def > 0 ? baseDmg * (100 / (100 + def)) : baseDmg;
   let elemMult = getElemMult(skillElem || attacker.element, defender.element);
-  const bondStacks = (attacker.combatStacks || {})._bondStacks || 0;
-  if (bondStacks > 0 && elemMult > 1.0) elemMult += bondStacks * 0.05;
+  elemMult = runCalc('modifyElemMult', [attacker], elemMult, { attacker, defender, skillElem });
 
   const _bc = gameConfig.battle;
   const variance = _bc.varianceMin + Math.random() * (_bc.varianceMax - _bc.varianceMin);
@@ -117,11 +116,6 @@ function applyDmgToUnit(u, damage, attacker) {
     if (r.log) logs.push(r.log);
   }
   if (onHitHeal > 0) newHp = Math.min(u.maxHp, newHp + onHitHeal);
-  const babelStacks = (u.combatStacks || {})._babelStacks || 0;
-  if (babelStacks > 0) {
-    stackUpdates._babelStacks = 0;
-    logs.push(`  [바벨 CEO] ${u.name} 바벨 ${babelStacks}스택 소실!`);
-  }
 
   if (!alive) {
     for (const r of runEvent('onLethalDamage', [u, ...getBattleContext().party.filter(p => p.id !== u?.id)], { unit: u })) {
@@ -411,21 +405,15 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
       }
     }
 
-    // 색 추출 DOT: 상태이상이 있는 적에게 사이클 시작 시 피해
-    setEnemies(prev => prev.map(e => {
-      if (!e.alive || !e.statuses?.length) return e;
-      const ce = e.statuses.find(s => s.statusKey === 'color_extract');
-      if (!ce) return e;
-      const caster = party.find(u => u.id === ce.casterId);
-      if (!caster || !caster.alive) return e;
-      const atkRatio = ce.atkRatio || 3.0;
-      const dot = Math.round(getEffStat(caster, 'atk') * atkRatio);
-      const newHp = Math.max(0, e.hp - dot);
-      addLog(`  [색 추출] ${e.name}: ${dot} 암 속성 피해 (${caster.name})`);
-      addFloatingDmg(e.id, dot, 'damage');
-      trackDmg(caster.id, caster.name, e.name, dot, '색 추출');
-      return { ...e, hp: newHp, alive: newHp > 0 };
-    }));
+    // 적 상태이상 사이클 시작 효과 (색 추출 DOT 등)
+    for (const e of enemies) {
+      if (!e.alive || !e.statuses?.length) continue;
+      const results = runEvent('onEnemyStatusTick', [e], { unit: e, party, enemies });
+      if (results.length > 0) {
+        const acc = processResults(results, battleCtx(e.id));
+        acc.logs.forEach(l => addLog(l));
+      }
+    }
 
     setPhase('next_turn');
   }, [phase === 'start', guideVisible]);
@@ -438,7 +426,6 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
     const enemyAlive = enemies.some(u => u.alive);
     if (!partyAlive) { endBattle('defeat'); return; }
     if (!enemyAlive) { endBattle('victory'); return; }
-    if (turnCycle > 30) { endBattle('timeout'); return; }
 
     let idx = currentTurnIdx;
     while (idx < turnOrder.length) {
@@ -457,14 +444,6 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         delete cs._defenseUsedThisCycle;
         delete cs._futureVisionActive;
         delete cs._futureVisionBoosted;
-        // 신속 스택 절반 감소
-        if ((cs._swiftStacks || 0) > 0) cs._swiftStacks = Math.floor(cs._swiftStacks / 2);
-        // 파고들기: pending speed buff → 다음 사이클 적용
-        if (cs._pendingSpeedBuff) {
-          attachBuff(u.id, { stat: 'spd', amount: cs._pendingSpeedBuff.amount, turns: cs._pendingSpeedBuff.turns, skillId: cs._pendingSpeedBuff.skillId, skillName: cs._pendingSpeedBuff.skillName, casterId: u.id });
-          addLog(`  [파고들기] ${u.name} SPD ${Math.round(cs._pendingSpeedBuff.amount * 100)}% 증가`);
-          delete cs._pendingSpeedBuff;
-        }
         const { buffs: newBuffs, expired: expiredBuffs } = tickBuffs(u.id);
         const { debuffs: newDebuffs } = tickDebuffs(u.id);
         return {
@@ -820,12 +799,6 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
       const ptdAcc = processResults(ptdResults, battleCtx(defender.id));
       ptdAcc.logs.forEach(l => addLog(l));
 
-      // 은신 스택 감소: 적 공격이 발생할 때마다 모든 아군의 은신 스택 -1
-      setParty(prev => prev.map(u => {
-        const stealth = (u.combatStacks || {})._stealthStacks || 0;
-        if (stealth > 0) return { ...u, combatStacks: { ...(u.combatStacks || {}), _stealthStacks: stealth - 1 } };
-        return u;
-      }));
     }
 
     // 앵콜 반복 공격: onTakeDamage에서 StackRepeatAttack이 반환한 repeatAttack 처리
@@ -1292,7 +1265,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
   function endBattle(res) {
     setResult(res);
     setPhase('battle_end');
-    addLog(`=== 전투 ${res === 'victory' ? '승리!' : res === 'defeat' ? '패배...' : '시간 초과'} ===`);
+    addLog(`=== 전투 ${res === 'victory' ? '승리!' : '패배...'} ===`);
     const survivor = party.find(u => u.alive);
     if (survivor) {
       const cat = res === 'victory' ? 'victory' : 'defeat';

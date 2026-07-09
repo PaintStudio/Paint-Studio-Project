@@ -1,7 +1,5 @@
 import { Effect, registerEffect, mapStack } from '../../effectSystem';
 
-// 은신: 적 공격 타겟에서 이 유닛 제외 (도발보다 낮은 우선도)
-// params: [현재 스택 수]
 class StackStealth extends Effect {
   static ID = 503;
   static PRIORITY = 10;
@@ -12,6 +10,15 @@ class StackStealth extends Effect {
       const others = livingTargets?.filter(u => u.id !== owner.id && u.alive);
       if (others?.length) return others[Math.floor(Math.random() * others.length)];
     }
+  }
+
+  onPartyTakeDamage({ owner, damagedUnit }) {
+    if (!owner.alive) return;
+    const stacks = this.params[0] || 0;
+    if (stacks <= 0) return;
+    return {
+      combatStackUpdates: { _stealthStacks: stacks - 1 },
+    };
   }
 }
 

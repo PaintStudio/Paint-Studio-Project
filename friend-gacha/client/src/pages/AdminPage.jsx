@@ -244,8 +244,13 @@ export default function AdminPage() {
     } catch (err) { showMsg(err.message); }
   };
 
-  const saveStoryNode = async (data) => {
+  const saveStoryNode = async (raw) => {
     try {
+      const data = { ...raw };
+      try { data.enemy_data = data._enemy_data_raw ? JSON.parse(data._enemy_data_raw) : []; } catch(e) { return showMsg('적 데이터 JSON 오류: ' + e.message); }
+      try { data.rewards = data._rewards_raw ? JSON.parse(data._rewards_raw) : null; } catch(e) { return showMsg('보상 JSON 오류: ' + e.message); }
+      try { data.story_script = data._story_script_raw ? JSON.parse(data._story_script_raw) : null; } catch(e) { return showMsg('스토리 스크립트 JSON 오류: ' + e.message); }
+      delete data._enemy_data_raw; delete data._rewards_raw; delete data._story_script_raw;
       if (data._isEdit) {
         await req('/story-nodes/' + data.id, { method: 'PUT', body: data });
         showMsg('스토리 노드 수정 완료');
@@ -1173,6 +1178,217 @@ export default function AdminPage() {
     );
   };
 
+  // ====== 밸런스 계산기 ======
+  const BalanceCalculator = ({ characters }) => {
+    const growth = gameConfig.growth;
+    const battle = gameConfig.battle;
+
+    const [bcForm, setBcForm] = useState({
+      recLevel: 10,
+      partyRarity: 'SR',
+      enemyCount: 3,
+      hasBoss: false,
+      targetTurns: 15,
+      difficulty: 'normal',
+    });
+    const [bcResult, setBcResult] = useState(null);
+
+    const RARITY_STAT_AVGS = {
+      N:   { hp: 55, atk: 7, def: 7, spd: 8, notes: 4 },
+      R:   { hp: 75, atk: 10, def: 10, spd: 10, notes: 4 },
+      SR:  { hp: 95, atk: 12, def: 13, spd: 11, notes: 5 },
+      SSR: { hp: 130, atk: 14, def: 17, spd: 10, notes: 6 },
+      CR:  { hp: 140, atk: 13, def: 20, spd: 9, notes: 6 },
+    };
+
+    const DIFF_MULTS = {
+      easy:   { hpMult: 0.7, atkMult: 0.7, defMult: 0.8, label: '쉬움' },
+      normal: { hpMult: 1.0, atkMult: 1.0, defMult: 1.0, label: '보통' },
+      hard:   { hpMult: 1.4, atkMult: 1.3, defMult: 1.2, label: '어려움' },
+      vhard:  { hpMult: 1.8, atkMult: 1.6, defMult: 1.5, label: '매우 어려움' },
+    };
+
+    const calcGrown = (base, level, isSPD) => {
+      const rate = isSPD ? growth.spdGrowthPerLevel : growth.statGrowthPerLevel;
+      return base * (1 + rate * (level - 1));
+    };
+
+    const calculate = () => {
+      const { recLevel, partyRarity, enemyCount, hasBoss, targetTurns, difficulty } = bcForm;
+      const avg = RARITY_STAT_AVGS[partyRarity];
+      const diff = DIFF_MULTS[difficulty];
+      const partySize = 3;
+      const avgPower = 1.4;
+      const attackRatio = 0.7;
+      const avgCritMult = 1 + battle.critRate * (battle.critMultiplier - 1);
+
+      const partyATK = calcGrown(avg.atk, recLevel, false);
+      const partyDEF = calcGrown(avg.def, recLevel, false);
+      const partyHP = calcGrown(avg.hp, recLevel, false);
+      const partySPD = calcGrown(avg.spd, recLevel, true);
+      const partyNotes = avg.notes;
+
+      const dpsPerUnitPerNote = partyATK * avgPower * avgCritMult;
+      const dpsPerCycle = partySize * partyNotes * attackRatio * dpsPerUnitPerNote;
+
+      const totalEnemyHP = dpsPerCycle * targetTurns * 1.2;
+
+      let mobHP, mobATK, mobDEF, mobSPD, mobNotes;
+      let bossHP, bossATK, bossDEF, bossSPD, bossNotes;
+
+      if (hasBoss) {
+        const bossHPShare = enemyCount > 1 ? 0.5 : 1.0;
+        const mobHPShare = enemyCount > 1 ? 0.5 / (enemyCount - 1) : 0;
+
+        bossHP = Math.round(totalEnemyHP * bossHPShare * diff.hpMult);
+        bossATK = Math.round(partyDEF * 0.9 * avgPower * diff.atkMult);
+        bossDEF = Math.round(partyATK * avgPower * targetTurns * 0.35 * diff.defMult);
+        bossSPD = Math.round(partySPD * 0.85);
+        bossNotes = Math.min(partyNotes + 1, 7);
+
+        if (enemyCount > 1) {
+          mobHP = Math.round(totalEnemyHP * mobHPShare * diff.hpMult);
+          mobATK = Math.round(bossATK * 0.6);
+          mobDEF = Math.round(bossDEF * 0.5);
+          mobSPD = Math.round(partySPD * 0.75);
+          mobNotes = Math.max(partyNotes - 1, 3);
+        }
+      } else {
+        const perMobHP = totalEnemyHP / enemyCount;
+        mobHP = Math.round(perMobHP * diff.hpMult);
+        mobATK = Math.round(partyDEF * 0.7 * avgPower * diff.atkMult);
+        mobDEF = Math.round(partyATK * avgPower * targetTurns * 0.25 * diff.defMult);
+        mobSPD = Math.round(partySPD * 0.8);
+        mobNotes = Math.max(partyNotes - 1, 3);
+      }
+
+      const enemyTotalDPS_perCycle = hasBoss
+        ? (bossATK * bossNotes * 0.6 + (enemyCount > 1 ? (enemyCount - 1) * mobATK * mobNotes * 0.5 : 0))
+        : (enemyCount * mobATK * mobNotes * 0.5);
+      const dmgToPartyPerCycle = enemyTotalDPS_perCycle * (100 / (100 + partyDEF));
+      const totalPartyHP = partyHP * partySize;
+      const survivalTurns = Math.round(totalPartyHP / dmgToPartyPerCycle);
+
+      const effectiveDPS = dpsPerCycle * (100 / (100 + (hasBoss ? bossDEF : mobDEF)));
+      const actualClearTurns = Math.round(totalEnemyHP * diff.hpMult / effectiveDPS);
+
+      setBcResult({
+        party: { atk: partyATK, def: partyDEF, hp: partyHP, spd: partySPD, notes: partyNotes, dpsPerCycle: Math.round(dpsPerCycle) },
+        mob: enemyCount > 1 || !hasBoss ? { hp: mobHP, atk: mobATK, def: mobDEF, spd: mobSPD, notes: mobNotes } : null,
+        boss: hasBoss ? { hp: bossHP, atk: bossATK, def: bossDEF, spd: bossSPD, notes: bossNotes } : null,
+        analysis: { survivalTurns, actualClearTurns, dmgToPartyPerCycle: Math.round(dmgToPartyPerCycle), effectiveDPS: Math.round(effectiveDPS), totalEnemyHP: Math.round(totalEnemyHP * diff.hpMult) },
+        diff,
+      });
+    };
+
+    const bcSet = (k, v) => setBcForm({ ...bcForm, [k]: v });
+
+    const StatRow = ({ label, stat, color }) => (
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #333' }}>
+        <span style={{ color: '#aaa' }}>{label}</span>
+        <span style={{ color: color || '#e0e0e0', fontWeight: 700, fontFamily: 'monospace' }}>{stat}</span>
+      </div>
+    );
+
+    return (
+      <div className="detail-card" style={{ borderColor: 'rgba(96,165,250,0.3)' }}>
+        <h3 style={{ color: '#60a5fa' }}>&#9881; 밸런스 계산기</h3>
+        <p style={{ fontSize: 13, color: '#aaa', margin: '8px 0' }}>
+          SR 파티 기준으로 적 스탯을 자동 계산합니다. 버프 없이 클리어 가능, 버프/시너지 활용 시 3성 달성 기준.
+        </p>
+        <div className="form-grid" style={{ marginTop: 12 }}>
+          <label>권장 레벨
+            <input type="number" min="1" max="60" value={bcForm.recLevel} onChange={e => bcSet('recLevel', Math.max(1, +e.target.value))} />
+          </label>
+          <label>기준 레어도
+            <select value={bcForm.partyRarity} onChange={e => bcSet('partyRarity', e.target.value)}>
+              {RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label>적 수
+            <input type="number" min="1" max="6" value={bcForm.enemyCount} onChange={e => bcSet('enemyCount', Math.max(1, Math.min(6, +e.target.value)))} />
+          </label>
+          <label>목표 턴 수
+            <input type="number" min="5" max="30" value={bcForm.targetTurns} onChange={e => bcSet('targetTurns', Math.max(5, +e.target.value))} />
+          </label>
+          <label>난이도
+            <select value={bcForm.difficulty} onChange={e => bcSet('difficulty', e.target.value)}>
+              {Object.entries(DIFF_MULTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" checked={bcForm.hasBoss} onChange={e => bcSet('hasBoss', e.target.checked)} />
+            보스 포함
+          </label>
+        </div>
+        <div className="form-actions" style={{ marginTop: 12 }}>
+          <button className="btn-save" onClick={calculate}>계산</button>
+        </div>
+
+        {bcResult && (
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: bcResult.boss && bcResult.mob ? '1fr 1fr 1fr' : bcResult.boss ? '1fr 1fr' : '1fr 1fr', gap: 12 }}>
+              <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 14, border: '1px solid rgba(96,165,250,0.3)' }}>
+                <div style={{ fontSize: 13, color: '#60a5fa', fontWeight: 700, marginBottom: 8 }}>&#127917; 아군 파티 ({bcForm.partyRarity} Lv.{bcForm.recLevel})</div>
+                <StatRow label="ATK" stat={Math.round(bcResult.party.atk)} color="#ef4444" />
+                <StatRow label="DEF" stat={Math.round(bcResult.party.def)} color="#3b82f6" />
+                <StatRow label="HP" stat={Math.round(bcResult.party.hp)} color="#22c55e" />
+                <StatRow label="SPD" stat={Math.round(bcResult.party.spd)} color="#eab308" />
+                <StatRow label="Notes" stat={bcResult.party.notes} color="#a78bfa" />
+                <StatRow label="DPS/Cycle" stat={bcResult.party.dpsPerCycle} color="#f97316" />
+              </div>
+
+              {bcResult.mob && (
+                <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 14, border: '1px solid rgba(239,68,68,0.3)' }}>
+                  <div style={{ fontSize: 13, color: '#ef4444', fontWeight: 700, marginBottom: 8 }}>&#128126; 일반 몬스터 (x{bcResult.boss ? bcForm.enemyCount - 1 : bcForm.enemyCount})</div>
+                  <StatRow label="HP" stat={bcResult.mob.hp} color="#22c55e" />
+                  <StatRow label="ATK" stat={bcResult.mob.atk} color="#ef4444" />
+                  <StatRow label="DEF" stat={bcResult.mob.def} color="#3b82f6" />
+                  <StatRow label="SPD" stat={bcResult.mob.spd} color="#eab308" />
+                  <StatRow label="Notes" stat={bcResult.mob.notes} color="#a78bfa" />
+                </div>
+              )}
+
+              {bcResult.boss && (
+                <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 14, border: '1px solid rgba(251,146,60,0.3)' }}>
+                  <div style={{ fontSize: 13, color: '#fb923c', fontWeight: 700, marginBottom: 8 }}>&#128293; 보스</div>
+                  <StatRow label="HP" stat={bcResult.boss.hp} color="#22c55e" />
+                  <StatRow label="ATK" stat={bcResult.boss.atk} color="#ef4444" />
+                  <StatRow label="DEF" stat={bcResult.boss.def} color="#3b82f6" />
+                  <StatRow label="SPD" stat={bcResult.boss.spd} color="#eab308" />
+                  <StatRow label="Notes" stat={bcResult.boss.notes} color="#a78bfa" />
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: '#1a1a2e', borderRadius: 8, padding: 14, border: '1px solid rgba(168,85,247,0.3)' }}>
+              <div style={{ fontSize: 13, color: '#a855f7', fontWeight: 700, marginBottom: 8 }}>&#128202; 시뮬레이션 결과</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <StatRow label="예상 클리어 턴" stat={bcResult.analysis.actualClearTurns + '턴'} color={bcResult.analysis.actualClearTurns <= bcForm.targetTurns ? '#22c55e' : '#ef4444'} />
+                <StatRow label="파티 생존 턴" stat={bcResult.analysis.survivalTurns + '턴'} color={bcResult.analysis.survivalTurns >= bcResult.analysis.actualClearTurns ? '#22c55e' : '#ef4444'} />
+                <StatRow label="아군 유효 DPS" stat={bcResult.analysis.effectiveDPS + '/cycle'} />
+                <StatRow label="적 피해/cycle" stat={bcResult.analysis.dmgToPartyPerCycle} />
+                <StatRow label="적 총 HP" stat={bcResult.analysis.totalEnemyHP.toLocaleString()} />
+                <StatRow label="난이도" stat={bcResult.diff.label} color="#eab308" />
+              </div>
+              <div style={{ marginTop: 12, fontSize: 12, color: '#888', lineHeight: 1.6 }}
+                dangerouslySetInnerHTML={{ __html:
+                  bcResult.analysis.survivalTurns < bcResult.analysis.actualClearTurns
+                    ? '&#9888; 파티가 클리어 전에 전멸할 수 있음 &#8594; 적 ATK 하향 또는 파티 DEF/HP 확인 필요'
+                    : bcResult.analysis.actualClearTurns > bcForm.targetTurns * 1.3
+                    ? '&#9888; 클리어가 너무 느림 &#8594; 적 HP/DEF 하향 고려'
+                    : bcResult.analysis.survivalTurns > bcResult.analysis.actualClearTurns * 3
+                    ? '&#9888; 너무 쉬움 &#8594; 적 스탯 상향 또는 난이도 올리기'
+                    : '&#10003; 밸런스 양호 (버프 없이 클리어 가능, 시너지 활용 시 여유)'
+                }} />
+
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ====== 렌더 ======
   if (!authed) {
     return (
@@ -1210,6 +1426,7 @@ export default function AdminPage() {
           <button className={tab === 'stages' ? 'active' : ''} onClick={() => setTab('stages')}>던전</button>
           <button className={tab === 'story' ? 'active' : ''} onClick={() => setTab('story')}>스토리</button>
           <button className={tab === 'mail' ? 'active' : ''} onClick={() => setTab('mail')}>우편</button>
+          <button className={tab === 'manage' ? 'active' : ''} onClick={() => setTab('manage')}>관리</button>
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
       </div>
@@ -2608,6 +2825,9 @@ export default function AdminPage() {
         const CATEGORY_LABELS = { main: '메인', character: '캐릭터', event: '이벤트' };
         const NODE_TYPE_LABELS = { story: '스토리', battle: '전투' };
 
+        const jsonValid = (s) => { if (!s) return true; try { JSON.parse(s); return true; } catch { return false; } };
+        const jsonStyle = (s) => s && !jsonValid(s) ? { borderColor: '#f87171' } : s && jsonValid(s) ? { borderColor: '#4ade80' } : {};
+
         if (editingStoryNode) {
           const isEdit = editingStoryNode._isEdit;
           const [snForm, setSnForm] = [editingStoryNode, setEditingStoryNode];
@@ -2661,32 +2881,32 @@ export default function AdminPage() {
                   </div>
                   <div className="form-row">
                     <label>적 데이터 (JSON)</label>
-                    <textarea rows={4}
-                      value={snForm.enemy_data ? JSON.stringify(snForm.enemy_data, null, 2) : '[]'}
-                      onChange={e => { try { setSnForm({ ...snForm, enemy_data: JSON.parse(e.target.value) }); } catch {} }} />
+                    <textarea rows={4} style={jsonStyle(snForm._enemy_data_raw)}
+                      value={snForm._enemy_data_raw ?? '[]'}
+                      onChange={e => setSnForm({ ...snForm, _enemy_data_raw: e.target.value })} />
                   </div>
                   <div className="form-row">
                     <label>보상 (JSON)</label>
-                    <textarea rows={3}
-                      value={snForm.rewards ? JSON.stringify(snForm.rewards, null, 2) : '{}'}
-                      onChange={e => { try { setSnForm({ ...snForm, rewards: JSON.parse(e.target.value) }); } catch {} }} />
+                    <textarea rows={3} style={jsonStyle(snForm._rewards_raw)}
+                      value={snForm._rewards_raw ?? '{}'}
+                      onChange={e => setSnForm({ ...snForm, _rewards_raw: e.target.value })} />
                   </div>
                 </>
               )}
               {snForm.node_type === 'story' && (
                 <div className="form-row">
                   <label>보상 (JSON, 선택)</label>
-                  <textarea rows={3}
-                    value={snForm.rewards ? JSON.stringify(snForm.rewards, null, 2) : ''}
-                    onChange={e => { try { setSnForm({ ...snForm, rewards: e.target.value ? JSON.parse(e.target.value) : null }); } catch {} }}
+                  <textarea rows={3} style={jsonStyle(snForm._rewards_raw)}
+                    value={snForm._rewards_raw ?? ''}
+                    onChange={e => setSnForm({ ...snForm, _rewards_raw: e.target.value })}
                     placeholder='{"first_clear_diamond": 30, "exp": 10}' />
                 </div>
               )}
               <div className="form-row">
                 <label>스토리 스크립트 (JSON)</label>
-                <textarea rows={6}
-                  value={snForm.story_script ? JSON.stringify(snForm.story_script, null, 2) : ''}
-                  onChange={e => { try { setSnForm({ ...snForm, story_script: e.target.value ? JSON.parse(e.target.value) : null }); } catch {} }}
+                <textarea rows={6} style={jsonStyle(snForm._story_script_raw)}
+                  value={snForm._story_script_raw ?? ''}
+                  onChange={e => setSnForm({ ...snForm, _story_script_raw: e.target.value })}
                   placeholder='[{"speaker":"유카리","text":"안녕"}]' />
               </div>
               {snForm.category === 'character' && (
@@ -2723,6 +2943,7 @@ export default function AdminPage() {
                 <button className="btn-add-sm" onClick={() => setEditingStoryNode({
                   category: 'main', chapter: 1, node_number: 1, title: '', node_type: 'story',
                   stamina_cost: 0, recommended_level: 1, difficulty: 'normal',
+                  _enemy_data_raw: '[]', _rewards_raw: '{}', _story_script_raw: '',
                 })}>+ 추가</button>
               </div>
               <div className="admin-filters" style={{ gap: 6, marginBottom: 8 }}>
@@ -2794,7 +3015,12 @@ export default function AdminPage() {
                       </div>
                     )}
                     <div className="detail-actions">
-                      <button className="btn-edit" onClick={() => setEditingStoryNode({ ...sn, _isEdit: true })}>편집</button>
+                      <button className="btn-edit" onClick={() => setEditingStoryNode({
+                        ...sn, _isEdit: true,
+                        _enemy_data_raw: sn.enemy_data ? JSON.stringify(sn.enemy_data, null, 2) : '[]',
+                        _rewards_raw: sn.rewards ? JSON.stringify(sn.rewards, null, 2) : '{}',
+                        _story_script_raw: sn.story_script ? JSON.stringify(sn.story_script, null, 2) : '',
+                      })}>편집</button>
                       <button className="btn-delete" onClick={() => deleteStoryNode(sn.id)}>삭제</button>
                     </div>
                   </div>
@@ -2808,6 +3034,36 @@ export default function AdminPage() {
       })()}
 
       {tab === 'mail' && <MailForm />}
+
+      {tab === 'manage' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="detail-card">
+            <h3>게임 데이터 내보내기</h3>
+            <p style={{ fontSize: 13, color: '#aaa', margin: '8px 0' }}>
+              캐릭터, 스킬, 몬스터, 스테이지, 스토리 노드, 태그, 레이드 데이터를 game_seed.json에 저장합니다.
+            </p>
+            <button className="btn-save" onClick={async () => {
+              try { await req('/export-game-data', { method: 'POST' }); showMsg('게임 데이터 내보내기 완료'); } catch (e) { showMsg(e.message); }
+            }}>내보내기</button>
+          </div>
+          <div className="detail-card" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
+            <h3 style={{ color: '#ef4444' }}>유저 데이터 리셋</h3>
+            <p style={{ fontSize: 13, color: '#aaa', margin: '8px 0' }}>
+              모든 유저 계정, 인벤토리, 클리어 기록, 우편 등 유저 데이터를 삭제합니다.<br />
+              게임 데이터(캐릭터, 스킬, 몬스터, 스테이지 등)는 보존됩니다.<br />
+              실행 전 게임 데이터를 자동으로 내보냅니다.
+            </p>
+            <button className="btn-danger" onClick={async () => {
+              if (!confirm('정말로 모든 유저 데이터를 리셋하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+              try {
+                await req('/reset-user-data', { method: 'POST', body: { confirm: 'RESET' } });
+                showMsg('유저 데이터 리셋 완료');
+              } catch (e) { showMsg(e.message); }
+            }}>유저 데이터 리셋</button>
+          </div>
+          <BalanceCalculator characters={characters} />
+        </div>
+      )}
 
     </div>
   );
