@@ -1,7 +1,20 @@
 const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
+const { calcStats } = require('../battle');
 const itemDefs = require('../../data/items');
+const hotRequire = require('../hotRequire');
+
+const gameConfig = require('../../gameConfig.json');
+const PROMO_CFG = gameConfig.growth.promotion || {};
+
+const loadTalents = () => hotRequire('talents');
+const loadPromotions = () => hotRequire('promotions');
+const loadLore = () => hotRequire('lore');
+function calcMaxLevel(rarity, promotion) {
+  const base = gameConfig.growth.maxLevels[rarity] || 40;
+  return base + (promotion || 0) * (PROMO_CFG.levelBonusPerTier || 10);
+}
 
 const router = express.Router();
 
@@ -39,6 +52,93 @@ router.get('/user/:userId', authMiddleware, (req, res) => {
   const uniqueChars = db.prepare('SELECT COUNT(DISTINCT character_id) as cnt FROM inventory WHERE user_id = ?').get(req.params.userId).cnt;
 
   res.json({ user: target, items, completion: { total: totalChars, collected: uniqueChars, rate: Math.round((uniqueChars / totalChars) * 100) } });
+});
+
+// 도감 (전체 캐릭터 + 만렙 기준 정보)
+router.get('/codex', authMiddleware, (req, res) => {
+  const allChars = db.prepare(`
+    SELECT id, name, rarity, element, origin, title, description, quote,
+           base_hp, base_atk, base_def, base_spd, turn_notes,
+           image_url, image_bust, image_sd, image_ld,
+           attack_slots, defense_slots
+    FROM characters WHERE is_released = 1
+    ORDER BY CASE rarity WHEN 'CR' THEN 0 WHEN 'SSR' THEN 1 WHEN 'SR' THEN 2 WHEN 'R' THEN 3 ELSE 4 END, name
+  `).all();
+
+  const ownedSet = new Set(
+    db.prepare('SELECT DISTINCT character_id FROM inventory WHERE user_id = ?')
+      .all(req.user.id).map(r => r.character_id)
+  );
+
+  const promoMap = {};
+  db.prepare('SELECT character_id, MAX(promotion) as max_promo FROM inventory WHERE user_id = ? GROUP BY character_id')
+    .all(req.user.id).forEach(r => { promoMap[r.character_id] = r.max_promo || 0; });
+
+  const talentData = loadTalents();
+  const promoData = loadPromotions();
+  const loreData = loadLore();
+
+  const characters = allChars.map(c => {
+    const maxPromotion = (promoData[c.id]?.tiers || []).length;
+    const tiers = promoData[c.id]?.tiers || [];
+    const statPresets = [];
+    const baseNotes = c.turn_notes;
+    statPresets.push({ label: 'Lv.1', stats: calcStats(c, 1, 0, 0), turnNotes: baseNotes });
+    for (let p = 0; p <= maxPromotion; p++) {
+      const ml = calcMaxLevel(c.rarity, p);
+      const label = p === 0 ? `Lv.${ml}` : `승급${p} Lv.${ml}`;
+      let bonusNotes = 0;
+      for (let i = 0; i < p; i++) bonusNotes += (tiers[i]?.bonusNotes || 0);
+      const turnNotes = baseNotes + Math.floor(ml / 10) + bonusNotes;
+      statPresets.push({ label, stats: calcStats(c, ml, 0, p), turnNotes });
+    }
+    const maxLevel = calcMaxLevel(c.rarity, 0);
+    const stats = statPresets[1]?.stats || calcStats(c, maxLevel, 0, 0);
+
+    const skills = db.prepare(`
+      SELECT s.id, s.name, s.description, s.type, s.cost, s.power, s.element, s.target,
+             s.defense_mult, s.cooldown, cs.is_default, cs.is_fixed, cs.awakening_required
+      FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+      WHERE cs.character_id = ?
+      ORDER BY cs.is_default DESC, cs.awakening_required
+    `).all(c.id);
+
+    const talents = (talentData[c.id]?.talents || []).map((t, i) => ({
+      index: i, name: t.name, desc: t.desc, flavor: t.flavor || '',
+    }));
+
+    const userPromo = promoMap[c.id] || 0;
+    const loreEntries = (loreData[c.id]?.entries || []).map(e => ({
+      title: e.title,
+      content: e.content,
+      unlock: e.unlock,
+      unlocked: ownedSet.has(c.id) && userPromo >= e.unlock,
+    }));
+
+    return {
+      id: c.id,
+      name: c.name, rarity: c.rarity, element: c.element, origin: c.origin,
+      title: c.title, description: c.description, quote: c.quote,
+      imageUrl: c.image_url || '', imageBust: c.image_bust || '', imageSd: c.image_sd || '',
+      turnNotes: c.turn_notes, maxLevel, maxPromotion, stats, statPresets,
+      skills: skills.map(s => ({
+        id: s.id, name: s.name, description: s.description,
+        type: s.type, cost: s.cost, power: s.power, element: s.element,
+        target: s.target, defense_mult: s.defense_mult, cooldown: s.cooldown || 0,
+        isDefault: !!s.is_default, isFixed: !!s.is_fixed,
+        awakeningRequired: s.awakening_required ?? 0,
+      })),
+      talents,
+      lore: loreEntries,
+      owned: ownedSet.has(c.id),
+    };
+  });
+
+  const collected = characters.filter(c => c.owned).length;
+  res.json({
+    characters,
+    completion: { total: characters.length, collected, rate: Math.round((collected / characters.length) * 100) },
+  });
 });
 
 // NEW 마크 해제
@@ -84,7 +184,7 @@ router.get('/items', authMiddleware, (req, res) => {
       description: def?.description || '',
       category: def?.category || 'material',
       rarity: def?.rarity || 'N',
-      sellPrice: def?.sellPrice || 0,
+      flavor: def?.flavor || '',
       image: def?.image || '',
       icon: def?.icon || '',
       color: def?.color || null,
@@ -94,23 +194,9 @@ router.get('/items', authMiddleware, (req, res) => {
   res.json({ items });
 });
 
-// 아이템 판매
+// 아이템 판매 (비활성화)
 router.post('/items/sell', authMiddleware, (req, res) => {
-  const { itemId, quantity } = req.body;
-  if (!itemId || !quantity || quantity < 1) return res.status(400).json({ error: '잘못된 요청입니다' });
-
-  const row = db.prepare('SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?').get(req.user.id, itemId);
-  if (!row || row.quantity < quantity) return res.status(400).json({ error: '아이템이 부족합니다' });
-
-  const def = itemDefs[itemId];
-  if (!def) return res.status(400).json({ error: '존재하지 않는 아이템입니다' });
-
-  const totalGold = def.sellPrice * quantity;
-  db.prepare('UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?').run(quantity, req.user.id, itemId);
-  db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(totalGold, req.user.id);
-
-  const user = db.prepare('SELECT gold FROM users WHERE id = ?').get(req.user.id);
-  res.json({ sold: quantity, goldEarned: totalGold, gold: user.gold });
+  return res.status(400).json({ error: '판매 기능은 비활성화되었습니다' });
 });
 
 // 소모품 사용

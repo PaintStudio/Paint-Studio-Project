@@ -1,38 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { bgm } from '../utils/bgm';
 import BattlePage from './BattlePage';
-import DialogueBox from '../components/DialogueBox';
 import PartyPresetEditor from '../components/PartyPresetEditor';
+import PresetPicker from '../components/PresetPicker';
 import CurrencyIcon from '../components/CurrencyIcon';
+import usePartyPresets from '../hooks/usePartyPresets';
 import './StagePage.css';
 
 export default function StagePage({ user, onRefresh, addToast }) {
-  const [chapters, setChapters] = useState({});
-  const [activeChapter, setActiveChapter] = useState(1);
   const [selectedStage, setSelectedStage] = useState(null);
-  const [presets, setPresets] = useState([]);
-  const [characters, setCharacters] = useState([]);
-  const [selectedPreset, setSelectedPreset] = useState(null);
-  const [editingSlot, setEditingSlot] = useState(null);
   const [battleSetup, setBattleSetup] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [storyScript, setStoryScript] = useState(null);
   const [staminaPopup, setStaminaPopup] = useState(null);
+  const [normalStages, setNormalStages] = useState([]);
+
+  const {
+    presets, characters, selectedPreset, setSelectedPreset,
+    editingSlot, setEditingSlot,
+    loadPresets, getCharByInvId, handlePresetSave,
+  } = usePartyPresets(addToast);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [stageData, charData, presetData] = await Promise.all([
-        api.stageList(), api.partyList(), api.partyPresets()
+      const [, farmData] = await Promise.all([
+        loadPresets(),
+        api.farmingList()
       ]);
-      setChapters(stageData.chapters);
-      setCharacters(charData.characters);
-      setPresets(presetData.presets);
+      const normalGroup = (farmData.dungeons || []).find(d => d.type === 'normal');
+      setNormalStages(normalGroup ? normalGroup.stages : []);
     } catch (err) { addToast(err.message, 'error'); }
   };
-
-  const getCharByInvId = (invId) => characters.find(c => c.inventory_id === invId);
 
   const startBattle = async () => {
     if (!selectedPreset) return addToast('프리셋을 선택하세요', 'error');
@@ -40,14 +40,8 @@ export default function StagePage({ user, onRefresh, addToast }) {
     if (partyIds.length === 0) return addToast('빈 프리셋입니다. 편성 탭에서 먼저 편성하세요', 'error');
     setLoading(true);
     try {
-      const result = await api.stageBattleStart(selectedStage.id, partyIds);
-      const setup = { ...result.setup, partyIds };
-      if (result.setup.storyScript) {
-        setStoryScript(result.setup.storyScript);
-        setBattleSetup(setup);
-      } else {
-        setBattleSetup(setup);
-      }
+      const result = await api.farmingBattleStart(selectedStage.id, partyIds);
+      setBattleSetup({ ...result.setup, partyIds });
       onRefresh();
     } catch (err) {
       if (err.message?.includes('스태미나')) {
@@ -79,9 +73,9 @@ export default function StagePage({ user, onRefresh, addToast }) {
 
   const onBattleEnd = async (battleLog) => {
     try {
-      const result = await api.stageBattleEnd(selectedStage.id, battleLog);
+      const result = await api.farmingBattleEnd(selectedStage.id, battleLog);
       if (result.rewards) {
-        addToast(`승리! +${result.rewards.gold}B${result.rewards.diamond ? ` +${result.rewards.diamond} 프리즘` : ''}`, 'sr');
+        addToast(`승리! +${result.rewards.gold}B${result.rewards.firstClear?.prism ? ` +${result.rewards.firstClear.prism} 프리즘` : (result.rewards.diamond ? ` +${result.rewards.diamond} 프리즘` : '')}`, 'sr');
       } else {
         addToast('패배...', 'error');
       }
@@ -93,30 +87,8 @@ export default function StagePage({ user, onRefresh, addToast }) {
     setSelectedStage(null);
     setSelectedPreset(null);
     loadData();
+    bgm.play('battle_hub');
   };
-
-  const handlePresetSave = async (name, ids) => {
-    try {
-      await api.savePartyPreset(editingSlot, name, ids);
-      addToast('편성 저장 완료');
-      setEditingSlot(null);
-      const presetData = await api.partyPresets();
-      setPresets(presetData.presets);
-      const updated = presetData.presets.find(p => p.slot === editingSlot);
-      if (updated && updated.partyIds.length > 0) setSelectedPreset(updated);
-    } catch (err) { addToast(err.message, 'error'); }
-  };
-
-  if (battleSetup && storyScript) {
-    return (
-      <div className="stage-page">
-        <DialogueBox
-          script={storyScript}
-          onEnd={() => setStoryScript(null)}
-        />
-      </div>
-    );
-  }
 
   if (battleSetup) {
     return <BattlePage setup={battleSetup} onBattleEnd={onBattleEnd} partyIds={battleSetup.partyIds} />;
@@ -142,68 +114,27 @@ export default function StagePage({ user, onRefresh, addToast }) {
       <div className="stage-page stage-detail-page">
         <button className="btn-back" onClick={() => { setSelectedStage(null); setSelectedPreset(null); }}>&larr; 돌아가기</button>
         <div className="stage-detail-card">
+          <span className="stage-detail-stamina"><CurrencyIcon type="stamina" />{selectedStage.staminaCost}</span>
           <h2>{selectedStage.name}</h2>
           <div className="stage-meta">
             <span className="meta-lv">&#9876; Lv.{selectedStage.recommendedLevel}</span>
-            <span className="meta-stamina"><CurrencyIcon type="stamina" />{selectedStage.staminaCost}</span>
-            <span>{[1,2,3].map(i => (
-              <span key={i} className={i <= selectedStage.stars ? 'star-filled' : 'star-empty'}>&#9733;</span>
-            ))}</span>
+            {selectedStage.cleared && <span className="stage-cleared-badge">&#10003;</span>}
           </div>
           <div className="stage-rewards-detail">
             <span className="reward-gold"><CurrencyIcon type="bit" />{selectedStage.rewards.gold}</span>
-            {selectedStage.stars === 0 && (
-              <span className="reward-diamond"><CurrencyIcon type="prism" />{selectedStage.rewards.first_clear_diamond} (첫 클리어)</span>
+            {!selectedStage.cleared && selectedStage.rewards.firstClear && (
+              <span className="reward-diamond"><CurrencyIcon type="prism" />{selectedStage.rewards.firstClear.prism} (첫 클리어)</span>
             )}
           </div>
         </div>
 
-        <div className="preset-picker-section">
-          <div className="preset-picker-header">
-            <h3>&#9876;&#65039; 프리셋 선택</h3>
-          </div>
-          <div className="preset-picker-grid">
-            {presets.map(p => {
-              const members = p.partyIds.map(id => getCharByInvId(id)).filter(Boolean);
-              const isSelected = selectedPreset?.slot === p.slot;
-              return (
-                <div key={p.slot}
-                  className={`preset-pick-card ${isSelected ? 'selected' : ''} ${members.length === 0 ? 'empty' : ''}`}
-                  onClick={() => members.length > 0 && setSelectedPreset(p)}>
-                  <div className="preset-pick-header">
-                    <span className="preset-pick-num">{p.slot + 1}</span>
-                    <span className="preset-pick-name">{p.name}</span>
-                    <button className="preset-pick-edit" onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSlot(p.slot);
-                    }} dangerouslySetInnerHTML={{ __html: '&#9998;' }} />
-                  </div>
-                  {members.length > 0 ? (
-                    <div className="preset-pick-members">
-                      {members.map(c => (
-                        <div key={c.inventory_id} className="preset-pick-member">
-                          <div className="ppm-avatar">
-                            {c.image_url ? <img src={c.image_url} alt={c.name} /> : c.name?.[0]}
-                          </div>
-                          <div className="ppm-info">
-                            <span className="ppm-name">{c.name}</span>
-                            <span className="ppm-lv">Lv.{c.level}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="preset-pick-power">ATK {members.reduce((s, c) => s + c.stats.atk, 0)}</div>
-                    </div>
-                  ) : (
-                    <div className="preset-pick-empty" onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSlot(p.slot);
-                    }}>+ 편성하기</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <PresetPicker
+          presets={presets}
+          selectedPreset={selectedPreset}
+          onSelect={setSelectedPreset}
+          onEdit={setEditingSlot}
+          getCharByInvId={getCharByInvId}
+        />
 
         <button className="btn-primary battle-start-btn" onClick={startBattle} disabled={loading || !selectedPreset}>
           {loading ? '준비 중...' : '전투 시작!'}
@@ -212,11 +143,6 @@ export default function StagePage({ user, onRefresh, addToast }) {
     );
   }
 
-  // 스테이지 목록
-  const chapterKeys = Object.keys(chapters).sort((a, b) => a - b);
-  const chapterNames = ['시작의 마을', '어둠의 숲', '불꽃의 산', '심해 동굴', '빛의 탑'];
-  const chapterIcons = ['&#127969;', '&#127794;', '&#127755;', '&#127754;', '&#9889;'];
-
   return (
     <div className="stage-page">
       <div className="stage-page-header">
@@ -224,42 +150,28 @@ export default function StagePage({ user, onRefresh, addToast }) {
         <span className="stamina-badge"><CurrencyIcon type="stamina" />{user.stamina || 0}</span>
       </div>
 
-      <div className="chapter-tabs">
-        {chapterKeys.map(ch => (
-          <button key={ch}
-            className={`chapter-tab ${Number(ch) === activeChapter ? 'active' : ''}`}
-            onClick={() => setActiveChapter(Number(ch))}>
-            <span className="chapter-tab-num">Chapter {ch}</span>
-            {chapterNames[ch - 1] || `챕터 ${ch}`}
-          </button>
-        ))}
-      </div>
-
       <div className="stage-grid">
-        {(chapters[activeChapter] || []).map(s => (
+        {normalStages.map(s => (
           <div key={s.id}
-            className={`stage-card ${!s.unlocked ? 'locked' : ''} ${s.stars > 0 ? 'cleared' : ''}`}
-            onClick={() => s.unlocked && setSelectedStage(s)}>
+            className={`stage-card ${s.cleared ? 'cleared' : ''}`}
+            onClick={() => setSelectedStage(s)}>
             <div className="stage-card-top">
-              <span className="stage-number">{s.stageNumber}</span>
-              <div className="stage-stars-display">
-                {s.unlocked ? [1,2,3].map(i => (
-                  <span key={i} className={i <= s.stars ? 'star-filled' : 'star-empty'}>&#9733;</span>
-                )) : <span className="stage-lock-icon">&#128274;</span>}
-              </div>
+              <span className="stage-number">Lv.{s.recommendedLevel}</span>
+              {s.cleared && <span className="stage-cleared-check">&#10003;</span>}
             </div>
             <div className="stage-card-name">{s.name}</div>
             <div className="stage-card-meta">
-              <span className="meta-lv">Lv.{s.recommendedLevel}</span>
               <span className="meta-stamina"><CurrencyIcon type="stamina" />{s.staminaCost}</span>
+              <span className="reward-gold"><CurrencyIcon type="bit" />{s.rewards.gold}</span>
             </div>
-            {s.unlocked && (
+            {!s.cleared && s.rewards.firstClear && (
               <div className="stage-card-rewards">
-                <span className="reward-gold"><CurrencyIcon type="bit" />{s.rewards.gold}</span>
+                <span className="reward-diamond"><CurrencyIcon type="prism" />{s.rewards.firstClear.prism}</span>
               </div>
             )}
           </div>
         ))}
+        {normalStages.length === 0 && <p className="stage-empty">등록된 던전이 없습니다.</p>}
       </div>
 
       {staminaPopup && (

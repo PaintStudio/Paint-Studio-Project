@@ -70,14 +70,14 @@
 
 /* ========== 아이템 상세 모달 ========== */
 .inv-modal-overlay {
-  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  position: absolute; top: 0; bottom: 0; left: 0; width: 1920px;
   background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
   z-index: 200; display: flex; align-items: center; justify-content: center;
   padding: 20px; animation: invFadeIn 0.2s ease;
 }
 
 .inv-modal {
-  position: relative; width: 280px; max-width: 90vw;
+  position: relative; width: 280px; max-width: 1728px;
   background: var(--bg-secondary); border: 1px solid var(--border);
   border-radius: 16px; padding: 24px 20px 18px;
   display: flex; flex-direction: column; align-items: center; gap: 10px;
@@ -114,13 +114,18 @@
   width: 100%;
 }
 
+.inv-modal-flavor {
+  font-size: 0.72rem; color: var(--text-muted); text-align: center;
+  margin: 2px 0 0; line-height: 1.4;
+  padding: 6px 12px; width: 100%; opacity: 0.7;
+}
+
 .inv-modal-footer {
   display: flex; justify-content: space-between; align-items: center;
   width: 100%; padding-top: 8px; border-top: 1px solid var(--border);
   font-size: 0.75rem; color: var(--text-muted);
 }
 .inv-modal-qty { font-weight: 700; }
-.inv-modal-sell { opacity: 0.7; }
 
 @keyframes invFadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes invSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }

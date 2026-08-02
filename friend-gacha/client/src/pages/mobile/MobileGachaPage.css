@@ -1,0 +1,296 @@
+.mg-page {
+  display: flex; flex-direction: column; gap: 12px;
+  height: 100%; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 재화 바 */
+.mg-currency-bar {
+  display: flex; justify-content: flex-end; padding: 8px 12px 0;
+}
+.mg-currency-chip {
+  font-size: 0.88rem; font-weight: 700; color: var(--text-primary);
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 14px; border-radius: 20px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* 모드 탭 */
+.mg-mode-tabs {
+  display: flex; gap: 0; border-bottom: 2px solid var(--border);
+  padding: 0 12px;
+}
+.mg-mode-tab {
+  padding: 8px 16px; font-size: 0.82rem; font-weight: 600;
+  background: none; color: var(--text-muted); border: none;
+  cursor: pointer; position: relative; transition: color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.mg-mode-tab.active { color: var(--accent); }
+.mg-mode-tab.active::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+  height: 2px; background: var(--accent); border-radius: 1px;
+}
+
+/* 배너 영역 */
+.mg-banner-area {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 0 12px 12px;
+}
+
+/* 천장 */
+.mg-pity {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--bg-card);
+  border-radius: 10px; font-size: 0.78rem; color: var(--text-secondary);
+}
+.mg-pity-bar { flex: 1; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden; }
+.mg-pity-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--gold)); border-radius: 3px; transition: width 0.3s; }
+.mg-pity-count { font-weight: 700; color: var(--text-primary); min-width: 40px; text-align: right; }
+
+/* 배너 리스트 */
+.mg-banner-list {
+  display: flex; flex-direction: column; gap: 24px;
+}
+.mg-banner-group {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+
+/* 배너 카드 */
+.mg-banner {
+  position: relative; width: 100%; aspect-ratio: 3.2/1; border-radius: 12px;
+  text-align: center; overflow: hidden;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border: 1.5px solid var(--border);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mg-banner-bg {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 50% 120%, var(--accent-glow) 0%, transparent 60%);
+}
+.mg-banner-bg.mg-skill-bg {
+  background: radial-gradient(circle at 50% 120%, #7e57c2aa 0%, transparent 60%);
+}
+.mg-banner-img {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
+  border-radius: 12px;
+}
+.mg-banner-overlay { position: relative; z-index: 1; }
+.mg-banner-title { font-size: 0.85rem; font-weight: 900; color: var(--accent); text-shadow: 0 0 12px var(--accent-glow); margin: 0; }
+.mg-banner-sub { color: var(--text-secondary); margin-top: 2px; font-size: 0.6rem; }
+.mg-banner-period { font-size: 0.55rem; color: #f39c12; margin-top: 2px; }
+.mg-banner-rates { position: relative; z-index: 1; display: flex; justify-content: center; gap: 6px; margin-top: 4px; }
+.mg-rate-badge { font-size: 0.58rem; font-weight: 700; }
+.mg-rates-hint {
+  position: absolute; bottom: 4px; right: 8px; z-index: 1;
+  font-size: 0.52rem; color: var(--text-muted); opacity: 0.7;
+}
+
+/* 뽑기 버튼 */
+.mg-pull-buttons { display: flex; gap: 8px; width: 100%; }
+.mg-btn-pull {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 8px; border-radius: 12px; font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s;
+}
+.mg-btn-pull:active:not(:disabled) { transform: scale(0.97); }
+.mg-btn-pull:disabled { opacity: 0.4; }
+.mg-btn-single {
+  background: var(--bg-card); border: 1.5px solid var(--border); color: var(--text-primary);
+}
+.mg-btn-multi {
+  background: linear-gradient(135deg, #e94560, #c73e54); color: white; border: 1.5px solid transparent;
+}
+.mg-pull-label { font-size: 0.85rem; }
+.mg-pull-cost { font-size: 0.75rem; opacity: 0.9; display: flex; align-items: center; gap: 2px; }
+.mg-pull-bonus { font-size: 0.6rem; opacity: 0.7; }
+
+/* 충전 연출 */
+.mg-stage {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; position: relative;
+}
+.mg-charging-orb {
+  width: 100px; height: 100px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.mg-orb-inner {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 40px var(--accent);
+  animation: mgPulse 0.8s ease-in-out infinite;
+}
+.mg-orb-ring {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  border: 2px solid var(--accent); border-radius: 50%;
+  animation: mgExpand 1.5s ease-out infinite;
+}
+.mg-orb-ring.mg-delay { animation-delay: 0.5s; }
+.mg-charging-text { margin-top: 16px; color: var(--text-secondary); font-size: 0.85rem; animation: mgBlink 1s infinite; }
+
+@keyframes mgPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+@keyframes mgExpand { from { transform: scale(0.3); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes mgBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* 공개 연출 */
+.mg-reveal-bg {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 0; animation: mgFlash 0.5s ease;
+}
+.mg-reveal-bg.rarity-glow-N  { background: radial-gradient(circle, #88888830, transparent); }
+.mg-reveal-bg.rarity-glow-R  { background: radial-gradient(circle, #3b82f630, transparent); }
+.mg-reveal-bg.rarity-glow-SR { background: radial-gradient(circle, #a855f740, transparent); }
+.mg-reveal-bg.rarity-glow-SSR { background: radial-gradient(circle, #ffd70050, var(--bg-primary)); animation: mgSsrFlash 0.8s ease; }
+.mg-reveal-bg.rarity-glow-CR { background: conic-gradient(from 0deg, #ff000040, #ff880040, #ffff0040, #00ff0040, #0088ff40, #8800ff40, #ff000040); animation: mgCrFlash 1.2s ease; }
+
+.mg-reveal-card { animation: mgCardReveal 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); max-width: 280px; width: 85%; z-index: 1; }
+.mg-reveal-counter { margin-top: 12px; color: var(--text-muted); font-size: 0.8rem; z-index: 1; }
+.mg-tap-hint { color: var(--text-muted); font-size: 0.72rem; margin-top: 6px; animation: mgBlink 2s infinite; z-index: 1; }
+.mg-btn-skip {
+  position: absolute; bottom: 16px; right: 16px;
+  background: none; color: var(--text-muted); font-size: 0.72rem;
+  border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px;
+  z-index: 1; -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes mgCardReveal { from { transform: scale(0) rotateY(180deg); opacity: 0; } to { transform: scale(1) rotateY(0); opacity: 1; } }
+@keyframes mgFlash { from { opacity: 0; } 30% { opacity: 1; } }
+@keyframes mgSsrFlash {
+  0% { opacity: 0; } 20% { opacity: 1; background: radial-gradient(circle, #ffd70080, #ffd70020); }
+  100% { background: radial-gradient(circle, #ffd70050, var(--bg-primary)); }
+}
+@keyframes mgCrFlash {
+  0% { opacity: 0; transform: rotate(0deg); }
+  20% { opacity: 1; }
+  100% { transform: rotate(360deg); }
+}
+
+/* 결과 */
+.mg-results {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 16px 12px; height: 100%; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.mg-results-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.mg-results-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; width: 100%;
+}
+.mg-result-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; border-radius: 8px; border: 1px solid var(--border);
+  position: relative;
+}
+.mg-result-avatar {
+  width: 36px; height: 36px; border-radius: 50%; border: 2px solid;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-secondary); font-weight: 700; font-size: 0.8rem;
+  overflow: hidden;
+}
+.mg-result-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.mg-result-name { font-size: 0.55rem; font-weight: 600; text-align: center; line-height: 1.2; }
+.mg-result-rarity { font-size: 0.5rem; color: var(--text-muted); }
+.mg-result-new {
+  position: absolute; top: 1px; right: 1px;
+  background: var(--accent); color: white; font-size: 0.42rem; font-weight: 700;
+  padding: 1px 3px; border-radius: 3px;
+}
+.mg-btn-confirm {
+  padding: 12px 40px; background: var(--accent, #7c5cbf); color: white;
+  border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.mg-btn-confirm:active { filter: brightness(0.9); }
+
+/* 스킬 결과 */
+.mg-skill-result { background: var(--bg-card); gap: 4px; padding: 10px 6px; }
+.mg-skill-type {
+  font-size: 0.52rem; padding: 2px 6px; border-radius: 3px;
+  color: #fff; font-weight: 700; align-self: center;
+}
+.mg-skill-name { font-size: 0.72rem; font-weight: 700; text-align: center; }
+.mg-skill-rarity { font-size: 0.62rem; font-weight: 600; text-align: center; }
+.mg-skill-desc { font-size: 0.55rem; color: var(--text-muted); text-align: center; line-height: 1.3; }
+
+/* 스킬 가챠 빈 상태 */
+.mg-skill-empty {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 24px 16px; text-align: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border: 1.5px solid var(--border); border-radius: 12px;
+}
+.mg-skill-empty h3 { font-size: 1rem; font-weight: 700; margin: 0; }
+.mg-skill-empty p { font-size: 0.75rem; color: var(--text-muted); margin: 0; }
+
+/* 확률 상세 모달 */
+.mg-rates-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.65); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  animation: mgFadeIn 0.15s ease;
+}
+.mg-rates-modal {
+  width: 95%; max-width: 400px; max-height: 80vh;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 14px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  animation: mgModalSlide 0.2s ease;
+}
+.mg-rates-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.mg-rates-header h3 { font-size: 0.9rem; font-weight: 700; margin: 0; }
+.mg-rates-close {
+  background: none; color: var(--text-muted); font-size: 1.1rem;
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.mg-rates-body {
+  overflow-y: auto; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mg-rates-section { display: flex; flex-direction: column; gap: 6px; }
+.mg-rates-rarity-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; background: var(--bg-card); border-radius: 6px;
+  font-weight: 700; font-size: 0.78rem;
+}
+.mg-rates-total { margin-left: auto; font-size: 0.72rem; color: var(--text-secondary); }
+.mg-rates-count { font-size: 0.65rem; color: var(--text-muted); }
+
+.mg-rates-char-list { display: flex; flex-direction: column; gap: 4px; }
+.mg-rates-char {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 6px;
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+  font-size: 0.72rem;
+}
+.mg-rates-char.mg-featured {
+  border-color: rgba(233,69,96,0.3); background: rgba(233,69,96,0.04);
+}
+.mg-rates-avatar {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  overflow: hidden; background: var(--bg-secondary);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.55rem;
+}
+.mg-rates-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.mg-rates-name {
+  flex: 1; font-weight: 600; font-size: 0.7rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mg-rates-pct { font-size: 0.65rem; color: var(--text-secondary); font-weight: 600; flex-shrink: 0; }
+.mg-rates-up {
+  font-size: 0.52rem; font-weight: 900; color: var(--accent);
+  background: rgba(233,69,96,0.15); padding: 1px 4px; border-radius: 3px;
+  flex-shrink: 0;
+}
+
+@keyframes mgFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mgModalSlide { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }

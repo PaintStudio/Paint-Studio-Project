@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
+import { bgm } from '../utils/bgm';
 import './DialogueBox.css';
 
 const DialogueBox = forwardRef(function DialogueBox({ script, onEnd, onChoice, onBattle }, ref) {
@@ -30,6 +31,7 @@ const DialogueBox = forwardRef(function DialogueBox({ script, onEnd, onChoice, o
 
   useEffect(() => {
     if (!entry) return;
+    if (entry.bgm) bgm.play(entry.bgm);
     if (entry.type === 'battle') {
       if (battleFiredRef.current !== index) {
         battleFiredRef.current = index;

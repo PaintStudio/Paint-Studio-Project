@@ -34,6 +34,7 @@ const STACK_REGISTRY = {
   _scentStacks:    { label: '선향', icon: '/images/stacks/scent.png', emoji: '\u{1F338}', cls: 'buff', count: true },
   _farewellStacks: { label: '작별', icon: '/images/stacks/farewell.png', emoji: '\u{1F44B}', cls: 'debuff', count: true },
   _revelationStacks: { label: '계시', icon: '/images/stacks/revelation.png', emoji: '\u{2728}', cls: 'buff', count: false },
+  _lastFlowerPending: { label: '대가', icon: '/images/stacks/lastflower.png', emoji: '\u{1F940}', cls: 'debuff', count: false },
 };
 
 function getActiveStacks(unit) {
@@ -137,6 +138,7 @@ const EFFECT_TOOLTIP_REGISTRY = {
   352: () => ({ cls: 'buff', label: '다음 무료', desc: '다음 스킬 코스트 0' }),
   353: () => ({ cls: 'buff', label: '전체 추가 턴', desc: '다른 아군 전체 추가 턴 획득' }),
   354: (args) => ({ cls: 'buff', label: '추가 턴+버프', desc: `추가 턴 + ${(args[0] || 'ATK').toUpperCase()} +${Math.round((args[1] || 0.3) * 100)}%` }),
+  355: (args) => ({ cls: 'buff', label: '전부 회복', desc: `턴 노트 전부 회복, 과부하 초기화. 다음 사이클 HP ${Math.round((args[0] || 0.99) * 100)}% 소멸` }),
 };
 
 function hasExtraEffects(extra, effectIds) {
@@ -586,6 +588,15 @@ function processResults(results, ctx, { accumulateStacks = false } = {}) {
       }
     }
 
+    if (r.selfMaxNoteBoost && ctx.setParty) {
+      const targetId = r._ownerId || ctx.unitId;
+      ctx.setParty(prev => prev.map(u => u.id !== targetId ? u : {
+        ...u,
+        maxNotes: u.maxNotes + r.selfMaxNoteBoost,
+        notes: u.notes + r.selfMaxNoteBoost
+      }));
+    }
+
     if (r.maxNoteReduce && ctx.setParty) {
       ctx.setParty(prev => prev.map(u => u.id !== (r._ownerId || ctx.unitId) ? u : {
         ...u,
@@ -665,6 +676,10 @@ function processResults(results, ctx, { accumulateStacks = false } = {}) {
         if (u.id !== targetId || !u.skillCooldowns) return u;
         return { ...u, skillCooldowns: u.skillCooldowns.map(cd => Math.max(0, cd - r.allCdReduce)) };
       }));
+    }
+
+    if (r.overloadReset && ctx.setOverload) {
+      ctx.setOverload(0);
     }
 
     if (r.applyStatuses) {

@@ -59,3 +59,16 @@
 .preset-power { color: var(--text-secondary); font-weight: 600; }
 .preset-edit-hint { color: var(--accent); font-weight: 600; }
 
+/* 모바일 오버라이드 */
+.mobile-app .party-page { gap: 12px; padding: 10px; overflow-y: auto; height: 100%; }
+.mobile-app .party-page-title { font-size: 1rem; }
+.mobile-app .preset-grid { grid-template-columns: 1fr; gap: 8px; }
+.mobile-app .preset-card { padding: 12px; min-height: auto; }
+.mobile-app .preset-card-name { font-size: 0.82rem; }
+.mobile-app .preset-slot-num { width: 24px; height: 24px; font-size: 0.75rem; }
+.mobile-app .pm-avatar { width: 28px; height: 28px; font-size: 0.7rem; }
+.mobile-app .pm-name { font-size: 0.72rem; }
+.mobile-app .pm-lv { font-size: 0.62rem; }
+.mobile-app .preset-empty { font-size: 0.75rem; }
+.mobile-app .preset-card-footer { font-size: 0.68rem; }
+

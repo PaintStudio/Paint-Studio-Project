@@ -28,12 +28,139 @@
 input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; }
 
 body {
+  margin: 0;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
   font-family: 'Noto Sans KR', sans-serif;
-  background: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100dvh;
-  min-width: 1920px;
   -webkit-tap-highlight-color: transparent;
+}
+
+#game-root {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  overflow: hidden;
+  position: relative;
+}
+#root {
+  width: 100%;
+  height: 100%;
+}
+#game-root.mobile-mode {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transform: none !important;
+}
+#game-root.mobile-mode .dialogue-overlay {
+  width: 100%;
+}
+#game-root.mobile-mode .battle-page {
+  max-height: none;
+}
+#game-root.mobile-mode .preset-overlay {
+  position: fixed;
+}
+#game-root.mobile-mode .profile-overlay {
+  position: fixed;
+  width: 100%;
+}
+#game-root.mobile-mode .profile-modal {
+  width: 90%;
+  max-width: 360px;
+  max-height: 85vh;
+}
+#game-root.mobile-mode .forfeit-overlay,
+#game-root.mobile-mode .defense-prompt,
+#game-root.mobile-mode .battle-result-overlay,
+#game-root.mobile-mode .battle-guide-overlay,
+#game-root.mobile-mode .unit-info-overlay {
+  width: 100%;
+}
+/* 튜토리얼 페이지 */
+#game-root.mobile-mode .tutorial-page {
+  width: 100%;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+}
+/* 대화창 — 캐릭터/텍스트 모바일 대응 */
+#game-root.mobile-mode .dialogue-stage {
+  padding: 0 12px;
+}
+#game-root.mobile-mode .dialogue-char img {
+  max-height: 45vh;
+}
+#game-root.mobile-mode .dialogue-bottom {
+  padding: 0 12px 16px;
+}
+#game-root.mobile-mode .dialogue-box {
+  padding: 20px 16px 16px;
+  min-height: 80px;
+  border-radius: 12px;
+}
+#game-root.mobile-mode .dialogue-text {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  min-height: 2.5em;
+}
+#game-root.mobile-mode .dialogue-speaker-name {
+  font-size: 0.72rem;
+  padding: 3px 12px;
+}
+#game-root.mobile-mode .dialogue-speaker {
+  top: -13px; left: 12px;
+}
+#game-root.mobile-mode .dialogue-choice-btn {
+  padding: 10px 16px;
+  font-size: 0.8rem;
+  border-radius: 10px;
+}
+#game-root.mobile-mode .dialogue-choices {
+  padding: 0 4px;
+  margin-top: 8px;
+}
+/* 튜토리얼 가이드 오버레이 */
+#game-root.mobile-mode .tutorial-guide-overlay {
+  width: 100%;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  padding-bottom: 70px;
+}
+#game-root.mobile-mode .tutorial-guide-box {
+  max-width: 92%;
+  padding: 16px 16px 10px;
+}
+#game-root.mobile-mode .tutorial-guide-box.pos-top {
+  top: 60px;
+}
+#game-root.mobile-mode .tg-text {
+  font-size: 0.8rem;
+}
+#game-root.mobile-mode .tutorial-constraint-bar {
+  width: 100%;
+  position: fixed;
+  bottom: 52px; left: 0;
+}
+/* 전투 가이드 박스 모바일 */
+#game-root.mobile-mode .battle-guide-box {
+  padding: 14px 14px 12px;
+  gap: 10px;
+}
+#game-root.mobile-mode .guide-speaker-img {
+  width: 48px; height: 48px;
+}
+#game-root.mobile-mode .guide-text {
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 button {
@@ -86,3 +213,12 @@ input {
 
 @keyframes rainbow-text { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
 @keyframes rainbow-bg { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+.btn-back {
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  padding: 4px 0; align-self: flex-start; transition: color 0.15s;
+}
+.btn-back:hover { color: var(--text-primary); }
+
+.empty-msg { color: var(--text-muted); font-size: 0.82rem; text-align: center; padding: 20px; }

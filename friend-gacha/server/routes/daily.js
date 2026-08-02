@@ -91,7 +91,7 @@ router.get('/status', authMiddleware, (req, res) => {
   const { refreshStamina } = require('./stage');
   refreshStamina(req.user.id);
 
-  const user = db.prepare('SELECT id, username, display_name, bio, profile_icon, currency, gold, stamina, total_pulls, pity_counter, login_streak, tutorial_done, tutorial_step, account_level, account_exp FROM users WHERE id = ?')
+  const user = db.prepare('SELECT id, username, display_name, bio, profile_icon, currency, gold, stamina, stamina_updated_at, total_pulls, pity_counter, login_streak, tutorial_done, tutorial_step, account_level, account_exp FROM users WHERE id = ?')
     .get(req.user.id);
 
   res.json({
@@ -103,6 +103,7 @@ router.get('/status', authMiddleware, (req, res) => {
     currency: user.currency,
     gold: user.gold,
     stamina: user.stamina,
+    staminaUpdatedAt: user.stamina_updated_at,
     totalPulls: user.total_pulls,
     pityCounter: user.pity_counter,
     loginStreak: user.login_streak,

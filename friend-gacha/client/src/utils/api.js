@@ -21,6 +21,10 @@ async function request(path, options = {}) {
   } catch {
     throw new Error(`서버 응답 파싱 실패 (${res.status})`);
   }
+  if (res.status === 401) {
+    clearToken();
+    window.dispatchEvent(new CustomEvent('session_expired'));
+  }
   if (!res.ok) throw new Error(data.error || 'Request failed');
   return data;
 }
@@ -29,6 +33,7 @@ export const api = {
   login: (username, password) => request('/auth/login', { method: 'POST', body: { username, password } }),
   register: (username, password, displayName) => request('/auth/register', { method: 'POST', body: { username, password, displayName } }),
   me: () => request('/auth/me'),
+  preload: () => request('/preload'),
   tutorialDone: () => request('/auth/tutorial-done', { method: 'POST' }),
   tutorialAdvance: (step) => request('/auth/tutorial-advance', { method: 'POST', body: step !== undefined ? { step } : {} }),
   tutorialBattle: (data) => request('/auth/tutorial-battle', { method: 'POST', body: data }),
@@ -40,6 +45,7 @@ export const api = {
   skillPull10: (bannerId) => request('/gacha/skill-pull10', { method: 'POST', body: { bannerId } }),
   skillBanners: () => request('/gacha/skill-banners'),
   skillRates: (bannerId) => request('/gacha/skill-rates' + (bannerId ? '?bannerId=' + bannerId : '')),
+  codex: () => request('/collection/codex'),
   myCollection: () => request('/collection/my'),
   userCollection: (userId) => request('/collection/user/' + userId),
   markSeen: (invId) => request('/collection/mark-seen/' + invId, { method: 'PATCH' }),
@@ -105,7 +111,7 @@ export const api = {
     request('/growth/party-presets/' + slot, { method: 'PUT', body: { name, partyIds } }),
   // 로비
   lobby: () => request('/growth/lobby'),
-  setRepresentative: (inventoryId) => request('/growth/set-representative', { method: 'POST', body: { inventoryId } }),
+  setRepresentative: (inventoryId, characterId) => request('/growth/set-representative', { method: 'POST', body: { inventoryId, characterId } }),
   // 우편
   mailList: () => request('/mail/list'),
   mailRead: (id) => request('/mail/read/' + id, { method: 'PATCH' }),
@@ -126,10 +132,11 @@ export const api = {
   storyList: (category) => request('/story/list?category=' + (category || 'main')),
   storyNode: (id) => request('/story/node/' + id),
   storyRead: (nodeId) => request('/story/read', { method: 'POST', body: { nodeId } }),
-  storyBattleStart: (nodeId, partyIds) =>
-    request('/story/battle-start', { method: 'POST', body: { nodeId, partyIds } }),
-  storyBattleEnd: (nodeId, battleLog) =>
-    request('/story/battle-end', { method: 'POST', body: { nodeId, battleLog } }),
+  storyBattleStart: (nodeId, partyIds, enemies, party) =>
+    request('/story/battle-start', { method: 'POST', body: { nodeId, partyIds, enemies, party } }),
+  tutorialScript: () => request('/story/tutorial'),
+  storyBattleEnd: (battleLog) =>
+    request('/story/battle-end', { method: 'POST', body: { battleLog } }),
   // 어드민 - 스토리 노드
   adminStoryNodes: (adminKey) => request('/admin/story-nodes', { headers: { 'x-admin-key': adminKey } }),
   adminCreateStoryNode: (adminKey, data) => request('/admin/story-nodes', { method: 'POST', body: data, headers: { 'x-admin-key': adminKey } }),

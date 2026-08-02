@@ -1,54 +1,255 @@
 .collection-page { display: flex; flex-direction: column; gap: 16px; }
 .collection-header { display: flex; align-items: center; justify-content: space-between; }
-.collection-header h2 { font-size: 1.2rem; }
-.completion { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); }
-.completion-bar { width: 80px; height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden; }
-.completion-fill { height: 100%; background: var(--green); border-radius: 3px; }
+.collection-header h2 { font-size: 1.2rem; margin: 0; }
+.codex-completion { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); }
+.completion-bar { width: 100px; height: 6px; background: var(--bg-card); border-radius: 3px; overflow: hidden; }
+.completion-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s; }
 
-.filter-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
-.filter-btn {
-  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary);
-  padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; white-space: nowrap;
+/* ========== 필터 ========== */
+.codex-filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.codex-filter-group { display: flex; gap: 4px; }
+.codex-filter-chip {
+  padding: 4px 12px; font-size: 0.75rem; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-muted); border-radius: 14px;
+  cursor: pointer; transition: all 0.15s;
 }
-.filter-btn.active { border-color: var(--accent); color: var(--text-primary); background: var(--bg-card-hover); }
-.filter-count { opacity: 0.6; }
+.codex-filter-chip:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+.codex-filter-chip.active { background: var(--bg-card-hover); }
 
-.collection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.coll-item {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 8px; border-radius: 12px; border: 1px solid var(--border);
-  cursor: pointer; transition: all 0.2s; position: relative;
+/* ========== 그리드 ========== */
+.codex-card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, 200px);
+  gap: 12px; justify-content: center;
 }
-.coll-item:hover { border-color: var(--accent); transform: translateY(-2px); }
-.coll-avatar {
-  width: 48px; height: 48px; border-radius: 50%; border: 2px solid;
+.codex-card-locked { opacity: 0.7; }
+.codex-card-locked:hover { opacity: 0.9; }
+
+/* ========== 상세 뷰 ========== */
+.codex-detail-view { gap: 12px; }
+
+.codex-detail-wrap {
+  display: flex; align-items: stretch; gap: 0; flex: 1; min-height: 0;
+}
+.codex-detail-wrap .btn-detail-nav-side {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1.6rem; padding: 0 8px; cursor: pointer;
+  transition: color 0.15s; display: flex; align-items: center;
+}
+.codex-detail-wrap .btn-detail-nav-side:hover:not(:disabled) { color: var(--text-primary); }
+.codex-detail-wrap .btn-detail-nav-side:disabled { opacity: 0.2; cursor: default; }
+
+.codex-detail-layout {
+  flex: 1; display: flex; gap: 24px; min-height: 0; overflow: hidden;
+}
+
+/* --- 좌측 --- */
+.codex-left {
+  width: 380px; flex-shrink: 0; display: flex; flex-direction: column;
+  gap: 12px; overflow-y: auto; padding-right: 4px;
+}
+.codex-illust {
+  width: 100%; aspect-ratio: 3/4; border-radius: 14px;
+  border: 2px solid; overflow: hidden; position: relative;
+  background: var(--bg-card);
   display: flex; align-items: center; justify-content: center;
-  background: var(--bg-secondary); font-weight: 700; font-size: 1.2rem; overflow: hidden;
 }
-.coll-avatar-img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.coll-name { font-size: 0.75rem; font-weight: 600; text-align: center; }
-.coll-count {
-  position: absolute; top: 4px; right: 6px;
-  font-size: 0.65rem; color: var(--text-muted);
+.codex-illust-img {
+  width: 100%; height: 100%; object-fit: cover;
 }
-.empty-msg { text-align: center; color: var(--text-muted); padding: 40px 0; }
-
-/* 모달 */
-.modal-overlay {
-  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
-  background: rgba(0,0,0,0.7); z-index: 200;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.modal-content {
-  position: relative; max-width: 360px; width: 100%;
-  background: var(--bg-secondary); border-radius: 16px; padding: 20px;
-  border: 1px solid var(--border); max-height: 80vh; overflow-y: auto;
-}
-.btn-close {
-  position: absolute; top: 8px; right: 12px;
-  background: none; color: var(--text-muted); font-size: 1.2rem;
+.codex-illust-ph {
+  font-size: 4rem; font-weight: 900; color: var(--text-muted);
 }
 
-@media (max-width: 400px) {
-  .collection-grid { grid-template-columns: repeat(3, 1fr); }
+.codex-meta-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }
+.codex-rarity { font-size: 0.9rem; font-weight: 900; }
+.codex-elem {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 0.82rem; font-weight: 600;
+}
+.codex-origin {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 0.82rem; font-weight: 600;
+}
+.codex-clickable {
+  cursor: pointer; padding: 2px 6px; border-radius: 6px;
+  transition: background 0.15s;
+}
+.codex-clickable:hover { background: rgba(255,255,255,0.08); }
+.codex-origin-icon {
+  width: 20px; height: 20px; display: block;
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+  mask-size: contain; mask-repeat: no-repeat; mask-position: center;
+}
+
+.codex-name-block { display: flex; flex-direction: column; gap: 2px; }
+.codex-char-name { font-size: 1.3rem; font-weight: 900; margin: 0; }
+.codex-char-title { font-size: 0.82rem; color: var(--text-secondary); margin: 0; }
+
+.codex-badge-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.codex-badge {
+  font-size: 0.75rem; font-weight: 700; color: var(--text-secondary);
+  padding: 3px 10px; border-radius: 6px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+}
+.codex-badge-locked { color: #e74c3c; border-color: rgba(231,76,60,0.3); }
+
+.codex-stat-section {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.codex-stat-toggle {
+  align-self: flex-start; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-secondary); font-size: 0.78rem; font-weight: 700;
+  padding: 5px 12px; cursor: pointer; transition: all 0.2s;
+}
+.codex-stat-toggle:hover {
+  border-color: var(--accent); color: var(--accent);
+}
+.codex-stat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.codex-stat {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 4px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.cs-label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+.cs-value { font-size: 0.95rem; font-weight: 800; color: var(--text-primary); }
+
+.codex-quote {
+  font-size: 0.8rem; color: var(--text-secondary); font-style: italic;
+  padding: 8px 12px; background: var(--bg-secondary);
+  border-left: 3px solid var(--border); border-radius: 0 8px 8px 0;
+}
+.codex-desc {
+  font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; margin: 0;
+}
+
+/* --- 우측 --- */
+.codex-right {
+  flex: 1; display: flex; flex-direction: column; gap: 12px;
+  min-width: 0; min-height: 0;
+}
+.codex-tabs {
+  display: flex; gap: 0; border-bottom: 2px solid var(--border); flex-shrink: 0;
+}
+.codex-tab {
+  padding: 8px 20px; font-size: 0.88rem; font-weight: 600;
+  background: none; color: var(--text-muted); border: none;
+  cursor: pointer; position: relative; transition: color 0.15s;
+}
+.codex-tab:hover { color: var(--text-primary); }
+.codex-tab.active { color: var(--accent); }
+.codex-tab.active::after {
+  content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+  height: 2px; background: var(--accent); border-radius: 1px;
+}
+
+.codex-tab-content {
+  flex: 1; overflow-y: auto; padding-right: 4px;
+}
+
+/* 스킬 카드 */
+.codex-skill-list { display: flex; flex-direction: column; gap: 8px; }
+.codex-skill-card {
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.codex-skill-fixed { border-left: 3px solid var(--accent); }
+.codex-skill-header {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.codex-skill-type {
+  font-size: 0.65rem; padding: 2px 8px; border-radius: 4px;
+  color: #fff; font-weight: 700; flex-shrink: 0;
+}
+.codex-skill-elem {
+  font-size: 0.72rem; font-weight: 600; flex-shrink: 0;
+}
+.codex-skill-name {
+  font-size: 0.88rem; font-weight: 700; flex: 1;
+}
+.codex-skill-lock { font-size: 0.7rem; flex-shrink: 0; }
+.codex-skill-awaken {
+  font-size: 0.65rem; font-weight: 700; color: #ffc107;
+  background: rgba(255,193,7,0.12); padding: 1px 6px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.codex-skill-desc {
+  font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; margin: 0;
+}
+.codex-skill-footer {
+  display: flex; align-items: center;
+}
+.codex-skill-cost {
+  font-size: 0.75rem; color: var(--text-muted); font-weight: 600;
+}
+
+/* 특기 카드 */
+.codex-talent-list { display: flex; flex-direction: column; gap: 8px; }
+.codex-talent-card {
+  padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.codex-talent-header {
+  display: flex; align-items: center; gap: 8px;
+}
+.codex-talent-name {
+  font-size: 0.9rem; font-weight: 700;
+}
+.codex-talent-badge {
+  font-size: 0.65rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.codex-talent-desc {
+  font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; margin: 0;
+}
+.codex-talent-flavor {
+  font-size: 0.72rem; color: var(--text-muted); font-style: italic; margin: 0;
+}
+
+/* 정보(설정) 카드 */
+.codex-lore-list { display: flex; flex-direction: column; gap: 10px; }
+.codex-lore-card {
+  padding: 14px 16px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.2s;
+}
+.codex-lore-locked {
+  border-color: rgba(255,255,255,0.06);
+}
+.codex-lore-header {
+  display: flex; align-items: center; gap: 8px;
+}
+.codex-lore-title {
+  font-size: 0.92rem; font-weight: 700;
+}
+.codex-lore-locked .codex-lore-title {
+  color: var(--text-muted);
+}
+.codex-lore-badge {
+  font-size: 0.63rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  color: var(--text-muted); flex-shrink: 0;
+}
+.codex-lore-lock {
+  font-size: 0.72rem; color: var(--text-muted); margin-left: auto;
+}
+.codex-lore-content {
+  font-size: 0.82rem; color: var(--text-secondary); line-height: 1.65; margin: 0;
+  white-space: pre-line;
+}
+.codex-lore-hidden {
+  color: var(--text-muted); font-style: italic; font-size: 0.78rem;
+}
+
+.empty-msg { padding: 40px 0; }

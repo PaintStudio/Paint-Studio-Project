@@ -8,7 +8,24 @@
   <title>대충 공포의 세계관묶음가챠겜</title>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="game-root"><div id="root"></div></div>
   <script type="module" src="/src/main.jsx"></script>
+  <script>
+    (function() {
+      var root = document.getElementById('game-root');
+      if (window.innerWidth < 1024) root.classList.add('mobile-mode');
+
+      function fitScreen() {
+        if (root.classList.contains('mobile-mode')) {
+          root.style.transform = 'none';
+          return;
+        }
+        var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+        root.style.transform = 'scale(' + scale + ')';
+      }
+      window.addEventListener('resize', fitScreen);
+      fitScreen();
+    })();
+  </script>
 </body>
 </html>

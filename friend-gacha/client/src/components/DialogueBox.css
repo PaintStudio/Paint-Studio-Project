@@ -1,6 +1,6 @@
 /* ========== 대화창 오버레이 ========== */
 .dialogue-overlay {
-  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  position: absolute; top: 0; bottom: 0; left: 0; width: 1920px;
   z-index: 500;
   display: flex; flex-direction: column;
   background: rgba(0, 0, 0, 0.6);
@@ -28,12 +28,12 @@
 }
 
 .dialogue-char {
-  max-height: 85vh; display: flex; align-items: flex-end;
+  max-height: 918px; display: flex; align-items: flex-end;
   transition: opacity 0.4s, filter 0.4s, transform 0.4s;
   animation: charEnter 0.4s ease-out;
 }
 .dialogue-char img {
-  max-height: 75vh; width: auto; object-fit: contain;
+  max-height: 810px; width: auto; object-fit: contain;
   filter: drop-shadow(0 4px 20px rgba(0,0,0,0.5));
 }
 .dialogue-char.left { margin-right: auto; }

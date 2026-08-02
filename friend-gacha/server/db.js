@@ -529,6 +529,17 @@ async function initDb() {
     console.log('[DB] users 대표캐릭터 마이그레이션 완료');
   }
 
+  // 대표 캐릭터 character_id 기반으로 전환
+  try {
+    db.prepare("SELECT representative_character_id FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN representative_character_id TEXT DEFAULT NULL");
+    db.exec(`UPDATE users SET representative_character_id = (
+      SELECT i.character_id FROM inventory i WHERE i.id = users.representative_inventory_id
+    ) WHERE representative_inventory_id IS NOT NULL`);
+    console.log('[DB] users 대표캐릭터 character_id 마이그레이션 완료');
+  }
+
   // 프로필 마이그레이션 (bio, profile_icon)
   try {
     db.prepare("SELECT bio FROM users LIMIT 1").get();
@@ -617,6 +628,42 @@ async function initDb() {
     console.log('[DB] stages 파밍/이벤트 필드 마이그레이션 완료');
   }
 
+  try {
+    db.prepare("SELECT bg_image FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN bg_image TEXT DEFAULT NULL");
+    console.log('[DB] stages bg_image 마이그레이션 완료');
+  }
+
+  // stages max_cycles 마이그레이션
+  try {
+    db.prepare("SELECT max_cycles FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN max_cycles INTEGER DEFAULT NULL");
+    console.log('[DB] stages max_cycles 마이그레이션 완료');
+  }
+
+  // story_nodes max_cycles 마이그레이션
+  try {
+    db.prepare("SELECT max_cycles FROM story_nodes LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE story_nodes ADD COLUMN max_cycles INTEGER DEFAULT NULL");
+    console.log('[DB] story_nodes max_cycles 마이그레이션 완료');
+  }
+
+  // raids 신규 컬럼 마이그레이션
+  try {
+    db.prepare("SELECT boss_key FROM raids LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE raids ADD COLUMN boss_key TEXT DEFAULT NULL");
+    db.exec("ALTER TABLE raids ADD COLUMN battle_hp INTEGER DEFAULT 800");
+    db.exec("ALTER TABLE raids ADD COLUMN per_battle_gold INTEGER DEFAULT 400");
+    db.exec("ALTER TABLE raids ADD COLUMN origin TEXT DEFAULT 'neutral'");
+    db.exec("ALTER TABLE raids ADD COLUMN settled INTEGER DEFAULT 0");
+    db.exec("UPDATE raids SET settled = 1 WHERE boss_key IS NULL");
+    console.log('[DB] raids 신규 컬럼 마이그레이션 완료');
+  }
+
   // 계정 레벨 시스템 마이그레이션
   try {
     db.prepare("SELECT account_level FROM users LIMIT 1").get();
@@ -624,6 +671,13 @@ async function initDb() {
     db.exec("ALTER TABLE users ADD COLUMN account_level INTEGER DEFAULT 1");
     db.exec("ALTER TABLE users ADD COLUMN account_exp INTEGER DEFAULT 0");
     console.log('[DB] 계정 레벨 시스템 마이그레이션 완료');
+  }
+
+  try {
+    db.prepare("SELECT session_id FROM users LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE users ADD COLUMN session_id TEXT DEFAULT NULL");
+    console.log('[DB] users.session_id 마이그레이션 완료');
   }
 
   // 스토리 노드 테이블
@@ -644,6 +698,86 @@ async function initDb() {
     event_id TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // story_nodes description 마이그레이션
+  try {
+    db.prepare("SELECT description FROM story_nodes LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE story_nodes ADD COLUMN description TEXT DEFAULT NULL");
+    console.log('[DB] story_nodes description 마이그레이션 완료');
+  }
+
+  // story_nodes fixed_party / required_guests 마이그레이션
+  try {
+    db.prepare("SELECT fixed_party FROM story_nodes LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE story_nodes ADD COLUMN fixed_party TEXT DEFAULT NULL");
+    console.log('[DB] story_nodes fixed_party 마이그레이션 완료');
+  }
+  try {
+    db.prepare("SELECT required_guests FROM story_nodes LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE story_nodes ADD COLUMN required_guests TEXT DEFAULT NULL");
+    console.log('[DB] story_nodes required_guests 마이그레이션 완료');
+  }
+
+  // monsters ai_type 마이그레이션
+  try {
+    db.prepare("SELECT ai_type FROM monsters LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE monsters ADD COLUMN ai_type TEXT DEFAULT 'basic'");
+    console.log('[DB] monsters ai_type 마이그레이션 완료');
+  }
+
+  // monsters category 마이그레이션
+  try {
+    db.prepare("SELECT category FROM monsters LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE monsters ADD COLUMN category TEXT DEFAULT NULL");
+    const categorize = [
+      { pattern: '%_farming_data_%', category: '속성파밍' },
+      { pattern: 'awaken_elem_guard_%', category: '속성파밍' },
+      { pattern: 'awaken_origin_%', category: '근원파밍' },
+      { pattern: 'awaken_origin_guard_%', category: '근원파밍' },
+    ];
+    for (const c of categorize) {
+      db.prepare('UPDATE monsters SET category = ? WHERE id LIKE ? AND category IS NULL').run(c.category, c.pattern);
+    }
+    console.log('[DB] monsters category 마이그레이션 완료');
+  }
+
+  // stages bgm 마이그레이션
+  try {
+    db.prepare("SELECT bgm FROM stages LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE stages ADD COLUMN bgm TEXT DEFAULT NULL");
+    console.log('[DB] stages bgm 마이그레이션 완료');
+  }
+
+  // story_nodes bgm 마이그레이션
+  try {
+    db.prepare("SELECT bgm FROM story_nodes LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE story_nodes ADD COLUMN bgm TEXT DEFAULT NULL");
+    console.log('[DB] story_nodes bgm 마이그레이션 완료');
+  }
+
+  // raids bgm 마이그레이션
+  try {
+    db.prepare("SELECT bgm FROM raids LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE raids ADD COLUMN bgm TEXT DEFAULT NULL");
+    console.log('[DB] raids bgm 마이그레이션 완료');
+  }
+
+  // is_released 마이그레이션
+  try {
+    db.prepare("SELECT is_released FROM characters LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE characters ADD COLUMN is_released INTEGER DEFAULT 1");
+    db.exec("UPDATE characters SET is_released = 0 WHERE rarity = 'CR'");
+    console.log('[DB] characters is_released 마이그레이션 완료');
+  }
 
   db.exec(`CREATE TABLE IF NOT EXISTS story_clears (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -695,6 +829,16 @@ async function initDb() {
     name TEXT DEFAULT '',
     party_ids TEXT DEFAULT '[]',
     PRIMARY KEY (user_id, slot)
+  )`);
+
+  // user_logs 테이블 (활동 기록)
+  db.exec(`CREATE TABLE IF NOT EXISTS user_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    data TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
   )`);
 
   // user_items 테이블 (아이템 인벤토리)
@@ -825,134 +969,8 @@ async function initDb() {
       }
       console.log(`[DB] ${seedData.characterSkills.length}개 캐릭터-스킬 매핑 완료 (JSON)`);
     } else {
-      // 하드코딩 폴백 (최초 설치용)
-      const seed = [
-        { name: '유카리', rarity: 'SSR', element: 'fire', origin: 'life', title: '영원한 황혼의 왕', description: '먼 옛날부터 살아온 황혼의 왕', quote: '에반데.', base_hp: 5500, base_atk: 280, base_def: 180, base_spd: 115, turn_notes: 6, image_url: '/uploads/characters/char_1.png' },
-        { name: '츠바키', rarity: 'SSR', element: 'light', origin: 'season', title: '분홍 동백의 신중', description: '분홍 동백의 신중', quote: '이 길이 아니었나...', base_hp: 4800, base_atk: 310, base_def: 150, base_spd: 130, turn_notes: 6, image_url: '/uploads/characters/char_2.png' },
-        { name: '시스투스', rarity: 'SR', element: 'wind', origin: 'memory', title: '물들어가는 무채', description: '성영의 관리자의 세계에서 온 유일한 생존자. 의식성 에스페리아의 대무녀.', quote: '"사라지고 싶지 않아"', base_hp: 80, base_atk: 15, base_def: 10, base_spd: 14, turn_notes: 8, image_url: '/uploads/characters/char_3.png' },
-        { name: '베르트랑', rarity: 'SR', element: 'fire', origin: 'life', title: '파프니르', description: '파프니르의 기사.', quote: '아저씨는 이런 게 익숙치 않아서 말이야.', base_hp: 4800, base_atk: 190, base_def: 200, base_spd: 95, turn_notes: 5, image_url: '/uploads/characters/char_4.png' },
-        { name: '아우라', rarity: 'SR', element: 'light', origin: 'sound', title: '기도하는 자', description: '새벽기사단의 2분대 대장.', quote: '이른 새벽을 기다리며.', base_hp: 4500, base_atk: 250, base_def: 130, base_spd: 105, turn_notes: 5, image_url: '/uploads/characters/char_5.png' },
-        { name: '카날리', rarity: 'SR', element: 'water', origin: 'force', title: '싱크로스트', description: '다른 세계에서 온 대행관리자.', quote: '가라앉아.', base_hp: 5000, base_atk: 170, base_def: 180, base_spd: 100, turn_notes: 5, image_url: '/uploads/characters/char_6.png' },
-        { name: '코루리', rarity: 'R', element: 'light', origin: 'time', title: '용안의 소녀', description: '용화의 비술을 간직한 소녀.', quote: '이 쪽 보지 마.', base_hp: 3500, base_atk: 200, base_def: 110, base_spd: 115, turn_notes: 4, image_url: '/uploads/characters/char_7.png' },
-        { name: '리카', rarity: 'R', element: 'water', origin: 'space', title: '수호하는 자', description: '쿨뢰르 레기온의 큰언니.', quote: '마노의 혼, 물러서지 않는다.', base_hp: 3800, base_atk: 180, base_def: 140, base_spd: 95, turn_notes: 4, image_url: '/uploads/characters/char_8.png' },
-        { name: '린네', rarity: 'R', element: 'wind', origin: 'memory', title: '사라진 그리움', description: '린네 할로우패스.', quote: '마치 선향불꽃처럼.', base_hp: 4000, base_atk: 210, base_def: 150, base_spd: 90, turn_notes: 4, image_url: '/uploads/characters/char_9.png' },
-        { name: '페리도트', rarity: 'R', element: 'dark', origin: 'intellect', title: '사라져 버린 긍지', description: '먼 옛날의 대마법사.', quote: '저를 내버려두세요.', base_hp: 3600, base_atk: 190, base_def: 120, base_spd: 105, turn_notes: 4, image_url: '/uploads/characters/char_10.png' },
-        { name: '렌', rarity: 'R', element: 'wind', origin: 'life', title: '매와 함께하는 기사', description: '새벽기사단 2분대의 정령사.', quote: '지금 바로 그대에게 전하고파 뛰쳐나갔어.', base_hp: 3400, base_atk: 220, base_def: 100, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_11.png' },
-        { name: '게로트', rarity: 'R', element: 'wind', origin: 'heart', title: '요리의 대가', description: '에스큘럼의 요리 마스터.', quote: '가장 중요한 것은 상대를 생각하는 마음.', base_hp: 3700, base_atk: 175, base_def: 130, base_spd: 110, turn_notes: 4, image_url: '/uploads/characters/char_12.png' },
-        { name: '쿼시', rarity: 'N', element: 'light', origin: 'sound', title: '비트마스터', description: '유니아나의 비트마스터 중 하나', quote: '이 곡 좋은데?', base_hp: 2800, base_atk: 140, base_def: 100, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_13.png' },
-        { name: '가네트', rarity: 'N', element: 'fire', origin: 'time', title: '회귀의 기사', description: '에스큘럼 새벽기사단의 창끝 분대 분대원.', quote: '이 익숙함은?', base_hp: 3200, base_atk: 120, base_def: 120, base_spd: 80, turn_notes: 3, image_url: '/uploads/characters/char_14.png' },
-        { name: '호프', rarity: 'N', element: 'wind', origin: 'life', title: '느긋한 집배원', description: '에스큘럼의 느릿한 집배원.', quote: '"다음 집으로..."', base_hp: 3000, base_atk: 150, base_def: 90, base_spd: 100, turn_notes: 3, image_url: '/uploads/characters/char_15.png' },
-        { name: '메이', rarity: 'N', element: 'dark', origin: 'intellect', title: '에너지학 연구원', description: '스타기어의 에너지 연구원.', quote: '"발견!"', base_hp: 2600, base_atk: 130, base_def: 90, base_spd: 120, turn_notes: 3, image_url: '/uploads/characters/char_16.png' },
-        { name: '티어리', rarity: 'N', element: 'wind', origin: 'force', title: '교육팀 팀장', description: '신기루 교육지원팀의 팀장.', quote: '"이 보고서 누가 썼어?"', base_hp: 3500, base_atk: 110, base_def: 140, base_spd: 70, turn_notes: 3, image_url: '/uploads/characters/char_17.png' },
-        { name: '밥', rarity: 'N', element: 'fire', origin: 'memory', title: '평범한? 농부', description: '', quote: '"야채라도 가져가라."', base_hp: 2700, base_atk: 160, base_def: 85, base_spd: 110, turn_notes: 3, image_url: '/uploads/characters/char_18.png' },
-        { name: '아이유브', rarity: 'N', element: 'fire', origin: 'season', title: '불행한 자', description: '미스테리아의 ', quote: '"내가 받는 벌이라고...?"', base_hp: 80, base_atk: 145, base_def: 95, base_spd: 95, turn_notes: 3, image_url: '/uploads/characters/char_19.png' },
-        { name: '리사', rarity: 'N', element: 'light', origin: 'sound', title: '집사 중의 집사', description: '호기심 가득한 천사 견습 모험가.', quote: '"이 지도가 향하는 곳은!"', base_hp: 60, base_atk: 7, base_def: 5, base_spd: 8, turn_notes: 6, image_url: '/uploads/characters/char_20.png' },
-        { name: '아르시스', rarity: 'N', element: 'water', origin: 'heart', title: '성취자 멘토', description: '세인트 인퀴지터의 선배 성취자.', quote: '쨘! 이게 기적이라는 거야.', base_hp: 1000, base_atk: 100, base_def: 80, base_spd: 100, turn_notes: 4, image_url: '/uploads/characters/char_21.png' },
-      ];
-
-      const cols = ['name','rarity','element','origin','title','description','quote','base_hp','base_atk','base_def','base_spd','turn_notes','image_url'];
-      for (const c of seed) {
-        const vals = cols.map(k => c[k]);
-        const placeholders = cols.map(() => '?').join(', ');
-        db.prepare(`INSERT INTO characters (${cols.join(', ')}) VALUES (${placeholders})`).run(...vals);
-      }
-      console.log(`[DB] ${seed.length}개 캐릭터 시드 완료 (하드코딩)`);
-
-      const skillSeed = [
-        { name: '기본 타격', description: '적 하나에게 기본 피해', type: 'attack', rarity: 'faint', cost: 1, power: 1.0, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '기본 방어', description: '받는 피해 40% 감소', type: 'defense', rarity: 'faint', cost: 1, power: 0, element: 'neutral', target: 'self', defense_mult: 0.4, cooldown: 0, extra: '{}' },
-        { name: '강타', description: '적 하나에게 강한 피해', type: 'attack', rarity: 'pale', cost: 2, power: 1.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '전체 강타', description: '적 전체에게 피해', type: 'attack', rarity: 'pale', cost: 3, power: 1.5, element: 'neutral', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '화염 베기', description: '불속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '화염 폭풍', description: '불속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '수류탄', description: '물속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'water', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '해일', description: '물속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '덩굴 채찍', description: '풍속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '가시 폭발', description: '풍속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '빛의 창', description: '빛속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'light', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '심판의 빛', description: '빛속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '어둠의 칼날', description: '암속성 단일 공격', type: 'attack', rarity: 'pale', cost: 2, power: 1.9, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '암흑 폭발', description: '암속성 전체 공격', type: 'attack', rarity: 'pale', cost: 3, power: 1.6, element: 'dark', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '맹렬한 일격', description: '적 하나에게 큰 피해', type: 'attack', rarity: 'deep', cost: 3, power: 2.8, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '강화 방어', description: '받는 피해 60% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'self', defense_mult: 0.6, cooldown: 0, extra: '{}' },
-        { name: '완벽한 방어', description: '받는 피해 80% 감소', type: 'defense', rarity: 'deep', cost: 3, power: 0, element: 'neutral', target: 'self', defense_mult: 0.8, cooldown: 0, extra: '{}' },
-        { name: '반격 방어', description: '피해 50% 감소 + 반격', type: 'defense', rarity: 'deep', cost: 2, power: 0.5, element: 'neutral', target: 'self', defense_mult: 0.5, cooldown: 0, extra: '{"counter":true}' },
-        { name: '보호막', description: '아군 하나 피해 50% 감소', type: 'defense', rarity: 'pale', cost: 2, power: 0, element: 'neutral', target: 'ally_single', defense_mult: 0.5, cooldown: 0, extra: '{}' },
-        { name: '황혼의 불꽃', description: '적 전체 ATK 400% + 아군 ATK 버프', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 4.0, element: 'fire', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"atk","amount":0.3,"turns":2}}' },
-        { name: '벚꽃 난무', description: '적 전체 ATK 380% 피해', type: 'ultimate', rarity: 'iridescent', cost: 5, power: 3.8, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '무채의 꿈', description: '적 전체 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.5, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '파프니르의 화염', description: '적 하나 ATK 450% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.5, element: 'fire', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '새벽의 기도', description: '아군 전체 HP 40% 회복 + ATK 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'light', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true,"buff":{"stat":"atk","amount":0.2,"turns":2}}' },
-        { name: '심연의 조율', description: '아군 전체 HP 40% 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 0.4, element: 'water', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{"heal":true}' },
-        { name: '용안 해방', description: '적 전체 ATK 300% 피해', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'light', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '마노의 방패', description: '적 전체 ATK 280% + 아군 DEF 버프', type: 'ultimate', rarity: 'deep', cost: 4, power: 2.8, element: 'water', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"buff":{"stat":"def","amount":0.3,"turns":2}}' },
-        { name: '선향불꽃', description: '적 하나 ATK 350% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 3.5, element: 'wind', target: 'single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '잊혀진 마도', description: '적 하나 ATK 400% (DEF 무시)', type: 'ultimate', rarity: 'deep', cost: 4, power: 4.0, element: 'dark', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"ignoreDef":true}' },
-        { name: '정령의 날개', description: '적 전체 ATK 280% 피해', type: 'ultimate', rarity: 'deep', cost: 3, power: 2.8, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '미식의 심장', description: '적 전체 300% + 아군 HP 회복', type: 'ultimate', rarity: 'deep', cost: 4, power: 3.0, element: 'wind', target: 'aoe', defense_mult: 0, cooldown: 0, extra: '{"alsoHeal":0.2}' },
-        { name: '응급 치료', description: '아군 하나 HP 25% 회복', type: 'heal', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '전체 치유', description: '아군 전체 HP 15% 회복', type: 'heal', rarity: 'deep', cost: 3, power: 0.15, element: 'neutral', target: 'ally_all', defense_mult: 0, cooldown: 0, extra: '{}' },
-        { name: '전투 고무', description: '아군 하나 ATK 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"atk","turns":3}' },
-        { name: '철벽 강화', description: '아군 하나 DEF 30% 증가(3턴)', type: 'buff', rarity: 'pale', cost: 2, power: 0.3, element: 'neutral', target: 'ally_single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
-        { name: '약점 간파', description: '적 하나 DEF 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"def","turns":3}' },
-        { name: '속도 저하', description: '적 하나 SPD 25% 감소(3턴)', type: 'debuff', rarity: 'pale', cost: 2, power: 0.25, element: 'neutral', target: 'single', defense_mult: 0, cooldown: 0, extra: '{"stat":"spd","turns":3}' },
-      ];
-
-      const sCols = ['name','description','type','rarity','cost','power','element','target','defense_mult','cooldown','extra'];
-      for (const s of skillSeed) {
-        const vals = sCols.map(k => s[k]);
-        const placeholders = sCols.map(() => '?').join(', ');
-        db.prepare(`INSERT INTO skills (${sCols.join(', ')}) VALUES (${placeholders})`).run(...vals);
-      }
-      console.log(`[DB] ${skillSeed.length}개 스킬 시드 완료 (하드코딩)`);
-
-      const getSkillId = (name) => db.prepare('SELECT id FROM skills WHERE name = ?').get(name)?.id;
-      const getCharId = (name) => db.prepare('SELECT id FROM characters WHERE name = ?').get(name)?.id;
-
-      // awakening: { 0: 획득 시, 1: 1각성 시, ... }
-      const charSkillMap = [
-        { char: '유카리', awakening: { 0: ['기본 타격','강타','화염 베기','기본 방어','황혼의 불꽃'] } },
-        { char: '츠바키', awakening: { 0: ['기본 타격','맹렬한 일격','빛의 창','기본 방어','벚꽃 난무'] } },
-        { char: '시스투스', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','무채의 꿈'] } },
-        { char: '베르트랑', awakening: { 0: ['기본 타격','강타','기본 방어','반격 방어','파프니르의 화염'] } },
-        { char: '아우라', awakening: { 0: ['기본 타격','빛의 창','기본 방어','응급 치료','새벽의 기도'] } },
-        { char: '카날리', awakening: { 0: ['기본 타격','수류탄','기본 방어','보호막','심연의 조율'] } },
-        { char: '코루리', awakening: { 0: ['기본 타격','빛의 창','기본 방어','전투 고무','용안 해방'] } },
-        { char: '리카', awakening: { 0: ['기본 타격','수류탄','기본 방어','강화 방어','마노의 방패'] } },
-        { char: '린네', awakening: { 0: ['기본 타격','강타','덩굴 채찍','기본 방어','선향불꽃'] } },
-        { char: '페리도트', awakening: { 0: ['기본 타격','어둠의 칼날','기본 방어','약점 간파','잊혀진 마도'] } },
-        { char: '렌', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','속도 저하','정령의 날개'] } },
-        { char: '게로트', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','응급 치료','미식의 심장'] } },
-        { char: '쿼시', awakening: { 0: ['기본 타격','빛의 창','기본 방어','전투 고무'] } },
-        { char: '가네트', awakening: { 0: ['기본 타격','화염 베기','기본 방어','강화 방어'] } },
-        { char: '호프', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어'] } },
-        { char: '메이', awakening: { 0: ['기본 타격','어둠의 칼날','기본 방어'] } },
-        { char: '티어리', awakening: { 0: ['기본 타격','덩굴 채찍','기본 방어','강화 방어'] } },
-        { char: '밥', awakening: { 0: ['기본 타격','화염 베기','기본 방어'] } },
-        { char: '아이유브', awakening: { 0: ['기본 타격','화염 베기','기본 방어'] } },
-        { char: '리사', awakening: { 0: ['기본 타격','빛의 창','기본 방어','응급 치료'] } },
-        { char: '아르시스', awakening: { 0: ['기본 타격','수류탄','기본 방어','응급 치료'] } },
-      ];
-
-      const fixedSkillTypes = new Set(['ultimate']);
-      for (const mapping of charSkillMap) {
-        const charId = getCharId(mapping.char);
-        if (!charId) continue;
-        for (const [awk, skillNames] of Object.entries(mapping.awakening)) {
-          for (const skillName of skillNames) {
-            const skillId = getSkillId(skillName);
-            if (!skillId) continue;
-            const skill = skillSeed.find(s => s.name === skillName);
-            const isFixed = (skill && fixedSkillTypes.has(skill.type)) ? 1 : 0;
-            const awkNum = Number(awk);
-            try {
-              db.prepare('INSERT OR IGNORE INTO character_skills (character_id, skill_id, is_default, is_fixed, awakening_required) VALUES (?, ?, ?, ?, ?)')
-                .run(charId, skillId, awkNum === 0 ? 1 : 0, isFixed, awkNum);
-            } catch (e) {}
-          }
-        }
-      }
-      console.log('[DB] 캐릭터-스킬 매핑 완료 (하드코딩)');
+      console.error('[치명] data/game_seed.json 파일이 없습니다. 캐릭터/스킬 시드를 위해 이 파일이 필요합니다.');
+      process.exit(1);
     }
   }
 
@@ -1070,27 +1088,96 @@ async function initDb() {
     }
   }
 
-  // ============ 스토리 노드 시드 (game_seed.json) ============
-  const storyNodeCount = db.prepare('SELECT COUNT(*) as cnt FROM story_nodes').get();
-  if (storyNodeCount.cnt === 0) {
+  // ============ 파밍 던전 스테이지 동기화 ============
+  {
+    const { farmingDungeons } = require('../data/farming_dungeons');
+    const expectedNames = new Set();
+    let addedStages = 0;
+    const PREV_DIFF = { mid: 'low', high: 'mid', top: 'high' };
+    for (const [dungeonKey, dungeon] of Object.entries(farmingDungeons)) {
+      for (const [diffKey, diff] of Object.entries(dungeon.difficulties)) {
+        const groupName = dungeon.dungeonGroup || dungeon.label;
+        const stageName = dungeon.dungeonGroup
+          ? (diff.label ? `${dungeon.label} ${diff.label}` : dungeon.label)
+          : `${dungeon.label} - ${diff.label}`;
+        expectedNames.add(stageName);
+        const isAlwaysOpen = dungeon.alwaysOpen ? 1 : 0;
+        const openDays = dungeon.openDays ? JSON.stringify(dungeon.openDays) : null;
+        const unlockCond = PREV_DIFF[diffKey]
+          ? JSON.stringify({ type: 'farming_prev_clear', dungeonGroup: groupName, prevDifficulty: PREV_DIFF[diffKey], baseName: dungeon.label })
+          : null;
+        const enemyData = diff.enemies.map(e => {
+          if (e.pool) {
+            const validPool = e.pool.filter(pid => db.prepare('SELECT id FROM monsters WHERE id = ?').get(pid));
+            if (validPool.length === 0) return null;
+            return { pool: validPool, level_scale: e.level_scale || 1.0 };
+          }
+          const monRow = db.prepare('SELECT * FROM monsters WHERE id = ?').get(e.id);
+          if (!monRow) return null;
+          const scale = e.level_scale || 1.0;
+          return {
+            monsterId: e.id, name: monRow.name,
+            element: monRow.element, origin: monRow.origin,
+            hp: Math.round(monRow.hp * scale), atk: Math.round(monRow.atk * scale),
+            def: Math.round(monRow.def * scale), spd: Math.round(monRow.spd * scale),
+            turn_notes: monRow.turn_notes, isBoss: !!monRow.is_boss,
+            image_sd: monRow.image_sd || null,
+            skills: JSON.parse(monRow.skills || '[]'),
+            drops: e.dropOverrides || JSON.parse(monRow.drops || '[]'),
+          };
+        }).filter(Boolean);
+        const enemyDataStr = JSON.stringify(enemyData);
+        const rewardsStr = JSON.stringify(diff.rewards);
+        const stageType = dungeon.type || 'farming';
+        db.prepare('DELETE FROM stages WHERE name = ? AND dungeon_group = ? AND type != ?').run(stageName, groupName, stageType);
+        const existing = db.prepare('SELECT id FROM stages WHERE name = ? AND type = ?').get(stageName, stageType);
+        if (existing) {
+          // 이미 존재하면 어드민 수정 보존을 위해 스킵
+        } else {
+          db.prepare(`INSERT INTO stages (name, type, difficulty, stamina_cost, recommended_level,
+            enemy_data, rewards, dungeon_group, description, icon, always_open, open_days, unlock_condition, chapter, stage_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`)
+            .run(stageName, stageType, diffKey, diff.staminaCost, diff.recommendedLv,
+              enemyDataStr, rewardsStr, groupName, dungeon.desc, dungeon.icon, isAlwaysOpen, openDays, unlockCond);
+          addedStages++;
+        }
+      }
+    }
+    const obsolete = db.prepare("SELECT id, name FROM stages WHERE type IN ('farming', 'normal')").all()
+      .filter(s => !expectedNames.has(s.name));
+    if (obsolete.length > 0) {
+      for (const s of obsolete) db.prepare('DELETE FROM stages WHERE id = ?').run(s.id);
+      console.log(`[DB] ${obsolete.length}개 구 파밍 스테이지 제거`);
+    }
+    if (addedStages > 0) console.log(`[DB] ${addedStages}개 파밍 던전 스테이지 추가 완료`);
+  }
+
+  // ============ 스토리 노드 시드 (game_seed.json → stories.js) ============
+  const storiesFilePath = path.join(__dirname, '..', 'data', 'stories.js');
+  let currentStories = [];
+  try { currentStories = require(storiesFilePath); } catch {}
+  if (currentStories.length === 0) {
     let seedStoryNodes = null;
     if (fs.existsSync(SEED_PATH)) {
       try { seedStoryNodes = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).storyNodes; } catch {}
     }
     if (seedStoryNodes && seedStoryNodes.length > 0) {
-      const snCols = ['category','chapter','node_number','title','node_type','story_script',
-        'enemy_data','stamina_cost','rewards','recommended_level','difficulty','character_id','event_id'];
-      for (const n of seedStoryNodes) {
-        const vals = snCols.map(k => {
-          const v = n[k];
-          if (v === undefined || v === null) return null;
-          if (typeof v === 'object') return JSON.stringify(v);
-          return v;
-        });
-        db.prepare(`INSERT INTO story_nodes (${snCols.join(',')}) VALUES (${snCols.map(() => '?').join(',')})`)
-          .run(...vals);
-      }
-      console.log(`[DB] ${seedStoryNodes.length}개 스토리 노드 시드 완료 (game_seed.json)`);
+      const parsed = seedStoryNodes.map((n, i) => {
+        const node = { id: n.id || (i + 1) };
+        for (const k of ['category','chapter','node_number','title','node_type','story_script',
+          'enemy_data','stamina_cost','rewards','recommended_level','difficulty',
+          'character_id','event_id','description','fixed_party','required_guests','bgm','max_cycles']) {
+          let v = n[k];
+          if (v === undefined) v = null;
+          if (typeof v === 'string' && (k === 'story_script' || k === 'enemy_data' || k === 'rewards' || k === 'fixed_party' || k === 'required_guests')) {
+            try { v = JSON.parse(v); } catch {}
+          }
+          node[k] = v;
+        }
+        return node;
+      });
+      fs.writeFileSync(storiesFilePath, `const stories = ${JSON.stringify(parsed, null, 2)};\n\nmodule.exports = stories;\n`, 'utf-8');
+      console.log(`[DB] ${parsed.length}개 스토리 노드 시드 완료 (game_seed.json → stories.js)`);
     }
   }
 
@@ -1121,35 +1208,35 @@ async function initDb() {
     }
   }
 
-  // ============ 레이드 시드 (game_seed.json 우선, 없으면 하드코딩 폴백) ============
-  const raidCount = db.prepare('SELECT COUNT(*) as cnt FROM raids').get();
-  if (raidCount.cnt === 0) {
-    let seedRaids = null;
-    if (fs.existsSync(SEED_PATH)) {
-      try { seedRaids = JSON.parse(fs.readFileSync(SEED_PATH, 'utf-8')).raids; } catch {}
-    }
-    if (seedRaids && seedRaids.length > 0) {
-      for (const r of seedRaids) {
-        db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(r.name, r.element, r.max_hp, r.current_hp ?? r.max_hp, r.base_atk, r.base_def, r.base_spd, r.turn_notes,
-            typeof r.attack_pattern === 'string' ? r.attack_pattern : JSON.stringify(r.attack_pattern),
-            typeof r.rewards === 'string' ? r.rewards : JSON.stringify(r.rewards),
-            r.starts_at, r.ends_at, r.is_active ?? 1);
+  // ============ 레이드 시드 (raid_bosses.js 기반) ============
+  {
+    const activeRaid = db.prepare('SELECT id FROM raids WHERE is_active = 1').get();
+    if (!activeRaid) {
+      const { raidBosses, bossRotation, RESET_DAY } = require('../data/raid_bosses');
+      const lastRaid = db.prepare('SELECT boss_key FROM raids ORDER BY id DESC LIMIT 1').get();
+      const lastIdx = lastRaid?.boss_key ? bossRotation.indexOf(lastRaid.boss_key) : -1;
+      const bossKey = bossRotation[(lastIdx + 1) % bossRotation.length];
+      const b = raidBosses[bossKey];
+      if (b) {
+        const now = new Date();
+        const day = now.getDay();
+        let daysUntil = (RESET_DAY - day + 7) % 7;
+        if (daysUntil === 0 && now.getHours() >= 6) daysUntil = 7;
+        const endsAt = new Date(now);
+        endsAt.setDate(endsAt.getDate() + (daysUntil || 7));
+        endsAt.setHours(6, 0, 0, 0);
+        db.prepare(`INSERT INTO raids
+          (name, element, origin, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes,
+           attack_pattern, rewards, starts_at, ends_at, is_active, boss_key, battle_hp, per_battle_gold, settled)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, 0)`)
+          .run(b.name, b.element, b.origin || 'neutral', b.maxHp, b.maxHp,
+            b.atk, b.def, b.spd, b.turnNotes,
+            JSON.stringify(b.phases.map(p => ({ hp_threshold: p.hpThreshold, skills: p.skills }))),
+            JSON.stringify({ gold: 5000, prism: 100 }),
+            now.toISOString(), endsAt.toISOString(),
+            bossKey, b.battleHp || 800, b.perBattleGold || 400);
+        console.log(`[DB] 레이드 시드 완료: ${b.name} (${bossKey})`);
       }
-      console.log(`[DB] ${seedRaids.length}개 레이드 시드 완료 (game_seed.json)`);
-    } else {
-      const now = new Date();
-      const weekEnd = new Date(now); weekEnd.setDate(weekEnd.getDate() + 7);
-      db.prepare('INSERT INTO raids (name, element, max_hp, current_hp, base_atk, base_def, base_spd, turn_notes, attack_pattern, rewards, starts_at, ends_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .run('거대 슬라임 킹', 'water', 5000, 5000, 20, 12, 8, 6,
-          JSON.stringify([
-            { hp_threshold: 1.0, skills: [{ name: '기본 공격', type: 'attack', cost: 1, power: 1.2, target: 'single' }, { name: '전체 공격', type: 'attack', cost: 3, power: 1.0, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.5, target: 'self' }] },
-            { hp_threshold: 0.5, skills: [{ name: '강화 공격', type: 'attack', cost: 2, power: 2.0, target: 'single' }, { name: '전체 강타', type: 'attack', cost: 3, power: 1.5, target: 'aoe' }, { name: '방어', type: 'defense', cost: 2, defense_mult: 0.6, target: 'self' }] },
-            { hp_threshold: 0.2, skills: [{ name: '폭주 공격', type: 'attack', cost: 2, power: 2.5, target: 'single' }, { name: '전체 폭주', type: 'attack', cost: 3, power: 2.0, target: 'aoe' }] }
-          ]),
-          JSON.stringify({ gold: 5000, diamond: 100, exp: 2000 }),
-          now.toISOString(), weekEnd.toISOString());
-      console.log('[DB] 레이드 시드 완료 (하드코딩)');
     }
   }
 
@@ -1265,7 +1352,9 @@ function exportGameData() {
     `).all();
     const monsters = dbProxy.prepare('SELECT * FROM monsters ORDER BY id').all();
     const stages = dbProxy.prepare('SELECT * FROM stages ORDER BY id').all();
-    const storyNodes = dbProxy.prepare('SELECT * FROM story_nodes ORDER BY id').all();
+    const storiesPath = path.join(__dirname, '..', 'data', 'stories.js');
+    let storyNodes = [];
+    try { storyNodes = require(storiesPath); } catch {}
     const tags = dbProxy.prepare('SELECT * FROM tags ORDER BY id').all();
     const characterTags = dbProxy.prepare('SELECT * FROM character_tags ORDER BY character_id, tag_id').all();
     const monsterTags = dbProxy.prepare('SELECT * FROM monster_tags ORDER BY monster_id, tag_id').all();
@@ -1346,6 +1435,12 @@ function grantPromotionSkills(userId, inventoryId, characterId, promotionLevel) 
   return granted;
 }
 
+function userLog(userId, type, data) {
+  try {
+    dbProxy.prepare('INSERT INTO user_logs (user_id, type, data) VALUES (?, ?, ?)').run(userId, type, JSON.stringify(data));
+  } catch {}
+}
+
 module.exports = dbProxy;
 module.exports.initDb = initDb;
 module.exports.initCharacterSkills = initCharacterSkills;
@@ -1354,3 +1449,4 @@ module.exports.grantPromotionSkills = grantPromotionSkills;
 module.exports.checkEquipCondition = checkEquipCondition;
 module.exports.exportGameData = exportGameData;
 module.exports.resetUserData = resetUserData;
+module.exports.userLog = userLog;

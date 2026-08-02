@@ -2,50 +2,64 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { createUnit, createBattleSetup, validateBattleResult } = require('../battle');
-const gameConfig = require('../../gameConfig.json');
-const itemDefs = require('../../data/items');
-const { addAccountExp, refreshStamina, progressMission } = require('./stage');
+const { buildPartyUnits, collectTagCounts, buildEnemyFromMonster } = require('../battleUtils');
+const { addAccountExp, progressMission } = require('./stage');
+const hotRequire = require('../hotRequire');
 
 const router = express.Router();
+const loadStories = () => hotRequire('stories');
+
+// 튜토리얼 스크립트 로드
+router.get('/tutorial', authMiddleware, (req, res) => {
+  const nodes = loadStories();
+  const tutorial = nodes.find(n => n.category === 'tutorial');
+  if (!tutorial) return res.status(404).json({ error: '튜토리얼 노드가 없습니다' });
+  res.json({
+    nodeId: tutorial.id,
+    storyScript: tutorial.story_script || [],
+    bgm: tutorial.bgm || null,
+  });
+});
 
 // 스토리 노드 목록
 router.get('/list', authMiddleware, (req, res) => {
-  const { category } = req.query;
-  const cat = category || 'main';
+  const cat = req.query.category || 'main';
+  const allNodes = loadStories()
+    .filter(n => n.category === cat)
+    .sort((a, b) => a.chapter - b.chapter || a.node_number - b.node_number);
 
-  const nodes = db.prepare(`
-    SELECT sn.*, sc.stars, sc.best_turns
-    FROM story_nodes sn
-    LEFT JOIN story_clears sc ON sn.id = sc.node_id AND sc.user_id = ?
-    WHERE sn.category = ?
-    ORDER BY sn.chapter, sn.node_number
-  `).all(req.user.id, cat);
+  const clears = db.prepare('SELECT node_id, stars, best_turns FROM story_clears WHERE user_id = ?').all(req.user.id);
+  const clearMap = {};
+  for (const c of clears) clearMap[c.node_id] = c;
 
   const chapters = {};
-  for (const n of nodes) {
+  for (const n of allNodes) {
     if (!chapters[n.chapter]) chapters[n.chapter] = [];
-
+    const clear = clearMap[n.id];
     const prev = chapters[n.chapter].length > 0 ? chapters[n.chapter][chapters[n.chapter].length - 1] : null;
-    const prevChapterCleared = n.chapter === 1 || (chapters[n.chapter - 1]?.every(nd => nd.stars > 0 || nd.cleared));
+    const prevChapterCleared = n.chapter === 1 || (chapters[n.chapter - 1]?.every(nd => nd.cleared));
     const unlocked = n.node_number === 1
       ? (n.chapter === 1 || prevChapterCleared)
-      : (prev && (prev.stars > 0 || prev.cleared));
+      : (prev && prev.cleared);
 
     chapters[n.chapter].push({
       id: n.id,
       chapter: n.chapter,
       nodeNumber: n.node_number,
       title: n.title,
+      description: n.description || null,
       nodeType: n.node_type,
       staminaCost: n.stamina_cost,
       recommendedLevel: n.recommended_level,
       difficulty: n.difficulty,
-      stars: n.stars || 0,
-      bestTurns: n.best_turns,
-      cleared: !!(n.stars !== null && n.stars !== undefined && n.stars >= 0 && db.prepare('SELECT 1 FROM story_clears WHERE user_id = ? AND node_id = ?').get(req.user.id, n.id)),
+      stars: clear?.stars || 0,
+      bestTurns: clear?.best_turns,
+      cleared: !!clear,
       unlocked,
       hasRewards: !!n.rewards,
-      rewards: n.rewards ? JSON.parse(n.rewards) : null,
+      rewards: n.rewards || null,
+      fixedParty: n.fixed_party || null,
+      requiredGuests: n.required_guests || null,
     });
   }
 
@@ -54,8 +68,16 @@ router.get('/list', authMiddleware, (req, res) => {
 
 // 스토리 노드 상세 (스크립트 포함)
 router.get('/node/:id', authMiddleware, (req, res) => {
-  const node = db.prepare('SELECT * FROM story_nodes WHERE id = ?').get(req.params.id);
+  const nodes = loadStories();
+  const node = nodes.find(n => n.id === Number(req.params.id));
   if (!node) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
+
+  let script = node.story_script || null;
+  if (!script && node.node_type === 'battle' && node.enemy_data) {
+    script = [{ type: 'battle', enemies: node.enemy_data, stageName: node.title }];
+  }
+
+  const cleared = !!db.prepare('SELECT 1 FROM story_clears WHERE user_id = ? AND node_id = ?').get(req.user.id, node.id);
 
   res.json({
     id: node.id,
@@ -64,19 +86,23 @@ router.get('/node/:id', authMiddleware, (req, res) => {
     nodeNumber: node.node_number,
     title: node.title,
     nodeType: node.node_type,
-    storyScript: node.story_script ? JSON.parse(node.story_script) : null,
+    storyScript: script,
     staminaCost: node.stamina_cost,
     recommendedLevel: node.recommended_level,
-    rewards: node.rewards ? JSON.parse(node.rewards) : null,
+    rewards: node.rewards || null,
+    fixedParty: node.fixed_party || null,
+    requiredGuests: node.required_guests || null,
+    bgm: node.bgm || null,
+    cleared,
   });
 });
 
-// 스토리 전용 노드 읽기 완료
+// 노드 완료 (스토리 읽기 또는 전투 클리어)
 router.post('/read', authMiddleware, (req, res) => {
   const { nodeId } = req.body;
-  const node = db.prepare('SELECT * FROM story_nodes WHERE id = ?').get(nodeId);
+  const nodes = loadStories();
+  const node = nodes.find(n => n.id === nodeId);
   if (!node) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
-  if (node.node_type !== 'story') return res.status(400).json({ error: '스토리 전용 노드만 읽기 완료 가능' });
 
   const existing = db.prepare('SELECT * FROM story_clears WHERE user_id = ? AND node_id = ?').get(req.user.id, nodeId);
   let firstClear = false;
@@ -84,167 +110,116 @@ router.post('/read', authMiddleware, (req, res) => {
     db.prepare('INSERT INTO story_clears (user_id, node_id, stars) VALUES (?, ?, ?)').run(req.user.id, nodeId, 1);
     firstClear = true;
 
-    if (node.rewards) {
-      const rewards = JSON.parse(node.rewards);
+    const rewards = node.rewards;
+    if (rewards) {
       if (rewards.gold) db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
       if (rewards.first_clear_diamond) db.prepare('UPDATE users SET currency = currency + ? WHERE id = ?').run(rewards.first_clear_diamond, req.user.id);
     }
 
-    const accExp = node.rewards ? (JSON.parse(node.rewards).exp || 10) : 10;
+    const accExp = rewards?.exp || 10;
     addAccountExp(req.user.id, accExp);
+  }
+
+  if (node.node_type === 'battle') {
+    progressMission(req.user.id, 'battle', 1);
   }
 
   const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
   res.json({ ok: true, firstClear, user: updatedUser });
 });
 
-// 스토리 전투 시작
+// 대여/게스트 캐릭터 유닛 생성 헬퍼
+function createRentalUnit(spec, idx) {
+  const char = db.prepare('SELECT * FROM characters WHERE id = ?').get(spec.charId);
+  if (!char) return null;
+  const skills = db.prepare(`
+    SELECT s.* FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+    WHERE cs.character_id = ? AND cs.is_default = 1
+  `).all(spec.charId);
+  const talentData = require('../../data/talents');
+  const charTalents = talentData[spec.charId];
+  const activeTalent = charTalents?.talents?.[0] || null;
+  const charData = {
+    ...char, base_hp: char.base_hp, base_atk: char.base_atk,
+    base_def: char.base_def, base_spd: char.base_spd,
+  };
+  const unit = createUnit(charData, spec.level || 1, spec.awakening || 0, false, skills, activeTalent, spec.promotion || 0);
+  unit.characterId = spec.charId;
+  unit.isGuest = true;
+  return unit;
+}
+
+// 스토리 인라인 전투 셋업 (스크립트 내 battle 항목에서 호출)
 router.post('/battle-start', authMiddleware, (req, res) => {
-  const { nodeId, partyIds } = req.body;
+  const { nodeId, partyIds, enemies, party } = req.body;
 
-  if (!partyIds || partyIds.length === 0 || partyIds.length > 3) {
-    return res.status(400).json({ error: '파티는 1~3명으로 편성하세요' });
+  if (!enemies || enemies.length === 0) {
+    return res.status(400).json({ error: '적 데이터가 필요합니다' });
   }
 
-  const node = db.prepare('SELECT * FROM story_nodes WHERE id = ?').get(nodeId);
+  const nodes = loadStories();
+  const node = nodes.find(n => n.id === nodeId);
   if (!node) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
-  if (node.node_type !== 'battle') return res.status(400).json({ error: '전투 노드가 아닙니다' });
 
-  if (node.stamina_cost > 0) {
-    refreshStamina(req.user.id);
-    const user = db.prepare('SELECT stamina FROM users WHERE id = ?').get(req.user.id);
-    if (user.stamina < node.stamina_cost) {
-      return res.status(400).json({ error: '스태미나가 부족합니다', need: node.stamina_cost, have: user.stamina });
-    }
-    db.prepare('UPDATE users SET stamina = stamina - ? WHERE id = ?').run(node.stamina_cost, req.user.id);
-  }
+  const fixedParty = node.fixed_party || null;
+  const requiredGuests = node.required_guests || null;
 
   const partyUnits = [];
-  for (const invId of partyIds) {
-    const inv = db.prepare(`
-      SELECT i.*, c.name, c.rarity, c.element, c.origin, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes, c.image_url, c.image_sd
-      FROM inventory i JOIN characters c ON i.character_id = c.id
-      WHERE i.id = ? AND i.user_id = ?
-    `).get(invId, req.user.id);
-    if (!inv) return res.status(400).json({ error: `인벤토리 #${invId}를 찾을 수 없습니다` });
 
-    const equipped = db.prepare(`
-      SELECT s.* FROM equipped_skills es JOIN skills s ON es.skill_id = s.id
-      WHERE es.inventory_id = ? ORDER BY es.slot_number
-    `).all(invId);
-
-    let skills = equipped;
-    if (skills.length === 0) {
-      skills = db.prepare(`
-        SELECT s.* FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
-        WHERE cs.character_id = ? AND cs.is_default = 1
-      `).all(inv.character_id);
+  if (party && party.length > 0) {
+    for (let i = 0; i < party.length; i++) {
+      const unit = createRentalUnit(party[i], i);
+      if (!unit) return res.status(400).json({ error: `파티 캐릭터 #${party[i].charId}를 찾을 수 없습니다` });
+      partyUnits.push(unit);
+    }
+  } else if (fixedParty && fixedParty.length > 0) {
+    for (let i = 0; i < fixedParty.length; i++) {
+      const unit = createRentalUnit(fixedParty[i], i);
+      if (!unit) return res.status(400).json({ error: `고정 파티 캐릭터 #${fixedParty[i].charId}를 찾을 수 없습니다` });
+      partyUnits.push(unit);
+    }
+  } else {
+    if (requiredGuests && requiredGuests.length > 0) {
+      for (let i = 0; i < requiredGuests.length; i++) {
+        const unit = createRentalUnit(requiredGuests[i], i);
+        if (!unit) return res.status(400).json({ error: `게스트 캐릭터 #${requiredGuests[i].charId}를 찾을 수 없습니다` });
+        partyUnits.push(unit);
+      }
     }
 
-    const talentData = require('../../data/talents');
-    const charTalents = talentData[inv.character_id];
-    const equippedTalentIdx = inv.equipped_talent ?? 0;
-    const activeTalent = charTalents?.talents?.[equippedTalentIdx] || null;
-
-    const unit = createUnit(inv, inv.level, inv.awakening, false, skills, activeTalent, inv.promotion || 0);
-    unit.characterId = inv.character_id;
-    partyUnits.push(unit);
-  }
-
-  const tagCounts = {};
-  for (const u of partyUnits) {
-    const tags = db.prepare('SELECT t.id, t.label FROM character_tags ct JOIN tags t ON ct.tag_id = t.id WHERE ct.character_id = ?').all(u.characterId);
-    u.tags = tags.map(t => ({ id: t.id, label: t.label }));
-    for (const t of tags) tagCounts[t.id] = (tagCounts[t.id] || 0) + 1;
-  }
-
-  const enemies = JSON.parse(node.enemy_data || '[]');
-  const enemyUnits = enemies.map((e, idx) => {
-    const unit = createUnit({ ...e, id: `enemy_${idx}` }, 1, 0, true, e.skills || [], e.talent || null, 0);
-    if (e.monsterId) {
-      const eTags = db.prepare('SELECT t.id, t.label FROM monster_tags mt JOIN tags t ON mt.tag_id = t.id WHERE mt.monster_id = ?').all(e.monsterId);
-      unit.tags = eTags.map(t => ({ id: t.id, label: t.label }));
+    const maxUserSlots = 3 - partyUnits.length;
+    if (!partyIds || partyIds.length === 0 || partyIds.length > maxUserSlots) {
+      return res.status(400).json({ error: `파티는 1~${maxUserSlots}명으로 편성하세요` });
     }
-    return unit;
-  });
+
+    const { units: userUnits, error: partyError } = buildPartyUnits(req.user.id, partyIds);
+    if (partyError) return res.status(400).json({ error: partyError });
+    partyUnits.push(...userUnits);
+  }
+
+  const tagCounts = collectTagCounts(partyUnits);
+
+  const enemyUnits = enemies.map((e, idx) => buildEnemyFromMonster(e, idx, 'enemy')).filter(Boolean);
 
   const setup = createBattleSetup(partyUnits, enemyUnits, tagCounts);
   setup.nodeId = nodeId;
   setup.chapter = node.chapter;
   setup.stageName = `${node.chapter}-${node.node_number} ${node.title}`;
-  setup.rewards = node.rewards ? JSON.parse(node.rewards) : { gold: 0 };
+  if (node.max_cycles) setup.maxCycles = node.max_cycles;
+  if (node.bg_image) setup.bgImage = `/uploads/bg/${node.bg_image}`;
 
-  if (node.story_script) {
-    try { setup.storyScript = JSON.parse(node.story_script); } catch {}
-  }
-
-  const updatedUser = db.prepare('SELECT stamina, gold, currency FROM users WHERE id = ?').get(req.user.id);
-  res.json({ setup, user: updatedUser });
+  res.json({ setup });
 });
 
-// 스토리 전투 종료
+// 스토리 인라인 전투 결과 검증
 router.post('/battle-end', authMiddleware, (req, res) => {
-  const { nodeId, battleLog } = req.body;
+  const { battleLog } = req.body;
 
   if (!validateBattleResult(battleLog, 4, 4)) {
     return res.status(400).json({ error: '잘못된 전투 결과입니다' });
   }
 
-  const node = db.prepare('SELECT * FROM story_nodes WHERE id = ?').get(nodeId);
-  if (!node) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
-
-  const rewards = node.rewards ? JSON.parse(node.rewards) : { gold: 0 };
-  let earnedRewards = null;
-
-  if (battleLog.result === 'victory') {
-    const stars = battleLog.allSurvived && battleLog.turnCycles <= 15 ? 3
-      : battleLog.allSurvived ? 2 : 1;
-
-    earnedRewards = { gold: rewards.gold || 0, stars };
-
-    const existing = db.prepare('SELECT * FROM story_clears WHERE user_id = ? AND node_id = ?').get(req.user.id, nodeId);
-    if (!existing) {
-      earnedRewards.diamond = rewards.first_clear_diamond || 0;
-      if (rewards.first_clear_diamond) {
-        db.prepare('UPDATE users SET currency = currency + ? WHERE id = ?').run(rewards.first_clear_diamond, req.user.id);
-      }
-      db.prepare('INSERT INTO story_clears (user_id, node_id, stars, best_turns) VALUES (?, ?, ?, ?)')
-        .run(req.user.id, nodeId, stars, battleLog.turnCycles);
-    } else if (stars > existing.stars) {
-      db.prepare('UPDATE story_clears SET stars = ?, best_turns = MIN(best_turns, ?) WHERE user_id = ? AND node_id = ?')
-        .run(stars, battleLog.turnCycles, req.user.id, nodeId);
-    }
-
-    if (rewards.gold) {
-      db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
-    }
-
-    progressMission(req.user.id, 'battle', 1);
-
-    const accExp = rewards.exp || 20;
-    addAccountExp(req.user.id, accExp);
-    earnedRewards.accountExp = accExp;
-
-    const enemies = JSON.parse(node.enemy_data || '[]');
-    const droppedItems = [];
-    for (const enemy of enemies) {
-      if (!enemy.drops) continue;
-      for (const drop of enemy.drops) {
-        if (Math.random() < drop.rate) {
-          const qty = drop.quantity || 1;
-          db.prepare(`INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)
-            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?`)
-            .run(req.user.id, drop.itemId, qty, qty);
-          const def = itemDefs[drop.itemId];
-          droppedItems.push({ itemId: drop.itemId, name: def?.name || drop.itemId, quantity: qty, rarity: def?.rarity || 'N' });
-        }
-      }
-    }
-    earnedRewards.items = droppedItems;
-  }
-
-  const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
-  res.json({ rewards: earnedRewards, user: updatedUser });
+  res.json({ ok: true, victory: battleLog.result === 'victory' });
 });
 
 module.exports = router;

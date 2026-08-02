@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 
+if (!process.env.JWT_SECRET) {
+  console.warn('[경고] JWT_SECRET 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'friend-gacha-secret-key-change-me';
 
 let _db = null;
@@ -13,9 +16,12 @@ function authMiddleware(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     if (_db) {
-      const user = _db.prepare('SELECT id, username FROM users WHERE id = ?').get(decoded.id);
+      const user = _db.prepare('SELECT id, username, session_id FROM users WHERE id = ?').get(decoded.id);
       if (!user || user.username !== decoded.username) {
         return res.status(401).json({ error: '유효하지 않은 토큰입니다. 다시 로그인해주세요.' });
+      }
+      if (decoded.sessionId && user.session_id && user.session_id !== decoded.sessionId) {
+        return res.status(401).json({ error: '다른 기기에서 접속하여 로그아웃되었습니다.' });
       }
     }
 
@@ -26,8 +32,8 @@ function authMiddleware(req, res, next) {
   }
 }
 
-function generateToken(user) {
-  return jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
+function generateToken(user, sessionId) {
+  return jwt.sign({ id: user.id, username: user.username, sessionId }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 module.exports = { authMiddleware, generateToken, setAuthDb, JWT_SECRET };

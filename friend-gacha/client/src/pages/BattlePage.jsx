@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './BattlePage.css';
-
+import { bgm } from '../utils/bgm';
 import gameConfig from '@gameConfig';
 import { processEffects } from '../utils/skillEffects';
 import DialogueBubble from '../components/DialogueBubble';
@@ -19,16 +19,12 @@ import {
   processBuffExtras, findStatusBuffKey, getStatusBuffName,
   processPostAttackExtras,
 } from '../battle/battleActions';
+import { ELEM_ICONS, ELEM_LABELS, SKILL_TYPE_LABELS } from '../utils/gameConstants';
 
 const ELEMENT_CHART = {};
 for (const [key, val] of Object.entries(gameConfig.elements)) {
   ELEMENT_CHART[key] = { strong: val.strong, weak: val.weak };
 }
-
-const ELEM_ICONS = { fire: '&#128293;', water: '&#128167;', wind: '&#127807;', light: '&#10024;', dark: '&#127761;', neutral: '&#9898;' };
-const ELEM_LABELS = Object.fromEntries(Object.entries(gameConfig.elements).map(([k, v]) => [k, v.label]));
-const SKILL_TYPE_LABELS = {};
-for (const [k, v] of Object.entries(gameConfig.skillTypes)) SKILL_TYPE_LABELS[k] = v.label;
 const TARGET_LABELS = { single: '단일', aoe: '전체', self: '자신', ally_single: '아군 단일', ally_all: '아군 전체', any_single: '아무나 단일' };
 const SCOPE_LABELS = { self: '자신', party: '아군 전체', enemies: '적 전체', target: '대상' };
 
@@ -138,39 +134,160 @@ function applyDmgToUnit(u, damage, attacker) {
   };
 }
 
-// 적 AI
-function enemyTurnAI(enemy, playerUnits) {
+// ========== 적 AI 시스템 ==========
+
+// 공통: 스킬 코스트 계산
+function aiSkillCost(skill, overload) {
+  return (skill.type === 'defense' || skill.type === 'ultimate') ? skill.cost : skill.cost + overload;
+}
+
+// 공통: 타겟 선택 (Effect 시스템 훅 적용)
+function aiPickTarget(living, enemy) {
+  let target = living[Math.floor(Math.random() * living.length)];
+  return runCalc('modifyEnemyTarget', living, target, { enemy, livingTargets: living });
+}
+
+// basic: 기존 AI (랜덤 50% 강한 스킬, 50% 랜덤 / 예산 50~80%)
+function aiBasicTurn(enemy, playerUnits) {
   const actions = [];
-  let notes = enemy.notes;
   const cds = enemy.skillCooldowns || [];
   const atkSkills = enemy.skills.filter((s, i) => s.type === 'attack' && !(cds[i] > 0));
-  const budget = Math.ceil(notes * (0.5 + Math.random() * 0.3));
-  let spent = 0;
-  let enemyOverload = 0;
+  const budget = Math.ceil(enemy.notes * (0.5 + Math.random() * 0.3));
+  let spent = 0, overload = 0;
 
   while (spent < budget) {
-    const affordable = atkSkills.filter(s => {
-      const cost = s.type === 'defense' || s.type === 'ultimate' ? s.cost : s.cost + enemyOverload;
-      return cost <= (budget - spent);
-    });
+    const affordable = atkSkills.filter(s => aiSkillCost(s, overload) <= (budget - spent));
     if (affordable.length === 0) break;
     affordable.sort((a, b) => b.power - a.power);
     const skill = Math.random() < 0.5 ? affordable[0] : affordable[Math.floor(Math.random() * affordable.length)];
-    const actualCost = skill.type === 'defense' || skill.type === 'ultimate' ? skill.cost : skill.cost + enemyOverload;
+    const living = playerUnits.filter(u => u.alive);
+    if (living.length === 0) break;
+    actions.push({ skill, targetId: aiPickTarget(living, enemy).id });
+    spent += aiSkillCost(skill, overload);
+    let shouldIncOl = skill.type !== 'defense';
+    shouldIncOl = runCalc('modifyEnemyOverload', [enemy], shouldIncOl, { skill });
+    if (shouldIncOl) overload++;
+  }
+  return { actions, spent };
+}
+
+function aiBasicDefense(enemy, costPenalty, defSkills) {
+  if (defSkills.length === 0) return null;
+  if (Math.random() < 0.6) {
+    defSkills.sort((a, b) => a.cost - b.cost);
+    return { ...defSkills[0], cost: defSkills[0].cost + costPenalty };
+  }
+  return null;
+}
+
+// aggressive: HP 낮은 아군 집중 + 고위력 스킬 우선 + 예산 70~95%
+function aiAggressiveTurn(enemy, playerUnits) {
+  const actions = [];
+  const cds = enemy.skillCooldowns || [];
+  const atkSkills = enemy.skills.filter((s, i) => s.type === 'attack' && !(cds[i] > 0));
+  const budget = Math.ceil(enemy.notes * (0.7 + Math.random() * 0.25));
+  let spent = 0, overload = 0;
+
+  while (spent < budget) {
+    const affordable = atkSkills.filter(s => aiSkillCost(s, overload) <= (budget - spent));
+    if (affordable.length === 0) break;
+    affordable.sort((a, b) => b.power - a.power);
+    const skill = affordable[0];
     const living = playerUnits.filter(u => u.alive);
     if (living.length === 0) break;
 
-    let target = living[Math.floor(Math.random() * living.length)];
+    // HP 비율 낮은 아군 우선 타겟 (80% 확률)
+    let target;
+    if (Math.random() < 0.8) {
+      const sorted = [...living].sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+      target = sorted[0];
+    } else {
+      target = living[Math.floor(Math.random() * living.length)];
+    }
     target = runCalc('modifyEnemyTarget', living, target, { enemy, livingTargets: living });
 
     actions.push({ skill, targetId: target.id });
-    spent += actualCost;
-
+    spent += aiSkillCost(skill, overload);
     let shouldIncOl = skill.type !== 'defense';
     shouldIncOl = runCalc('modifyEnemyOverload', [enemy], shouldIncOl, { skill });
-    if (shouldIncOl) enemyOverload++;
+    if (shouldIncOl) overload++;
   }
   return { actions, spent };
+}
+
+function aiAggressiveDefense(enemy, costPenalty, defSkills) {
+  if (defSkills.length === 0) return null;
+  // 40% 확률로만 방어 (공격적이라 방어 덜 함)
+  if (Math.random() < 0.4) {
+    defSkills.sort((a, b) => b.defense_mult - a.defense_mult);
+    return { ...defSkills[0], cost: defSkills[0].cost + costPenalty };
+  }
+  return null;
+}
+
+// special_xxx: 코드번호별 커스텀 AI
+const SPECIAL_AI = {};
+
+function registerSpecialAI(code, turnFn, defenseFn) {
+  SPECIAL_AI[code] = { turn: turnFn, defense: defenseFn };
+}
+
+// special_001: 페이즈 전환형 (HP 50% 이상: basic / 50% 미만: aggressive + 궁극기 우선)
+registerSpecialAI('001', (enemy, playerUnits) => {
+  const hpRatio = enemy.hp / enemy.maxHp;
+  if (hpRatio > 0.5) return aiBasicTurn(enemy, playerUnits);
+
+  const actions = [];
+  const cds = enemy.skillCooldowns || [];
+  const allOffSkills = enemy.skills.filter((s, i) => (s.type === 'attack' || s.type === 'ultimate') && !(cds[i] > 0));
+  const budget = Math.ceil(enemy.notes * (0.8 + Math.random() * 0.15));
+  let spent = 0, overload = 0;
+
+  // 궁극기 우선
+  const ult = allOffSkills.find(s => s.type === 'ultimate' && s.cost <= budget);
+  if (ult) {
+    const living = playerUnits.filter(u => u.alive);
+    if (living.length > 0) {
+      actions.push({ skill: ult, targetId: aiPickTarget(living, enemy).id });
+      spent += ult.cost;
+    }
+  }
+
+  const atkSkills = allOffSkills.filter(s => s.type === 'attack');
+  while (spent < budget) {
+    const affordable = atkSkills.filter(s => aiSkillCost(s, overload) <= (budget - spent));
+    if (affordable.length === 0) break;
+    affordable.sort((a, b) => b.power - a.power);
+    const skill = affordable[0];
+    const living = playerUnits.filter(u => u.alive);
+    if (living.length === 0) break;
+    const sorted = [...living].sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+    const target = runCalc('modifyEnemyTarget', living, sorted[0], { enemy, livingTargets: living });
+    actions.push({ skill, targetId: target.id });
+    spent += aiSkillCost(skill, overload);
+    let shouldIncOl = skill.type !== 'defense';
+    shouldIncOl = runCalc('modifyEnemyOverload', [enemy], shouldIncOl, { skill });
+    if (shouldIncOl) overload++;
+  }
+  return { actions, spent };
+}, (enemy, costPenalty, defSkills) => {
+  const hpRatio = enemy.hp / enemy.maxHp;
+  if (hpRatio > 0.5) return aiBasicDefense(enemy, costPenalty, defSkills);
+  return aiAggressiveDefense(enemy, costPenalty, defSkills);
+});
+
+// AI 디스패치
+function enemyTurnAI(enemy, playerUnits) {
+  const aiType = enemy.aiType || 'basic';
+
+  if (aiType.startsWith('special_')) {
+    const code = aiType.replace('special_', '');
+    const spec = SPECIAL_AI[code];
+    if (spec?.turn) return spec.turn(enemy, playerUnits);
+  }
+
+  if (aiType === 'aggressive') return aiAggressiveTurn(enemy, playerUnits);
+  return aiBasicTurn(enemy, playerUnits);
 }
 
 function enemyDefenseAI(enemy, partyUnits) {
@@ -179,11 +296,17 @@ function enemyDefenseAI(enemy, partyUnits) {
   const eCds = enemy.skillCooldowns || [];
   const defSkills = enemy.skills.filter((s, i) => s.type === 'defense' && (s.cost + costPenalty) <= enemy.notes && !(eCds[i] > 0));
   if (defSkills.length === 0) return null;
-  if (Math.random() < 0.6) {
-    defSkills.sort((a, b) => a.cost - b.cost);
-    return { ...defSkills[0], cost: defSkills[0].cost + costPenalty };
+
+  const aiType = enemy.aiType || 'basic';
+
+  if (aiType.startsWith('special_')) {
+    const code = aiType.replace('special_', '');
+    const spec = SPECIAL_AI[code];
+    if (spec?.defense) return spec.defense(enemy, costPenalty, defSkills);
   }
-  return null;
+
+  if (aiType === 'aggressive') return aiAggressiveDefense(enemy, costPenalty, defSkills);
+  return aiBasicDefense(enemy, costPenalty, defSkills);
 }
 
 export default function BattlePage({ setup, onBattleEnd, partyIds }) {
@@ -235,8 +358,9 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
   const [pinnedSkillIdx, setPinnedSkillIdx] = useState(null);
   const [showEffectDetail, setShowEffectDetail] = useState(false);
   const [battleBubble, setBattleBubble] = useState(null);
-  useEffect(() => { setPinnedSkillIdx(null); setShowEffectDetail(false); }, [phase, currentTurnIdx]);
+  useEffect(() => { setPinnedSkillIdx(null); setShowEffectDetail(false); setHoveredSkillData(null); }, [phase, currentTurnIdx]);
   useEffect(() => { loadDialogues(); }, []);
+  useEffect(() => { bgm.play(setup.bgm || 'battle'); }, []);
   const longPressTimer = useRef(null);
   const logRef = useRef(null);
   const dmgTracker = useRef({});
@@ -245,6 +369,9 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
 
   // ====== 전투 가이드 시스템 ======
   const guide = setup.guide || null;
+  const [hoveredUnitId, setHoveredUnitId] = useState(null);
+  const [hoveredSkillCost, setHoveredSkillCost] = useState(0);
+  const [hoveredSkillData, setHoveredSkillData] = useState(null);
   const [guideStep, setGuideStep] = useState(0);
   const [guideVisible, setGuideVisible] = useState(false);
   const [guideConstraint, setGuideConstraint] = useState(null);
@@ -332,7 +459,6 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
 
   const addLog = useCallback((msg) => {
     setLog(prev => [...prev, msg]);
-    setTimeout(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, 50);
   }, []);
 
   const addFloatingDmg = useCallback((unitId, amount, type = 'damage') => {
@@ -347,7 +473,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
       unitId, unitName: unit?.name || '?',
       setParty, setEnemies, addLog, addFloatingDmg, trackDmg,
       party, enemies, applyDmgToUnit, calcDmg,
-      triggerIllusionOnHeal,
+      triggerIllusionOnHeal, setOverload,
       ...extra,
     };
   }
@@ -493,6 +619,13 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
 
       for (const l of allCycleLogs) addLog(l);
       setParty(prev => prev.map(u => u._expiredBuffs ? { ...u, _expiredBuffs: undefined } : u));
+
+      // 턴 제한 체크
+      if (setup.maxCycles && turnCycle >= setup.maxCycles) {
+        addLog(`--- ${setup.maxCycles}사이클 경과, 시간 초과! ---`);
+        endBattle('timeout');
+        return;
+      }
 
       setTurnCycle(prev => prev + 1);
       addLog(`--- 사이클 종료, 턴 노트 회복! ---`);
@@ -840,6 +973,16 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         case 'addDebuff': {
           const res = attachDebuff(m.targetId, { stat: m.stat, amount: m.amount, turns: m.turns, skillId: m.skillId, skillName: m.skillName, casterId: m.casterId });
           setter(prev => prev.map(u => u.id === m.targetId ? { ...u, debuffs: res.debuffs } : u));
+          if (isAlly) {
+            const rdTarget = party.find(u => u.id === m.targetId);
+            if (rdTarget?.alive) {
+              const rdResults = runEvent('onReceiveDebuff', party.filter(u => u.alive), { unit: rdTarget, party, enemies });
+              if (rdResults.length > 0) {
+                const rdAcc = processResults(rdResults, battleCtx(m.targetId));
+                rdAcc.logs.forEach(l => addLog(l));
+              }
+            }
+          }
           break;
         }
         case 'cleanse': {
@@ -1265,7 +1408,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
   function endBattle(res) {
     setResult(res);
     setPhase('battle_end');
-    addLog(`=== 전투 ${res === 'victory' ? '승리!' : '패배...'} ===`);
+    addLog(`=== 전투 ${res === 'victory' ? '승리!' : res === 'timeout' ? '시간 초과...' : '패배...'} ===`);
     const survivor = party.find(u => u.alive);
     if (survivor) {
       const cat = res === 'victory' ? 'victory' : 'defeat';
@@ -1280,7 +1423,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
     confirmedRef.current = true;
     const totalDmg = Object.values(dmgTracker.current).reduce((s, u) => s + u.total, 0);
     onBattleEnd({
-      result,
+      result: result === 'timeout' ? 'defeat' : result,
       totalDamage: totalDmg,
       turnCycles: turnCycle,
       allSurvived: party.every(u => u.alive),
@@ -1375,7 +1518,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [phase, isPlayerTurn, activeUnit, animating, defensePrompt, selectingTarget, overload, guideVisible, advanceGuide]);
 
-  const chapterClass = setup.chapter ? `ch-${setup.chapter}` : 'ch-raid';
+  const chapterClass = setup.bgClass ? `ch-${setup.bgClass}` : setup.chapter ? `ch-${setup.chapter}` : 'ch-raid';
 
   const renderUnit = (u, isEnemy) => {
     const isActive = activeUnitId === u.id;
@@ -1419,9 +1562,11 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
 
     return (
       <div key={u.id}
-        className={`battle-unit ${isActive ? 'active' : ''} ${isInactive ? 'inactive' : ''} ${!u.alive ? 'dead' : ''} ${canTarget ? 'targetable' : ''}`}
+        className={`battle-unit ${isActive ? 'active' : ''} ${isInactive ? 'inactive' : ''} ${!u.alive ? 'dead' : ''} ${canTarget ? 'targetable' : ''} ${hoveredUnitId === u.id ? 'highlighted' : ''}`}
         onClick={handleClick}
-        onMouseDown={startLongPress} onMouseUp={cancelLongPress} onMouseLeave={cancelLongPress}
+        onMouseEnter={() => setHoveredUnitId(u.id)}
+        onMouseLeave={() => setHoveredUnitId(null)}
+        onMouseDown={startLongPress} onMouseUp={cancelLongPress}
         onTouchStart={startLongPress} onTouchEnd={cancelLongPress} onTouchCancel={cancelLongPress}
         onContextMenu={(e) => e.preventDefault()}>
         {targetHotkey && <span className="target-hotkey">{targetHotkey}</span>}
@@ -1447,13 +1592,15 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
                 style={{ width: `${u.alive ? (u.hp / u.maxHp * 100) : 0}%` }} />
               {(u.shield || 0) > 0 && <div className="shield-fill" style={{ width: `${Math.min(100, u.shield / u.maxHp * 100)}%` }} />}
             </div>
-            <div className="hp-text">{u.hp}/{u.maxHp}{(u.shield || 0) > 0 && <span className="shield-text"> +{u.shield}</span>}</div>
+            <span className="hp-text">{u.hp}/{u.maxHp}{(u.shield || 0) > 0 && <span className="shield-text"> +{u.shield}</span>}</span>
           </div>
-          <div className="notes-display">
-            {Array.from({ length: Math.min(u.maxNotes, 10) }, (_, i) => (
-              <span key={i} className={`note-dot ${i < u.notes ? 'filled' : ''} ${isEnemy ? 'enemy-note' : ''}`} />
-            ))}
-            <span className="notes-num">{u.notes}/{u.maxNotes}</span>
+          <div className={`notes-bar-wrap ${isEnemy ? 'enemy' : 'ally'}`}>
+            <div className="notes-bar-track">
+              {Array.from({ length: u.maxNotes }, (_, i) => (
+                <span key={i} className={`note-seg ${i < u.notes ? 'filled' : ''} ${i > 0 && i % 5 === 0 ? 'group-sep' : ''}`} />
+              ))}
+            </div>
+            <span className="notes-bar-num">&#9835;{u.notes}/{u.maxNotes}</span>
           </div>
         </div>
         {(() => {
@@ -1484,12 +1631,14 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
 
   return (
     <div className="battle-page" onClick={(e) => {
-      if (pinnedSkillIdx !== null && !e.target.closest('.btn-skill') && !e.target.closest('.effect-detail-panel')) {
+      if (pinnedSkillIdx !== null && !e.target.closest('.btn-skill') && !e.target.closest('.effect-detail-panel') && !e.target.closest('.skill-tooltip-top')) {
         setPinnedSkillIdx(null);
         setShowEffectDetail(false);
+        setHoveredSkillData(null);
       }
     }}>
-      <div className={`battle-bg ${chapterClass}`} />
+      <div className={`battle-bg ${chapterClass}`}
+        style={setup.bgImage ? { backgroundImage: `url(${setup.bgImage})` } : {}} />
 
       {battleBubble && (
         <DialogueBubble
@@ -1501,29 +1650,27 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         />
       )}
 
-      <div className="battle-header">
-        <div className="battle-header-left">
-          <span className="cycle-badge">사이클 {turnCycle}</span>
+      {phase === 'battle_end' && (
+        <div className="battle-header">
           {setup.stageName && <span className="stage-name-label">{setup.stageName}</span>}
+          <span className="turn-info">{result === 'victory' ? '승리!' : '패배'}</span>
         </div>
-        <span className="turn-info">
-          {phase === 'battle_end' ? (result === 'victory' ? '승리!' : '패배') :
-           phase === 'defense_react' ? '방어 선택!' :
-           activeUnit ? `${activeUnit.name}의 턴` : '...'}
-        </span>
-        {phase !== 'battle_end' && (
-          <button className="btn-forfeit" onClick={() => setShowForfeitConfirm(true)}>포기</button>
-        )}
-      </div>
+      )}
 
       {phase !== 'battle_end' && turnOrder.length > 0 && (
         <div className="turn-order-bar">
+          <span className="cycle-badge">C{turnCycle}{setup.maxCycles ? `/${setup.maxCycles}` : ''}</span>
+          {setup.stageName && <span className="stage-name-label">{setup.stageName}</span>}
+          {phase === 'defense_react' && <span className="turn-info">방어 선택!</span>}
           {turnOrder.slice(currentTurnIdx).map((uid, i) => {
             const u = [...party, ...enemies].find(u => u.id === uid);
             if (!u) return null;
             const isCurrent = i === 0;
             return (
-              <div key={`${uid}-${i}`} className={`to-unit ${isCurrent ? 'to-current' : ''} ${u.isEnemy ? 'to-enemy' : 'to-ally'} ${!u.alive ? 'to-dead' : ''}`}>
+              <div key={`${uid}-${i}`}
+                className={`to-unit ${isCurrent ? 'to-current' : ''} ${u.isEnemy ? 'to-enemy' : 'to-ally'} ${!u.alive ? 'to-dead' : ''} ${hoveredUnitId === u.id ? 'to-highlighted' : ''}`}
+                onMouseEnter={() => setHoveredUnitId(u.id)}
+                onMouseLeave={() => setHoveredUnitId(null)}>
                 <div className="to-portrait">
                   {(u.image_sd || u.image_url)
                     ? <img src={u.image_sd || u.image_url} alt={u.name} />
@@ -1533,20 +1680,75 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
               </div>
             );
           })}
+          <button className="btn-forfeit" onClick={() => setShowForfeitConfirm(true)}>포기</button>
         </div>
       )}
 
+      {(hoveredSkillData || pinnedSkillIdx !== null) && (() => {
+        const s = hoveredSkillData || (activeUnit?.skills?.[pinnedSkillIdx]);
+        if (!s) return null;
+        const typeLabel = SKILL_TYPE_LABELS[s.type] || s.type;
+        const isPinned = pinnedSkillIdx !== null && activeUnit?.skills?.[pinnedSkillIdx] === s;
+        return (
+          <div className={`skill-tooltip-top ${isPinned ? 'pinned' : ''}`}>
+            <div className="st-header">
+              {s.icon && <img className="st-icon" src={s.icon} alt="" />}
+              <span className="st-name">{s.name}</span>
+              <span className="st-type" style={{ background: gameConfig.skillTypes[s.type]?.color || '#666' }}>{typeLabel}</span>
+            </div>
+            {s.description && <div className="st-desc">{s.description}</div>}
+            <div className="st-stats">
+              <span>코스트: {s.cost}&#9835;</span>
+              {s.power > 0 && (s.type === 'attack' || s.type === 'ultimate') && <span>위력: {Math.round(s.power * 100)}%</span>}
+              {s.power > 0 && s.type === 'heal' && <span>회복: {Math.round(s.power * 100)}%</span>}
+              <span>대상: {TARGET_LABELS[s.target] || s.target}</span>
+              {s.element !== 'neutral' && <span dangerouslySetInnerHTML={{ __html: '속성: ' + (ELEM_ICONS[s.element] || '') + ' ' + (ELEM_LABELS[s.element] || s.element) }} />}
+              {s.defense_mult > 0 && <span>피해 감소: {Math.round(s.defense_mult * 100)}%</span>}
+              {s.cooldown > 0 && <span>쿨타임: {s.cooldown}턴</span>}
+            </div>
+            {hasExtraEffects(s.extra, s.effectIds) && (
+              <div className={`st-effects ${isPinned ? 'clickable' : ''}`}
+                onMouseEnter={() => { if (isPinned) setShowEffectDetail(true); }}
+                onMouseLeave={() => { if (isPinned) setShowEffectDetail(false); }}
+                onClick={(e) => { if (isPinned) { e.stopPropagation(); setShowEffectDetail(v => !v); } }}>
+                추가 효과 &#9654;
+              </div>
+            )}
+            {isPinned && showEffectDetail && (
+              <div className="effect-detail-panel"
+                onMouseEnter={() => setShowEffectDetail(true)}
+                onMouseLeave={() => setShowEffectDetail(false)}>
+                <div className="edp-title">추가 효과</div>
+                {(s.extra?.effects || []).map((eff, ei) => (
+                  <div key={ei} className="edp-row">
+                    <span className={`edp-type ${eff.type}`}>{eff.type}</span>
+                    <span className="edp-desc">{describeEffect(eff)}</span>
+                    {eff.chance && eff.chance < 1 && <span className="edp-chance">{Math.round(eff.chance * 100)}%</span>}
+                  </div>
+                ))}
+                {getExtraTooltips(s.extra, s.effectIds).map((t, ti) => (
+                  <div key={`t${ti}`} className="edp-row">
+                    <span className={`edp-type ${t.cls}`}>{t.label}</span>
+                    <span className="edp-desc">{t.desc}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="battlefield">
-        <div className="battle-row ally-row">
-          {party.map(p => renderUnit(p, false))}
+        <div className="battle-row enemy-row">
+          {enemies.map(e => renderUnit(e, true))}
         </div>
         <div className="battle-divider">
           <div className="battle-divider-line" />
           <span className="battle-divider-vs">VS</span>
           <div className="battle-divider-line" />
         </div>
-        <div className="battle-row enemy-row">
-          {enemies.map(e => renderUnit(e, true))}
+        <div className="battle-row ally-row">
+          {party.map(p => renderUnit(p, false))}
         </div>
       </div>
 
@@ -1590,7 +1792,17 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         <div className="skill-panel">
           <div className="skill-panel-header">
             <span>{activeUnit.name}의 행동</span>
-            <span className="notes-remain">&#9835; {activeUnit.notes}/{activeUnit.maxNotes}</span>
+            <span className="cmd-notes-text">&#9835; {hoveredSkillCost > 0
+              ? <><span className="cost-red">{activeUnit.notes - hoveredSkillCost}</span>/{activeUnit.maxNotes}</>
+              : <>{activeUnit.notes}/{activeUnit.maxNotes}</>}
+            </span>
+            <div className="cmd-notes-bar">
+              {Array.from({ length: activeUnit.maxNotes }, (_, i) => {
+                const afterCost = activeUnit.notes - hoveredSkillCost;
+                const cls = i < afterCost ? 'filled' : i < activeUnit.notes ? 'cost-preview' : '';
+                return <span key={i} className={`cmd-note-seg ${cls} ${i > 0 && i % 5 === 0 ? 'group-sep' : ''}`} />;
+              })}
+            </div>
             {overload > 0 && <span className="overload-badge">과부하 +{overload}</span>}
           </div>
           <div className="skill-grid">
@@ -1610,6 +1822,8 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
                 <button key={i}
                   className={`btn-skill ${s.type} ${!canUse ? 'disabled' : ''} ${guideLocked ? 'guide-locked' : ''} ${onCooldown ? 'on-cooldown' : ''} ${selectedSkill === s ? 'selected' : ''} ${pinnedSkillIdx === i ? 'pinned' : ''}`}
                   disabled={!canUse}
+                  onMouseEnter={() => { setHoveredSkillCost(effectiveCost); setHoveredSkillData(s); }}
+                  onMouseLeave={() => { setHoveredSkillCost(0); if (pinnedSkillIdx !== i) setHoveredSkillData(null); }}
                   onClick={() => {
                     if (!canUse) return;
                     if (s.target === 'self') {
@@ -1626,9 +1840,11 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
                     if (pinnedSkillIdx === i) {
                       setPinnedSkillIdx(null);
                       setShowEffectDetail(false);
+                      setHoveredSkillData(null);
                     } else {
                       setPinnedSkillIdx(i);
                       setShowEffectDetail(false);
+                      setHoveredSkillData(s);
                     }
                   }}>
                   <span className="skill-hotkey">{i + 1}</span>
@@ -1641,57 +1857,26 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
                     {onCooldown && <span className="skill-cd-badge"> · CD {cdRemain}</span>}
                   </span>
                   <span className="skill-elem" dangerouslySetInnerHTML={{ __html: s.element !== 'neutral' ? (ELEM_ICONS[s.element] || '') : '' }} />
-                  <div className={`skill-tooltip ${pinnedSkillIdx === i ? 'pinned' : ''}`}>
-                    <div className="st-header">
-                      {s.icon && <img className="st-icon" src={s.icon} alt="" />}
-                      <span className="st-name">{s.name}</span>
-                      <span className="st-type" style={{ background: gameConfig.skillTypes[s.type]?.color || '#666' }}>{typeLabel}</span>
-                    </div>
-                    <div className="st-stats">
-                      <span>코스트: {s.cost}&#9835;</span>
-                      {s.power > 0 && <span>{s.type === 'heal' ? '회복' : '위력'}: {Math.round(s.power * 100)}%</span>}
-                      <span>대상: {TARGET_LABELS[s.target] || s.target}</span>
-                      {s.element !== 'neutral' && <span dangerouslySetInnerHTML={{ __html: '속성: ' + (ELEM_ICONS[s.element] || '') + ' ' + (ELEM_LABELS[s.element] || s.element) }} />}
-                      {s.defense_mult > 0 && <span>피해 감소: {Math.round(s.defense_mult * 100)}%</span>}
-                      {s.cooldown > 0 && <span>쿨타임: {s.cooldown}턴</span>}
-                    </div>
-                    {hasExtraEffects(s.extra, s.effectIds) && (
-                      <div className={`st-effects ${pinnedSkillIdx === i ? 'clickable' : ''}`}
-                        onMouseEnter={() => { if (pinnedSkillIdx === i) setShowEffectDetail(true); }}
-                        onMouseLeave={() => { if (pinnedSkillIdx === i) setShowEffectDetail(false); }}
-                        onClick={(e) => { if (pinnedSkillIdx === i) { e.stopPropagation(); setShowEffectDetail(v => !v); } }}>
-                        추가 효과 &#9654;
-                      </div>
-                    )}
-                    {pinnedSkillIdx === i && showEffectDetail && (
-                      <div className="effect-detail-panel"
-                        onMouseEnter={() => setShowEffectDetail(true)}
-                        onMouseLeave={() => setShowEffectDetail(false)}>
-                        <div className="edp-title">추가 효과</div>
-                        {(s.extra?.effects || []).map((eff, ei) => (
-                          <div key={ei} className="edp-row">
-                            <span className={`edp-type ${eff.type}`}>{eff.type}</span>
-                            <span className="edp-desc">{describeEffect(eff)}</span>
-                            {eff.chance && eff.chance < 1 && <span className="edp-chance">{Math.round(eff.chance * 100)}%</span>}
-                          </div>
-                        ))}
-                        {getExtraTooltips(s.extra, s.effectIds).map((t, ti) => (
-                          <div key={`t${ti}`} className="edp-row">
-                            <span className={`edp-type ${t.cls}`}>{t.label}</span>
-                            <span className="edp-desc">{t.desc}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </button>
               );
             })}
+            <button className={`btn-end-turn ${!isEndTurnAllowedByGuide() ? 'guide-locked' : ''}`} onClick={endPlayerTurn} disabled={!isEndTurnAllowedByGuide()}>
+              턴 종료 <span className="hotkey-hint">[E]</span>
+            </button>
           </div>
+          {activeUnit.skills?.some(s => s.type === 'defense') && (
+            <div className="defense-ref-section">
+              {activeUnit.skills.filter(s => s.type === 'defense').map((ds, di) => (
+                <span key={di} className="defense-ref-skill"
+                  onMouseEnter={() => setHoveredSkillData(ds)}
+                  onMouseLeave={() => setHoveredSkillData(null)}>
+                  <span className="drs-name">{ds.name}</span>
+                  <span className="drs-meta" dangerouslySetInnerHTML={{ __html: `${ds.cost}&#9835; / ${Math.round(ds.defense_mult * 100)}% 감소` }} />
+                </span>
+              ))}
+            </div>
+          )}
           {selectingTarget && <div className="target-hint">대상을 선택하세요</div>}
-          <button className={`btn-end-turn ${!isEndTurnAllowedByGuide() ? 'guide-locked' : ''}`} onClick={endPlayerTurn} disabled={!isEndTurnAllowedByGuide()}>
-            턴 종료 (노트 {activeUnit.notes} 남김) <span className="hotkey-hint">[E]</span>
-          </button>
         </div>
       )}
 
@@ -1878,9 +2063,6 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         );
       })()}
 
-      <div className="battle-log" ref={logRef}>
-        {log.map((l, i) => <div key={i} className="log-entry">{l}</div>)}
-      </div>
     </div>
   );
 }

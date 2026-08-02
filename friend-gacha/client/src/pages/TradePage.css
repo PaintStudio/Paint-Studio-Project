@@ -1,7 +1,6 @@
 .trade-page { display: flex; flex-direction: column; gap: 16px; }
 .trade-header { display: flex; align-items: center; justify-content: space-between; }
 .trade-header h2 { font-size: 1.2rem; }
-.btn-back { background: none; color: var(--text-secondary); font-size: 0.9rem; }
 
 .trade-section { display: flex; flex-direction: column; gap: 10px; }
 .trade-section h3 { font-size: 0.95rem; color: var(--text-secondary); }

@@ -1,10 +1,10 @@
 .lobby-page {
-  position: relative; height: 100dvh; display: flex; flex-direction: column;
+  position: relative; height: 1080px; display: flex; flex-direction: column;
   overflow: hidden;
 }
 .lobby-loading {
   display: flex; align-items: center; justify-content: center;
-  height: 100dvh; color: var(--text-muted);
+  height: 1080px; color: var(--text-muted);
 }
 
 /* 배경 - 이미지 + 그라디언트 폴백 */
@@ -15,56 +15,40 @@
 }
 
 /* 상단 재화 바 - 반투명 배경 */
-.lobby-header {
-  position: relative; z-index: 10;
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top));
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-}
-
-/* 프로필 버튼 */
+/* 프로필 버튼 (좌상단) */
 .lobby-profile-btn {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 14px; padding: 6px 14px 6px 6px; cursor: pointer;
-  transition: all 0.2s; margin-right: auto;
+  position: absolute; top: 16px; left: 16px; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 14px; padding: 8px 16px 8px 8px; cursor: pointer;
+  transition: all 0.2s; backdrop-filter: blur(8px);
 }
-.lobby-profile-btn:hover { background: rgba(255,255,255,0.12); border-color: var(--accent); }
+.lobby-profile-btn:hover { background: rgba(0,0,0,0.65); border-color: var(--accent); }
 .lobby-profile-icon {
-  position: relative;
-  width: 42px; height: 42px; border-radius: 50%; overflow: visible;
+  width: 52px; height: 52px; border-radius: 50%; overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg-card); flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.25);
 }
 .lobby-profile-icon img {
   width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
 }
-.lobby-profile-initial { font-size: 1rem; font-weight: 700; color: var(--text-muted); }
-.lobby-profile-lvl-badge {
-  position: absolute; bottom: -4px; right: -4px;
-  min-width: 18px; height: 18px; border-radius: 9px;
-  background: var(--accent); color: #fff; font-size: 0.6rem; font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 4px; border: 2px solid rgba(0,0,0,0.6);
-  line-height: 1;
-}
+.lobby-profile-initial { font-size: 1.2rem; font-weight: 700; color: var(--text-muted); }
 .lobby-profile-info {
-  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
 }
 .lobby-profile-name {
-  font-size: 0.85rem; font-weight: 700; color: var(--text-primary);
+  font-size: 1rem; font-weight: 700; color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 100px;
+  max-width: 120px; text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 .lobby-profile-level {
-  font-size: 0.65rem; font-weight: 600; color: var(--text-muted);
-  letter-spacing: 0.5px;
+  font-size: 0.8rem; font-weight: 700; color: #ffd54f;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
 }
 .lobby-profile-exp-bar {
-  width: 100%; height: 3px; border-radius: 2px;
-  background: rgba(255,255,255,0.1); overflow: hidden;
+  width: 100%; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.15); overflow: hidden;
 }
 .lobby-profile-exp-fill {
   display: block; height: 100%; border-radius: 2px;
@@ -72,19 +56,87 @@
   transition: width 0.5s ease;
 }
 
-.lobby-header-resources {
-  display: flex; align-items: center; gap: 14px;
+/* 우상단 재화/메일/설정 */
+.lobby-top-right {
+  position: absolute; top: 16px; right: 16px; z-index: 10;
+  display: flex; align-items: center; gap: 10px;
 }
-.lobby-res { font-size: 1.1rem; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
-.lobby-res .currency-icon { width: 60px; height: 60px; }
-.lobby-res .currency-icon.prism { width: 53px; height: 53px; }
-.lobby-res.gold { color: #f39c12; }
-.lobby-res.diamond { color: var(--gold); }
+/* 재화/스태미나 통합 박스 */
+.lobby-res-box {
+  display: flex; align-items: center;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 14px; padding: 6px 10px;
+  gap: 10px; height: 52px; box-sizing: border-box;
+}
+.lobby-res-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0;
+}
+.lobby-res-icon img { width: 100%; height: 100%; }
+.lobby-res-inner {
+  position: relative;
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 6px 20px;
+  min-width: 110px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+}
+.lobby-res-inner.stamina {
+  min-width: 140px; overflow: hidden;
+}
+.lobby-res-inner.stamina .stamina-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: linear-gradient(90deg, #43a047, #66bb6a);
+  border-radius: 12px; transition: width 0.5s ease;
+}
+.lobby-res-value {
+  position: relative; z-index: 1;
+  font-size: 0.95rem; font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
+/* 스태미나 툴팁 */
+.stamina-box { position: relative; }
+.stamina-tooltip {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+  background: rgba(10, 10, 30, 0.92); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+  padding: 10px 16px; min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  z-index: 30; pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.stamina-tooltip::before {
+  content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%);
+  width: 10px; height: 10px; background: rgba(10, 10, 30, 0.92);
+  border-left: 1px solid rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255,255,255,0.15);
+  transform: translateX(-50%) rotate(45deg);
+}
+.stamina-tooltip-row {
+  display: flex; justify-content: space-between; gap: 16px;
+  font-size: 0.82rem; color: rgba(255,255,255,0.85);
+  padding: 2px 0;
+}
+.stamina-tooltip-row span:last-child {
+  font-weight: 700; color: #66bb6a;
+  font-variant-numeric: tabular-nums;
+}
+.stamina-tooltip-info {
+  font-size: 0.82rem; color: rgba(255,255,255,0.75);
+  text-align: center; display: block;
+}
+
 .lobby-mail-btn {
-  position: relative; background: none; font-size: 1.1rem; padding: 4px;
-  border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; opacity: 0.7;
+  position: relative; background: rgba(0,0,0,0.5); font-size: 1.1rem; padding: 8px;
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+  backdrop-filter: blur(8px); cursor: pointer;
 }
-.lobby-mail-btn:hover { opacity: 1; border-color: var(--accent); }
+.lobby-mail-btn:hover { border-color: var(--accent); }
 .lobby-mail-badge {
   position: absolute; top: -5px; right: -5px;
   min-width: 16px; height: 16px; border-radius: 8px;
@@ -93,14 +145,15 @@
   padding: 0 3px; line-height: 1;
 }
 .lobby-settings-btn {
-  background: none; font-size: 1.1rem; padding: 4px;
-  border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; opacity: 0.7;
+  background: rgba(0,0,0,0.5); font-size: 1.1rem; padding: 8px;
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+  backdrop-filter: blur(8px); cursor: pointer;
 }
-.lobby-settings-btn:hover { opacity: 1; border-color: var(--accent); }
+.lobby-settings-btn:hover { border-color: var(--accent); }
 
 /* 설정 드롭다운 */
 .lobby-settings-menu {
-  position: absolute; top: 50px; right: 16px; z-index: 20;
+  position: absolute; top: 70px; right: 16px; z-index: 20;
   background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
   overflow: hidden; min-width: 140px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
@@ -112,6 +165,20 @@
 }
 .lobby-settings-menu button:last-child { border-bottom: none; }
 .lobby-settings-menu button:hover { background: var(--bg-card-hover); }
+
+.lobby-settings-bgm {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+}
+.lobby-bgm-toggle {
+  display: flex; align-items: center; gap: 4px;
+  background: none; color: var(--text-primary); font-size: 0.85rem;
+  border: none; cursor: pointer; white-space: nowrap; padding: 0;
+}
+.lobby-bgm-toggle:hover { color: var(--accent); }
+.lobby-bgm-slider {
+  width: 80px; accent-color: var(--accent);
+}
 
 /* 메인 영역 */
 .lobby-main-area {
@@ -128,7 +195,7 @@
   position: relative; display: flex; flex-direction: column; align-items: center;
 }
 .lobby-char-ld {
-  max-height: 55vh; max-width: 60vw; object-fit: contain;
+  max-height: 594px; max-width: 1152px; object-fit: contain;
   background: transparent;
   filter: drop-shadow(0 0 30px rgba(233, 69, 96, 0.3));
   animation: lobbyFloat 4s ease-in-out infinite;

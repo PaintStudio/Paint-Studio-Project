@@ -2,18 +2,13 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { calcStats } = require('../battle');
+const { calcLevelUp } = require('./stage');
+const hotRequire = require('../hotRequire');
 
 const gameConfig = require('../../gameConfig.json');
-function loadTalents() {
-  delete require.cache[require.resolve('../../data/talents')];
-  return require('../../data/talents');
-}
+const loadTalents = () => hotRequire('talents');
+const loadPromotions = () => hotRequire('promotions');
 const router = express.Router();
-
-function loadPromotions() {
-  delete require.cache[require.resolve('../../data/promotions')];
-  return require('../../data/promotions');
-}
 
 const MAX_LEVELS = gameConfig.growth.maxLevels;
 const PROMO_CFG = gameConfig.growth.promotion || {};
@@ -51,6 +46,29 @@ function calcMaxLevel(rarity, promotion) {
   const base = (gameConfig.growth.maxLevels[rarity] || 40);
   const promoBonus = (promotion || 0) * (PROMO_CFG.levelBonusPerTier || 10);
   return base + promoBonus;
+}
+
+function buildFutureSlots(characterId, currentPromotion) {
+  const tiers = getPromoTiers(characterId);
+  const result = [];
+  for (let i = currentPromotion; i < tiers.length; i++) {
+    const tier = tiers[i];
+    const promoSkillReq = 10 + (i + 1);
+    const skills = db.prepare(`
+      SELECT s.id, s.name, s.description, s.type, s.cost, s.power, s.element
+      FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+      WHERE cs.character_id = ? AND cs.awakening_required = ?
+    `).all(characterId, promoSkillReq);
+    if (tier.attackSlots || tier.defenseSlots || skills.length) {
+      result.push({
+        promoTier: i + 1,
+        attackSlots: tier.attackSlots || 0,
+        defenseSlots: tier.defenseSlots || 0,
+        skills: skills.map(s => ({ id: s.id, name: s.name, description: s.description, type: s.type, cost: s.cost, element: s.element })),
+      });
+    }
+  }
+  return result;
 }
 
 // 캐릭터 상세 정보
@@ -129,8 +147,8 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
   const charTalents = loadTalents()[inv.character_id];
   const totalTalentCount = charTalents ? charTalents.talents.length : 0;
   const talentUnlockCount = Math.min(1 + promoBonuses.talentCount, totalTalentCount);
-  const availableTalents = charTalents
-    ? charTalents.talents.slice(0, talentUnlockCount).map((t, i) => ({ index: i, ...t }))
+  const allTalents = charTalents
+    ? charTalents.talents.map((t, i) => ({ index: i, ...t, unlocked: i < talentUnlockCount }))
     : [];
   const equippedTalent = inv.equipped_talent ?? 0;
 
@@ -145,13 +163,14 @@ router.get('/detail/:inventoryId', authMiddleware, (req, res) => {
     promotion: inv.promotion || 0, maxPromotion: getPromoTiers(inv.character_id).length,
     turnNotes: inv.turn_notes + Math.floor(inv.level / 10) + inv.awakening * 2 + promoBonuses.bonusNotes,
     stats,
-    talents: availableTalents,
+    talents: allTalents,
     talentUnlockCount,
     totalTalentCount,
     equippedTalent,
     isLocked: !!inv.is_locked,
     attackSlots: { total: effectiveAtkSlots, skills: attackEquipped.map(mapSkill) },
     defenseSlots: { total: effectiveDefSlots, skills: defenseEquipped.map(mapSkill) },
+    futureSlots: buildFutureSlots(inv.character_id, inv.promotion || 0),
     // 하위호환용
     equippedSkills: [...attackEquipped, ...defenseEquipped].map(mapSkill),
     skillPool: skillPool.map(s => ({
@@ -372,15 +391,9 @@ router.post('/levelup', authMiddleware, (req, res) => {
     for (const c of consumed) {
       db.prepare('UPDATE user_items SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?').run(c.count, req.user.id, c.itemId);
     }
-    let exp = inv.exp + totalExp;
-    let level = inv.level;
-    while (level < maxLevel) {
-      const needed = level * level * 10 + level * 50;
-      if (exp >= needed) { exp -= needed; level++; } else break;
-    }
-    if (level >= maxLevel) exp = 0;
-    db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(exp, level, inventoryId);
-    return { exp, level };
+    const result = calcLevelUp(inv.level, inv.exp, totalExp, maxLevel);
+    db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(result.exp, result.level, inventoryId);
+    return result;
   });
 
   const result = doLevelUp();
@@ -392,6 +405,7 @@ router.post('/levelup', authMiddleware, (req, res) => {
 
 // 각성
 router.post('/awaken', authMiddleware, (req, res) => {
+  try {
   const { inventoryId, materialId } = req.body;
 
   const target = db.prepare(`
@@ -430,9 +444,6 @@ router.post('/awaken', authMiddleware, (req, res) => {
           .run(JSON.stringify(cleaned), req.user.id, p.slot);
       }
     }
-    // 대표 캐릭터가 재료로 소모됐으면 해제
-    db.prepare('UPDATE users SET representative_inventory_id = NULL WHERE id = ? AND representative_inventory_id = ?')
-      .run(req.user.id, materialId);
   });
   doAwaken();
 
@@ -446,6 +457,10 @@ router.post('/awaken', authMiddleware, (req, res) => {
     goldSpent: goldCost,
     grantedSkills,
   });
+  } catch (err) {
+    console.error('[육성] 각성 오류:', err.message);
+    res.status(500).json({ error: '각성 처리 중 오류가 발생했습니다' });
+  }
 });
 
 // 캐릭터별 승급 요구사항 조회 (per-character → fallback global)
@@ -456,6 +471,7 @@ function getPromoTiers(characterId) {
 
 // 승급
 router.post('/promote', authMiddleware, (req, res) => {
+  try {
   const { inventoryId } = req.body;
 
   const inv = db.prepare(`
@@ -508,6 +524,10 @@ router.post('/promote', authMiddleware, (req, res) => {
     goldSpent: goldCost,
     grantedSkills,
   });
+  } catch (err) {
+    console.error('[육성] 승급 오류:', err.message);
+    res.status(500).json({ error: '승급 처리 중 오류가 발생했습니다' });
+  }
 });
 
 // 승급 요구사항 조회
@@ -549,7 +569,23 @@ router.get('/promote-info/:inventoryId', authMiddleware, (req, res) => {
   if (tier.attackSlots) rewards.attackSlots = tier.attackSlots;
   if (tier.defenseSlots) rewards.defenseSlots = tier.defenseSlots;
   if (tier.bonusNotes) rewards.bonusNotes = tier.bonusNotes;
-  if (tier.unlockTalent) rewards.unlockTalent = true;
+  if (tier.unlockTalent) {
+    rewards.unlockTalent = true;
+    const charTalents = loadTalents()[inv.character_id];
+    const nextPromoBonuses = calcPromoBonuses(inv.character_id, curPromo + 1);
+    const nextTalentIdx = Math.min(1 + nextPromoBonuses.talentCount, (charTalents?.talents.length || 0)) - 1;
+    if (charTalents && charTalents.talents[nextTalentIdx]) {
+      rewards.unlockTalentName = charTalents.talents[nextTalentIdx].name;
+      rewards.unlockTalentDesc = charTalents.talents[nextTalentIdx].desc;
+    }
+  }
+
+  const promoSkillReq = 10 + (curPromo + 1);
+  const unlockSkills = db.prepare(`
+    SELECT s.id, s.name, s.description, s.type, s.cost, s.power, s.element
+    FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+    WHERE cs.character_id = ? AND cs.awakening_required = ?
+  `).all(inv.character_id, promoSkillReq);
 
   res.json({
     maxed: false,
@@ -563,6 +599,10 @@ router.get('/promote-info/:inventoryId', authMiddleware, (req, res) => {
       materials,
     },
     rewards,
+    unlockSkills: unlockSkills.map(s => ({
+      id: s.id, name: s.name, description: s.description,
+      type: s.type, cost: s.cost, power: s.power, element: s.element,
+    })),
   });
 });
 
@@ -707,12 +747,14 @@ router.put('/party-presets/:slot', authMiddleware, (req, res) => {
 
 // 대표 캐릭터 설정
 router.post('/set-representative', authMiddleware, (req, res) => {
-  const { inventoryId } = req.body;
-  if (inventoryId) {
-    const inv = db.prepare('SELECT id FROM inventory WHERE id = ? AND user_id = ?').get(inventoryId, req.user.id);
+  const { inventoryId, characterId } = req.body;
+  let charId = characterId;
+  if (!charId && inventoryId) {
+    const inv = db.prepare('SELECT character_id FROM inventory WHERE id = ? AND user_id = ?').get(inventoryId, req.user.id);
     if (!inv) return res.status(404).json({ error: '보유하지 않은 캐릭터입니다' });
+    charId = inv.character_id;
   }
-  db.prepare('UPDATE users SET representative_inventory_id = ? WHERE id = ?').run(inventoryId || null, req.user.id);
+  db.prepare('UPDATE users SET representative_character_id = ? WHERE id = ?').run(charId || null, req.user.id);
   res.json({ ok: true });
 });
 
@@ -721,14 +763,15 @@ router.get('/lobby', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
   let representative = null;
-  if (user.representative_inventory_id) {
+  if (user.representative_character_id) {
     representative = db.prepare(`
       SELECT i.id as inventory_id, i.level, i.awakening, i.promotion,
              c.id as character_id, c.name, c.rarity, c.element, c.origin, c.title, c.quote,
              c.image_url, c.image_bust, c.image_sd, c.image_ld
       FROM inventory i JOIN characters c ON i.character_id = c.id
-      WHERE i.id = ? AND i.user_id = ?
-    `).get(user.representative_inventory_id, req.user.id);
+      WHERE c.id = ? AND i.user_id = ?
+      ORDER BY i.level DESC LIMIT 1
+    `).get(user.representative_character_id, req.user.id);
   }
 
   // 대표 없으면 가장 높은 레어도 캐릭터 자동

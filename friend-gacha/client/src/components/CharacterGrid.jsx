@@ -1,12 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import gameConfig from '@gameConfig';
+import { ELEM_COLORS, RARITY_COLORS } from '../utils/gameConstants';
 import './CharacterGrid.css';
-
-const ELEM_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.elements)) ELEM_COLORS[k] = v.color;
-
-const RARITY_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
 
 const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, CR: 4 };
 

@@ -70,8 +70,6 @@ router.post('/accept/:tradeId', authMiddleware, (req, res) => {
             .run(JSON.stringify(ids.filter(id => id !== invId)), userId, p.slot);
         }
       }
-      db.prepare('UPDATE users SET representative_inventory_id = NULL WHERE id = ? AND representative_inventory_id = ?')
-        .run(userId, invId);
     }
     // 거래 완료
     db.prepare('UPDATE trades SET status = "accepted", resolved_at = CURRENT_TIMESTAMP WHERE id = ?').run(trade.id);

@@ -1,9 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const db = require('../db');
+const { initCharacterSkills } = require('../db');
 const { generateToken, authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
+
+function newSessionId() {
+  return crypto.randomBytes(16).toString('hex');
+}
 
 // 회원가입
 router.post('/register', (req, res) => {
@@ -15,10 +21,20 @@ router.post('/register', (req, res) => {
 
   const hash = bcrypt.hashSync(password, 10);
   const name = displayName || username;
-  const result = db.prepare('INSERT INTO users (username, password_hash, display_name) VALUES (?, ?, ?)').run(username, hash, name);
+  const sessionId = newSessionId();
+  const result = db.prepare('INSERT INTO users (username, password_hash, display_name, session_id) VALUES (?, ?, ?, ?)').run(username, hash, name, sessionId);
+  const userId = result.lastInsertRowid;
 
-  const user = db.prepare('SELECT id, username, display_name, currency, tutorial_done, tutorial_step FROM users WHERE id = ?').get(result.lastInsertRowid);
-  const token = generateToken(user);
+  // 기본 지급 캐릭터: 프림 (charId 22)
+  const STARTER_CHAR_ID = 22;
+  const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)').run(userId, STARTER_CHAR_ID);
+  try { initCharacterSkills(userId, inv.lastInsertRowid, STARTER_CHAR_ID); } catch (e) {
+    console.error('[회원가입] 스킬 초기화 실패:', e.message);
+  }
+  db.prepare('UPDATE users SET representative_character_id = ? WHERE id = ?').run(STARTER_CHAR_ID, userId);
+
+  const user = db.prepare('SELECT id, username, display_name, currency, tutorial_done, tutorial_step FROM users WHERE id = ?').get(userId);
+  const token = generateToken(user, sessionId);
 
   res.json({ token, user: { id: user.id, username: user.username, displayName: user.display_name, currency: user.currency, tutorialDone: !!user.tutorial_done, tutorialStep: user.tutorial_step || 0 } });
 });
@@ -31,7 +47,10 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: '아이디 또는 비밀번호가 틀렸습니다' });
   }
 
-  const token = generateToken(user);
+  const sessionId = newSessionId();
+  db.prepare('UPDATE users SET session_id = ? WHERE id = ?').run(sessionId, user.id);
+
+  const token = generateToken(user, sessionId);
   res.json({
     token,
     user: { id: user.id, username: user.username, displayName: user.display_name, currency: user.currency, totalPulls: user.total_pulls, tutorialDone: !!user.tutorial_done, tutorialStep: user.tutorial_step || 0 }

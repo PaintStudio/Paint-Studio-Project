@@ -29,6 +29,8 @@
  * ──────────────────────────────────────────
  */
 
+const ORIGINS = ['force', 'life', 'season', 'memory', 'sound', 'time', 'space', 'intellect', 'heart'];
+
 const monsters = {
 
   // ========== 챕터 1: 시작의 마을 (N 캐릭터 대상) ==========
@@ -432,55 +434,6 @@ const monsters = {
     ],
   },
 
-  // ========== 파밍 던전: 경험치 ==========
-  exp_wisp_low: {
-    id: 'exp_wisp_low',
-    name: '기억의 잔영',
-    element: 'neutral',
-    origin: 'memory',
-    image_sd: null,
-    isBoss: false,
-    hp: 25, atk: 3, def: 2, spd: 5,
-    turn_notes: 2,
-    skills: [
-      { id: 200, name: '흐릿한 빛', type: 'attack', cost: 1, power: 0.8, element: 'neutral', target: 'single' },
-    ],
-    drops: [],
-  },
-
-  exp_wisp_mid: {
-    id: 'exp_wisp_mid',
-    name: '기억의 파편체',
-    element: 'neutral',
-    origin: 'memory',
-    image_sd: null,
-    isBoss: false,
-    hp: 60, atk: 8, def: 5, spd: 7,
-    turn_notes: 3,
-    skills: [
-      { id: 201, name: '파편 투사', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' },
-      { id: 202, name: '기억 산란', type: 'attack', cost: 2, power: 0.9, element: 'neutral', target: 'aoe' },
-    ],
-    drops: [],
-  },
-
-  exp_wisp_high: {
-    id: 'exp_wisp_high',
-    name: '기억의 결정체',
-    element: 'neutral',
-    origin: 'memory',
-    image_sd: null,
-    isBoss: false,
-    hp: 120, atk: 15, def: 10, spd: 9,
-    turn_notes: 4,
-    skills: [
-      { id: 203, name: '결정 쇄도', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' },
-      { id: 204, name: '기억 폭류', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' },
-      { id: 205, name: '응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' },
-    ],
-    drops: [],
-  },
-
   // ========== 파밍 던전: 비트 (골드) ==========
   gold_mimic_low: {
     id: 'gold_mimic_low',
@@ -529,6 +482,251 @@ const monsters = {
     ],
     drops: [],
   },
+
+  gold_mimic_top: {
+    id: 'gold_mimic_top',
+    name: '백금 드래곤',
+    element: 'light',
+    origin: 'heart',
+    image_sd: null,
+    isBoss: false,
+    hp: 280, atk: 26, def: 22, spd: 7,
+    turn_notes: 5,
+    skills: [
+      { id: 230, name: '백금 브레스', type: 'attack', cost: 2, power: 1.5, element: 'light', target: 'single' },
+      { id: 231, name: '보물 폭풍', type: 'attack', cost: 3, power: 1.2, element: 'light', target: 'aoe' },
+      { id: 232, name: '백금 갑옷', type: 'defense', cost: 1, power: 1, defense_mult: 0.6, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
+
+  // ========== 일반 던전 몬스터 (placeholder) ==========
+  normal_mob_a: {
+    id: 'normal_mob_a', name: '몬스터 A',
+    element: 'neutral', origin: 'force',
+    hp: 25, atk: 3, def: 2, spd: 5, turn_notes: 2,
+    skills: [
+      { id: 240, name: '공격 A', type: 'attack', cost: 1, power: 0.8, element: 'neutral', target: 'single' },
+    ],
+    drops: [],
+  },
+  normal_mob_b: {
+    id: 'normal_mob_b', name: '몬스터 B',
+    element: 'fire', origin: 'life',
+    hp: 35, atk: 5, def: 3, spd: 6, turn_notes: 2,
+    skills: [
+      { id: 241, name: '공격 B', type: 'attack', cost: 1, power: 0.9, element: 'fire', target: 'single' },
+    ],
+    drops: [],
+  },
+  normal_mob_c: {
+    id: 'normal_mob_c', name: '몬스터 C',
+    element: 'water', origin: 'season',
+    hp: 50, atk: 8, def: 5, spd: 7, turn_notes: 3,
+    skills: [
+      { id: 242, name: '공격 C', type: 'attack', cost: 1, power: 1.0, element: 'water', target: 'single' },
+      { id: 243, name: '방어 C', type: 'defense', cost: 1, power: 1, defense_mult: 0.3, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
+  normal_mob_d: {
+    id: 'normal_mob_d', name: '몬스터 D',
+    element: 'wind', origin: 'memory',
+    hp: 70, atk: 11, def: 8, spd: 7, turn_notes: 3,
+    skills: [
+      { id: 244, name: '공격 D', type: 'attack', cost: 1, power: 1.0, element: 'wind', target: 'single' },
+      { id: 245, name: '방어 D', type: 'defense', cost: 1, power: 1, defense_mult: 0.35, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
+  normal_mob_e: {
+    id: 'normal_mob_e', name: '몬스터 E',
+    element: 'dark', origin: 'sound',
+    hp: 95, atk: 14, def: 10, spd: 8, turn_notes: 3,
+    skills: [
+      { id: 246, name: '공격 E', type: 'attack', cost: 1, power: 1.1, element: 'dark', target: 'single' },
+      { id: 247, name: '범위 공격 E', type: 'attack', cost: 2, power: 0.8, element: 'dark', target: 'aoe' },
+    ],
+    drops: [],
+  },
+  normal_mob_f: {
+    id: 'normal_mob_f', name: '몬스터 F',
+    element: 'light', origin: 'time',
+    hp: 120, atk: 17, def: 13, spd: 8, turn_notes: 4,
+    skills: [
+      { id: 248, name: '공격 F', type: 'attack', cost: 1, power: 1.2, element: 'light', target: 'single' },
+      { id: 249, name: '방어 F', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
+  normal_mob_g: {
+    id: 'normal_mob_g', name: '몬스터 G',
+    element: 'fire', origin: 'space',
+    hp: 150, atk: 20, def: 16, spd: 9, turn_notes: 4,
+    skills: [
+      { id: 250, name: '공격 G', type: 'attack', cost: 1, power: 1.2, element: 'fire', target: 'single' },
+      { id: 251, name: '범위 공격 G', type: 'attack', cost: 3, power: 1.0, element: 'fire', target: 'aoe' },
+      { id: 252, name: '방어 G', type: 'defense', cost: 1, power: 1, defense_mult: 0.45, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
+  normal_mob_h: {
+    id: 'normal_mob_h', name: '몬스터 H',
+    element: 'water', origin: 'intellect',
+    hp: 190, atk: 24, def: 19, spd: 10, turn_notes: 4,
+    skills: [
+      { id: 253, name: '공격 H', type: 'attack', cost: 2, power: 1.4, element: 'water', target: 'single' },
+      { id: 254, name: '범위 공격 H', type: 'attack', cost: 3, power: 1.1, element: 'water', target: 'aoe' },
+      { id: 255, name: '방어 H', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' },
+    ],
+    drops: [],
+  },
 };
+
+// ========== 파밍 던전: 근원별 경험치 몬스터 (자동 생성) ==========
+const ORIGIN_LABELS = {
+  force: '마력', life: '생명', season: '계절',
+  memory: '기억', sound: '소리', time: '시간',
+  space: '공간', intellect: '지성', heart: '마음',
+};
+const NEXT_TIER = { low: 'mid', mid: 'high', high: 'top', top: null };
+
+const WISP_TIERS = {
+  low:  { suffix: '의 잔영',   hp: 200, atk: 16, def: 14, spd: 9,  notes: 2, skills: [{ id: 200, name: '흐릿한 빛', type: 'attack', cost: 1, power: 0.9, element: 'neutral', target: 'single' }, { id: 229, name: '약한 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.25, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 파편체', hp: 280, atk: 28, def: 18, spd: 10, notes: 3, skills: [{ id: 201, name: '파편 투사',     type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 202, name: '근원 산란', type: 'attack', cost: 2, power: 0.9, element: 'neutral', target: 'aoe' }] },
+  high: { suffix: '의 결정체', hp: 500, atk: 42, def: 28, spd: 12, notes: 3, skills: [{ id: 203, name: '결정 쇄도',     type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 204, name: '근원 폭류', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 205, name: '응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 현신',   hp: 750, atk: 58, def: 38, spd: 14, notes: 4, skills: [{ id: 225, name: '고대 결정 쇄도', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 226, name: '근원 대폭류', type: 'attack', cost: 3, power: 1.1, element: 'neutral', target: 'aoe' }, { id: 227, name: '고대 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+};
+
+const GUARDIAN_TIERS = {
+  low:  { suffix: '의 수호자',     hp: 400,  atk: 22, def: 18, spd: 7,  notes: 3, skills: [{ id: 212, name: '근원의 파동', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 213, name: '근원의 일격', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 228, name: '약한 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.3, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 결정 수호자', hp: 550,  atk: 38, def: 24, spd: 9,  notes: 4, skills: [{ id: 214, name: '파편의 빛', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 215, name: '결정 사출', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 216, name: '근원의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  high: { suffix: '의 태고 수호자', hp: 900,  atk: 55, def: 38, spd: 11, notes: 5, skills: [{ id: 217, name: '결정 포격', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 218, name: '근원 연쇄', type: 'attack', cost: 2, power: 1.6, element: 'neutral', target: 'single' }, { id: 219, name: '결정 폭우', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 220, name: '태고의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 시원 수호자', hp: 1400, atk: 75, def: 52, spd: 13, notes: 6, skills: [{ id: 221, name: '태고 결정', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 222, name: '근원의 심판', type: 'attack', cost: 2, power: 1.8, element: 'neutral', target: 'single' }, { id: 223, name: '결정 대폭발', type: 'attack', cost: 4, power: 1.2, element: 'neutral', target: 'aoe' }, { id: 224, name: '태고의 수정벽', type: 'defense', cost: 2, power: 1, defense_mult: 0.6, element: 'neutral', target: 'self' }] },
+};
+
+for (const origin of ORIGINS) {
+  const label = ORIGIN_LABELS[origin];
+  for (const [tier, t] of Object.entries(WISP_TIERS)) {
+    monsters[`exp_wisp_${origin}_${tier}`] = {
+      id: `exp_wisp_${origin}_${tier}`, name: `${label}${t.suffix}`,
+      element: 'neutral', origin, image_sd: null, isBoss: false,
+      hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+      skills: t.skills,
+      drops: [{ itemId: `frag_${origin}_${tier}`, rate: 0.80 }],
+    };
+  }
+  for (const [tier, t] of Object.entries(GUARDIAN_TIERS)) {
+    const next = NEXT_TIER[tier];
+    const drops = [
+      { itemId: `frag_${origin}_${tier}`, rate: 0.90, quantity: 2 },
+      ...(next
+        ? [{ itemId: `frag_${origin}_${next}`, rate: 0.15 }]
+        : [{ itemId: `frag_${origin}_${tier}`, rate: 0.50 }]),
+    ];
+    monsters[`exp_guardian_${origin}_${tier}`] = {
+      id: `exp_guardian_${origin}_${tier}`, name: `${label}${t.suffix}`,
+      element: 'neutral', origin, image_sd: null, isBoss: false,
+      hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+      skills: t.skills,
+      drops,
+    };
+  }
+}
+
+// ========== 승급 던전: 근원 정수 몬스터 (자동 생성) ==========
+const STONE_SIZE = { low: 'low', mid: 'medium', high: 'big', top: 'max' };
+const AW_WISP_TIERS = {
+  low:  { suffix: '의 정수체',     hp: 230, atk: 18, def: 16, spd: 9,  notes: 2, skills: [{ id: 200, name: '흐릿한 빛', type: 'attack', cost: 1, power: 0.9, element: 'neutral', target: 'single' }, { id: 229, name: '약한 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.25, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 정수 결정',   hp: 320, atk: 32, def: 21, spd: 10, notes: 3, skills: [{ id: 201, name: '파편 투사', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 202, name: '근원 산란', type: 'attack', cost: 2, power: 0.9, element: 'neutral', target: 'aoe' }] },
+  high: { suffix: '의 정수 핵',     hp: 575, atk: 48, def: 32, spd: 12, notes: 3, skills: [{ id: 203, name: '결정 쇄도', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 204, name: '근원 폭류', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 205, name: '응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 순수 정수체', hp: 860, atk: 67, def: 44, spd: 14, notes: 4, skills: [{ id: 225, name: '고대 결정 쇄도', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 226, name: '근원 대폭류', type: 'attack', cost: 3, power: 1.1, element: 'neutral', target: 'aoe' }, { id: 227, name: '고대 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+};
+const AW_GUARD_TIERS = {
+  low:  { suffix: '의 정수 수호자',       hp: 460,  atk: 25, def: 21, spd: 7,  notes: 3, skills: [{ id: 212, name: '근원의 파동', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 213, name: '근원의 일격', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 228, name: '약한 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.3, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 정수 결정 수호자',   hp: 630,  atk: 44, def: 28, spd: 9,  notes: 4, skills: [{ id: 214, name: '파편의 빛', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 215, name: '결정 사출', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 216, name: '근원의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  high: { suffix: '의 정수 태고 수호자',   hp: 1035, atk: 63, def: 44, spd: 11, notes: 5, skills: [{ id: 217, name: '결정 포격', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 218, name: '근원 연쇄', type: 'attack', cost: 2, power: 1.6, element: 'neutral', target: 'single' }, { id: 219, name: '결정 폭우', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 220, name: '태고의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 정수 시원 수호자',   hp: 1610, atk: 86, def: 60, spd: 13, notes: 6, skills: [{ id: 221, name: '태고 결정', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 222, name: '근원의 심판', type: 'attack', cost: 2, power: 1.8, element: 'neutral', target: 'single' }, { id: 223, name: '결정 대폭발', type: 'attack', cost: 4, power: 1.2, element: 'neutral', target: 'aoe' }, { id: 224, name: '태고의 수정벽', type: 'defense', cost: 2, power: 1, defense_mult: 0.6, element: 'neutral', target: 'self' }] },
+};
+
+for (const origin of ORIGINS) {
+  const label = ORIGIN_LABELS[origin];
+  for (const [tier, t] of Object.entries(AW_WISP_TIERS)) {
+    monsters[`awaken_wisp_${origin}_${tier}`] = {
+      id: `awaken_wisp_${origin}_${tier}`, name: `${label}${t.suffix}`,
+      element: 'neutral', origin, image_sd: null, isBoss: false,
+      hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+      skills: t.skills,
+      drops: [{ itemId: `${origin}stone${STONE_SIZE[tier]}`, rate: 0.65 }],
+    };
+  }
+  for (const [tier, t] of Object.entries(AW_GUARD_TIERS)) {
+    const next = NEXT_TIER[tier];
+    const nextSize = next ? STONE_SIZE[next] : null;
+    const drops = [
+      { itemId: `${origin}stone${STONE_SIZE[tier]}`, rate: 0.85, quantity: 2 },
+      ...(nextSize
+        ? [{ itemId: `${origin}stone${nextSize}`, rate: 0.10 }]
+        : [{ itemId: `${origin}stone${STONE_SIZE[tier]}`, rate: 0.40 }]),
+    ];
+    monsters[`awaken_guardian_${origin}_${tier}`] = {
+      id: `awaken_guardian_${origin}_${tier}`, name: `${label}${t.suffix}`,
+      element: 'neutral', origin, image_sd: null, isBoss: false,
+      hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+      skills: t.skills, drops,
+    };
+  }
+}
+
+// ========== 승급 던전: 속성 코드 몬스터 (자동 생성) ==========
+const ELEMENT_LABELS = { fire: '불꽃', water: '물결', wind: '바람', light: '빛', dark: '어둠' };
+const ELEMENTS = ['fire', 'water', 'wind', 'light', 'dark'];
+const CODE_SIZE = { low: 'small', mid: 'medium', high: 'big', top: 'max' };
+
+const ELEM_WISP_TIERS = {
+  low:  { suffix: '의 코드 조각', hp: 230, atk: 18, def: 16, spd: 9,  notes: 2, skills: [{ id: 200, name: '흐릿한 빛', type: 'attack', cost: 1, power: 0.9, element: 'neutral', target: 'single' }, { id: 229, name: '약한 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.25, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 코드 파편', hp: 320, atk: 32, def: 21, spd: 10, notes: 3, skills: [{ id: 201, name: '파편 투사', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 202, name: '근원 산란', type: 'attack', cost: 2, power: 0.9, element: 'neutral', target: 'aoe' }] },
+  high: { suffix: '의 코드 결정', hp: 575, atk: 48, def: 32, spd: 12, notes: 3, skills: [{ id: 203, name: '결정 쇄도', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 204, name: '근원 폭류', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 205, name: '응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 순수 코드',  hp: 860, atk: 67, def: 44, spd: 14, notes: 4, skills: [{ id: 225, name: '고대 결정 쇄도', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 226, name: '근원 대폭류', type: 'attack', cost: 3, power: 1.1, element: 'neutral', target: 'aoe' }, { id: 227, name: '고대 응축', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+};
+const ELEM_GUARD_TIERS = {
+  low:  { suffix: '의 코드 수호자',     hp: 460,  atk: 25, def: 21, spd: 7,  notes: 3, skills: [{ id: 212, name: '근원의 파동', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 213, name: '근원의 일격', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 228, name: '약한 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.3, element: 'neutral', target: 'self' }] },
+  mid:  { suffix: '의 코드 결정 수호자', hp: 630,  atk: 44, def: 28, spd: 9,  notes: 4, skills: [{ id: 214, name: '파편의 빛', type: 'attack', cost: 1, power: 1.0, element: 'neutral', target: 'single' }, { id: 215, name: '결정 사출', type: 'attack', cost: 2, power: 1.4, element: 'neutral', target: 'single' }, { id: 216, name: '근원의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.4, element: 'neutral', target: 'self' }] },
+  high: { suffix: '의 코드 태고 수호자', hp: 1035, atk: 63, def: 44, spd: 11, notes: 5, skills: [{ id: 217, name: '결정 포격', type: 'attack', cost: 1, power: 1.2, element: 'neutral', target: 'single' }, { id: 218, name: '근원 연쇄', type: 'attack', cost: 2, power: 1.6, element: 'neutral', target: 'single' }, { id: 219, name: '결정 폭우', type: 'attack', cost: 3, power: 1.0, element: 'neutral', target: 'aoe' }, { id: 220, name: '태고의 방벽', type: 'defense', cost: 1, power: 1, defense_mult: 0.5, element: 'neutral', target: 'self' }] },
+  top:  { suffix: '의 코드 시원 수호자', hp: 1610, atk: 86, def: 60, spd: 13, notes: 6, skills: [{ id: 221, name: '태고 결정', type: 'attack', cost: 1, power: 1.3, element: 'neutral', target: 'single' }, { id: 222, name: '근원의 심판', type: 'attack', cost: 2, power: 1.8, element: 'neutral', target: 'single' }, { id: 223, name: '결정 대폭발', type: 'attack', cost: 4, power: 1.2, element: 'neutral', target: 'aoe' }, { id: 224, name: '태고의 수정벽', type: 'defense', cost: 2, power: 1, defense_mult: 0.6, element: 'neutral', target: 'self' }] },
+};
+
+const ADMIN_CUSTOM_ELEMENTS = ['fire', 'water', 'wind', 'light', 'dark'];
+
+for (const element of ELEMENTS) {
+  const label = ELEMENT_LABELS[element];
+  if (!ADMIN_CUSTOM_ELEMENTS.includes(element)) {
+    for (const [tier, t] of Object.entries(ELEM_WISP_TIERS)) {
+      monsters[`awaken_elem_${element}_${tier}`] = {
+        id: `awaken_elem_${element}_${tier}`, name: `${label}${t.suffix}`,
+        element, origin: 'force', image_sd: null, isBoss: false,
+        hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+        skills: t.skills,
+        drops: [{ itemId: `${element}code${CODE_SIZE[tier]}`, rate: 0.65 }],
+      };
+    }
+  }
+  for (const [tier, t] of Object.entries(ELEM_GUARD_TIERS)) {
+    const next = NEXT_TIER[tier];
+    const nextSize = next ? CODE_SIZE[next] : null;
+    const drops = [
+      { itemId: `${element}code${CODE_SIZE[tier]}`, rate: 0.85, quantity: 2 },
+      ...(nextSize
+        ? [{ itemId: `${element}code${nextSize}`, rate: 0.10 }]
+        : [{ itemId: `${element}code${CODE_SIZE[tier]}`, rate: 0.40 }]),
+    ];
+    monsters[`awaken_elem_guard_${element}_${tier}`] = {
+      id: `awaken_elem_guard_${element}_${tier}`, name: `${label}${t.suffix}`,
+      element, origin: 'force', image_sd: null, isBoss: false,
+      hp: t.hp, atk: t.atk, def: t.def, spd: t.spd, turn_notes: t.notes,
+      skills: t.skills, drops,
+    };
+  }
+}
 
 module.exports = monsters;

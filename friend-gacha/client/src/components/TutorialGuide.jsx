@@ -9,9 +9,22 @@ const TutorialGuide = forwardRef(function TutorialGuide({ user, currentPage, onN
   const [constraint, setConstraint] = useState(null);
   const tutorialStep = user?.tutorialStep;
 
-  const config = tutorialGuide.find(g => g.step === tutorialStep && g.page === currentPage);
+  const alreadyPulled = (user?.totalPulls || 0) > 0;
+  const gachaTutorialSteps = tutorialGuide.filter(g => g.steps.some(s => s.waitFor === 'gacha_pull')).map(g => g.step);
+  const maxGachaStep = Math.max(...gachaTutorialSteps, 0);
+  const shouldSkipGacha = alreadyPulled && tutorialStep >= 1 && tutorialStep <= maxGachaStep;
+
+  const config = shouldSkipGacha ? null : tutorialGuide.find(g => g.step === tutorialStep && g.page === currentPage);
 
   useEffect(() => {
+    if (shouldSkipGacha) {
+      setVisible(false);
+      setConstraint(null);
+      api.tutorialAdvance(999).then(() => {
+        onUserUpdate(prev => ({ ...prev, tutorialStep: 999, tutorialDone: true }));
+      });
+      return;
+    }
     if (!config) { setVisible(false); setConstraint(null); setGuideStep(0); return; }
     setGuideStep(0);
     setConstraint(null);

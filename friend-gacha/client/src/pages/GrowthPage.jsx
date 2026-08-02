@@ -3,67 +3,10 @@ import { api } from '../utils/api';
 import gameConfig from '@gameConfig';
 import CharacterGrid from '../components/CharacterGrid';
 import DialogueBubble from '../components/DialogueBubble';
+import { ElementModal, OriginModal } from '../components/InfoModals';
 import { loadDialogues, getLine, getPromotionLine } from '../utils/dialogues';
+import { ELEM_ICONS, ELEM_COLORS, ELEM_LABELS, ORIGIN_LABELS, ORIGIN_COLORS, RARITY_COLORS, SKILL_TYPE_LABELS, SKILL_TYPE_COLORS, getRarityStyle, RARITY_ORDER_LIST, canEquipSkill, simulateLevelUp, calcExpToMax } from '../utils/gameConstants';
 import './GrowthPage.css';
-
-const ELEM_ICONS = { fire: '&#128293;', water: '&#128167;', wind: '&#127811;', light: '&#10024;', dark: '&#127761;', neutral: '&#9898;' };
-
-const ELEM_COLORS = {};
-const ELEM_LABELS = {};
-for (const [k, v] of Object.entries(gameConfig.elements)) { ELEM_COLORS[k] = v.color; ELEM_LABELS[k] = v.label; }
-
-const ORIGIN_LABELS = {};
-const ORIGIN_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.origins)) {
-  ORIGIN_LABELS[k] = v.label;
-  ORIGIN_COLORS[k] = v.color;
-}
-
-const RARITY_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
-
-const SKILL_TYPE_LABELS = {};
-const SKILL_TYPE_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.skillTypes)) {
-  SKILL_TYPE_LABELS[k] = v.label;
-  SKILL_TYPE_COLORS[k] = v.color;
-}
-
-function simulateLevelUp(currentLevel, currentExp, addedExp, maxLevel) {
-  let exp = currentExp + addedExp;
-  let level = currentLevel;
-  while (level < maxLevel) {
-    const needed = level * level * 10 + level * 50;
-    if (exp >= needed) { exp -= needed; level++; } else break;
-  }
-  return { level, exp, nextExp: level * level * 10 + level * 50 };
-}
-
-function calcExpToMax(currentLevel, currentExp, maxLevel) {
-  let total = 0;
-  for (let lv = currentLevel; lv < maxLevel; lv++) total += lv * lv * 10 + lv * 50;
-  return Math.max(0, total - currentExp);
-}
-
-function getRarityStyle(rarity) {
-  if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
-  return { color: RARITY_COLORS[rarity] || '#888' };
-}
-
-const RARITY_ORDER_LIST = ['N', 'R', 'SR', 'SSR', 'CR'];
-function canEquipSkill(condition, character) {
-  if (!condition || Object.keys(condition).length === 0) return true;
-  for (const [key, value] of Object.entries(condition)) {
-    if (key === 'element') {
-      if (Array.isArray(value) ? !value.includes(character.element) : character.element !== value) return false;
-    } else if (key === 'origin') {
-      if (Array.isArray(value) ? !value.includes(character.origin) : character.origin !== value) return false;
-    } else if (key === 'minRarity') {
-      if (RARITY_ORDER_LIST.indexOf(character.rarity) < RARITY_ORDER_LIST.indexOf(value)) return false;
-    }
-  }
-  return true;
-}
 
 function SkillTypeBadge({ type }) {
   return (
@@ -116,6 +59,7 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
   const [bustZoom, setBustZoom] = useState(false);
   const [growthBubble, setGrowthBubble] = useState(null);
   const [promoCutscene, setPromoCutscene] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(null);
   const holdRef = useRef({ timer: null, interval: null });
   const decHoldRef = useRef({ timer: null, interval: null });
 
@@ -322,12 +266,12 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
 
             <div className="detail-meta-row">
               <span className="detail-rarity-badge" style={getRarityStyle(d.rarity)}>{d.rarity}</span>
-              <span className="detail-elem-wrap">
+              <span className="detail-elem-wrap detail-clickable" onClick={() => setShowInfoModal('element')}>
                 <span className="detail-elem-icon" dangerouslySetInnerHTML={{ __html: ELEM_ICONS[d.element] }} />
                 <span className="detail-elem-label" style={{ color: ELEM_COLORS[d.element] }}>{ELEM_LABELS[d.element]}</span>
               </span>
               {d.origin && (
-                <span className="detail-origin-wrap">
+                <span className="detail-origin-wrap detail-clickable" onClick={() => setShowInfoModal('origin')}>
                   <span className="detail-origin-icon" style={{
                     backgroundColor: ELEM_COLORS[d.element] || ORIGIN_COLORS[d.origin],
                     WebkitMaskImage: `url(/uploads/origins/${d.origin}.png)`,
@@ -365,7 +309,7 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
             <div className="detail-action-row">
               <button className="btn-representative" onClick={async () => {
                 try {
-                  await api.setRepresentative(selected);
+                  await api.setRepresentative(null, d.characterId);
                   addToast(`${d.name}을(를) 대표 캐릭터로 설정!`, 'trade');
                 } catch (err) { addToast(err.message, 'error'); }
               }}>{'★'} 대표 캐릭터로 설정</button>
@@ -394,10 +338,24 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
             {activeTab === 'skills' && (() => {
               const atkSlots = d.attackSlots || { total: 3, skills: [] };
               const defSlots = d.defenseSlots || { total: 2, skills: [] };
+              const futureSlots = d.futureSlots || [];
               const allEquippedSiIds = new Set([...atkSlots.skills, ...defSlots.skills].filter(s => s.skillInventoryId).map(s => s.skillInventoryId));
+
+              const getFutureLockedSlots = (slotType) => {
+                const locked = [];
+                for (const fs of futureSlots) {
+                  const count = slotType === 'attack' ? fs.attackSlots : fs.defenseSlots;
+                  const matchSkills = fs.skills.filter(s => slotType === 'defense' ? s.type === 'defense' : s.type !== 'defense');
+                  for (let i = 0; i < count; i++) {
+                    locked.push({ promoTier: fs.promoTier, skill: matchSkills[i] || null });
+                  }
+                }
+                return locked;
+              };
 
               const renderSlotSection = (label, slots, slotType) => {
                 const emptyCount = Math.max(0, slots.total - slots.skills.length);
+                const lockedSlots = getFutureLockedSlots(slotType);
                 return (
                   <div className="slot-section">
                     <h3 className="tab-section-title">{label} ({slots.skills.length}/{slots.total})</h3>
@@ -410,6 +368,21 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
                       {Array.from({ length: emptyCount }, (_, i) => (
                         <div key={`empty-${slotType}-${i}`} className="sk-card sk-empty">
                           <span className="sk-empty-label">빈 슬롯</span>
+                        </div>
+                      ))}
+                      {lockedSlots.map((ls, i) => (
+                        <div key={`locked-${slotType}-${i}`} className="sk-card sk-locked-future">
+                          <div className="sk-locked-overlay">
+                            <span className="sk-lock-icon">&#128274;</span>
+                            <span className="sk-lock-label">승급 {ls.promoTier}에서 해금</span>
+                          </div>
+                          {ls.skill && (
+                            <div className="sk-locked-preview">
+                              <span className="sk-locked-type" style={{ color: SKILL_TYPE_COLORS[ls.skill.type] || '#888' }}>{SKILL_TYPE_LABELS[ls.skill.type] || ls.skill.type}</span>
+                              <span className="sk-locked-name">{ls.skill.name}</span>
+                              <span className="sk-locked-desc">{ls.skill.description}</span>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -476,50 +449,58 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
               <div className="tab-talent">
                 <h3 className="tab-section-title">활성 특기</h3>
                 {d.talents && d.talents.length > 0 ? (() => {
-                  const active = d.talents.find(t => t.index === d.equippedTalent) || d.talents[0];
+                  const unlockedTalents = d.talents.filter(t => t.unlocked);
+                  const active = unlockedTalents.find(t => t.index === d.equippedTalent) || unlockedTalents[0];
                   return (
                     <>
-                      <div className="talent-active-card">
-                        <div className="talent-active-header">
-                          <span className="talent-active-name">{active.name}</span>
-                          <span className="talent-active-badge">활성</span>
+                      {active && (
+                        <div className="talent-active-card">
+                          <div className="talent-active-header">
+                            <span className="talent-active-name">{active.name}</span>
+                            <span className="talent-active-badge">활성</span>
+                          </div>
+                          <p className="talent-active-desc">{active.desc}</p>
+                          <p className="talent-active-flavor">{active.flavor}</p>
                         </div>
-                        <p className="talent-active-desc">{active.desc}</p>
-                        <p className="talent-active-flavor">{active.flavor}</p>
-                      </div>
+                      )}
 
                       <h3 className="tab-section-title" style={{ marginTop: 14 }}>
-                        보유 특기 ({d.talents.length}/{d.totalTalentCount || d.talents.length})
+                        전체 특기 ({unlockedTalents.length}/{d.talents.length})
                       </h3>
                       <div className="talent-list">
-                        {Array.from({ length: d.totalTalentCount || d.talents.length }, (_, i) => {
-                          const t = d.talents.find(tt => tt.index === i);
-                          const unlocked = i < (d.talentUnlockCount ?? (d.awakening + 1));
-                          const isActive = i === d.equippedTalent;
-                          if (!unlocked) {
+                        {d.talents.map((t) => {
+                          const isActive = t.index === d.equippedTalent && t.unlocked;
+                          if (!t.unlocked) {
                             return (
-                              <div key={i} className="talent-card talent-locked">
-                                <span className="talent-lock-icon" dangerouslySetInnerHTML={{ __html: '&#128274;' }} />
-                                <span className="talent-lock-label">승급에서 해금</span>
+                              <div key={t.index} className="talent-card talent-locked">
+                                <div className="talent-card-header">
+                                  <span className="talent-card-name">{t.name}</span>
+                                  {t.index > 0 && t.index <= 5 && <span className="talent-card-awaken">각성 {t.index}</span>}
+                                  {t.index > 5 && <span className="talent-card-awaken">승급</span>}
+                                  <span className="talent-lock-icon" dangerouslySetInnerHTML={{ __html: '&#128274;' }} />
+                                </div>
+                                <p className="talent-card-desc">{t.desc}</p>
+                                {t.flavor && <p className="talent-card-flavor">{t.flavor}</p>}
+                                <span className="talent-lock-label">{t.index > 5 ? '승급에서 해금' : `각성 ${t.index}에서 해금`}</span>
                               </div>
                             );
                           }
                           return (
-                            <div key={i} className={`talent-card ${isActive ? 'talent-active' : ''}`}
+                            <div key={t.index} className={`talent-card ${isActive ? 'talent-active' : ''}`}
                               onClick={async () => {
                                 if (isActive) return;
-                                await api.equipTalent(d.inventoryId, i);
+                                await api.equipTalent(d.inventoryId, t.index);
                                 loadDetail(d.inventoryId);
                               }}>
                               <div className="talent-card-header">
-                                <span className="talent-card-name">{t?.name}</span>
-                                {i === 0 && <span className="talent-card-base">기본</span>}
-                                {i > 0 && i <= 5 && <span className="talent-card-awaken">각성 {i}</span>}
-                                {i > 5 && <span className="talent-card-awaken">승급</span>}
+                                <span className="talent-card-name">{t.name}</span>
+                                {t.index === 0 && <span className="talent-card-base">기본</span>}
+                                {t.index > 0 && t.index <= 5 && <span className="talent-card-awaken">각성 {t.index}</span>}
+                                {t.index > 5 && <span className="talent-card-awaken">승급</span>}
                                 {isActive && <span className="talent-card-active-dot" />}
                               </div>
-                              <p className="talent-card-desc">{t?.desc}</p>
-                              <p className="talent-card-flavor">{t?.flavor}</p>
+                              <p className="talent-card-desc">{t.desc}</p>
+                              {t.flavor && <p className="talent-card-flavor">{t.flavor}</p>}
                             </div>
                           );
                         })}
@@ -724,23 +705,48 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
                           </div>
                         ))}
                       </div>
-                      {promoInfo.rewards && Object.keys(promoInfo.rewards).length > 0 && (
+                      {(promoInfo.rewards && Object.keys(promoInfo.rewards).length > 0) || (promoInfo.unlockSkills && promoInfo.unlockSkills.length > 0) ? (
                         <div className="promo-reward-list">
                           <span className="promo-reward-title" dangerouslySetInnerHTML={{ __html: '&#127873; 승급 보상' }} />
-                          {promoInfo.rewards.attackSlots > 0 && (
+                          {promoInfo.rewards?.attackSlots > 0 && (
                             <span className="promo-reward-tag">공격 스킬칸 +{promoInfo.rewards.attackSlots}</span>
                           )}
-                          {promoInfo.rewards.defenseSlots > 0 && (
+                          {promoInfo.rewards?.defenseSlots > 0 && (
                             <span className="promo-reward-tag">방어 스킬칸 +{promoInfo.rewards.defenseSlots}</span>
                           )}
-                          {promoInfo.rewards.bonusNotes > 0 && (
+                          {promoInfo.rewards?.bonusNotes > 0 && (
                             <span className="promo-reward-tag">턴 노트 +{promoInfo.rewards.bonusNotes}</span>
                           )}
-                          {promoInfo.rewards.unlockTalent && (
-                            <span className="promo-reward-tag">특기 해금</span>
+                          {promoInfo.rewards?.unlockTalent && (
+                            <div className="promo-talent-unlock">
+                              <span className="promo-reward-tag">특기 해금</span>
+                              {promoInfo.rewards.unlockTalentName && (
+                                <div className="promo-talent-preview">
+                                  <span className="promo-talent-name">{promoInfo.rewards.unlockTalentName}</span>
+                                  <span className="promo-talent-desc">{promoInfo.rewards.unlockTalentDesc}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {promoInfo.unlockSkills && promoInfo.unlockSkills.length > 0 && (
+                            <div className="promo-skill-unlock">
+                              <span className="promo-reward-tag">스킬 획득</span>
+                              {promoInfo.unlockSkills.map(s => (
+                                <div key={s.id} className="promo-skill-preview">
+                                  <div className="promo-skill-header">
+                                    <span className="promo-skill-type" style={{ background: SKILL_TYPE_COLORS[s.type] || '#666' }}>
+                                      {SKILL_TYPE_LABELS[s.type] || s.type}
+                                    </span>
+                                    <span className="promo-skill-name">{s.name}</span>
+                                    {s.cost > 0 && <span className="promo-skill-cost">{'♫'}{s.cost}</span>}
+                                  </div>
+                                  {s.description && <span className="promo-skill-desc">{s.description}</span>}
+                                </div>
+                              ))}
+                            </div>
                           )}
                         </div>
-                      )}
+                      ) : null}
                       <button className="btn-promote" onClick={doPromote} disabled={!canPromote}>
                         {'▲'} 승급하기
                       </button>
@@ -799,6 +805,9 @@ export default function GrowthPage({ user, onRefresh, addToast }) {
           </div>
         </div>
       )}
+
+      {showInfoModal === 'element' && <ElementModal onClose={() => setShowInfoModal(null)} />}
+      {showInfoModal === 'origin' && <OriginModal onClose={() => setShowInfoModal(null)} />}
     </div>
   );
 }

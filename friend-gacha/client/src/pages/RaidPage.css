@@ -1,110 +1,147 @@
 .raid-page { display: flex; flex-direction: column; gap: 20px; }
 
+/* 헤더 (타이머) */
+.raid-header {
+  display: flex; justify-content: flex-end;
+}
+.raid-timer {
+  font-size: 0.85rem; color: var(--text-secondary);
+  background: var(--bg-card); border: 1px solid var(--border);
+  padding: 6px 14px; border-radius: 20px;
+}
+
+/* 보스 카드 */
 .raid-boss-card {
   background: linear-gradient(135deg, var(--bg-card), #1c1c3a);
-  border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center;
+  border: 1px solid var(--border); border-radius: 16px;
+  padding: 28px; text-align: center; position: relative; overflow: hidden;
 }
-.raid-boss-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; }
-.raid-boss-header h2 { font-size: 1.3rem; }
-.raid-elem { font-size: 1.5rem; }
+.boss-header {
+  display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 18px;
+}
+.boss-header h2 { font-size: 1.4rem; font-weight: 900; }
+.boss-notes { font-size: 0.9rem; color: var(--text-secondary); }
+.boss-hp-section { margin-bottom: 4px; }
+.boss-hp-bar {
+  height: 20px; background: var(--bg-primary); border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border);
+}
+.boss-hp-fill {
+  height: 100%; border-radius: 10px; transition: width 0.5s;
+  background: linear-gradient(90deg, #27ae60, #2ecc71);
+}
+.boss-hp-fill.warning { background: linear-gradient(90deg, #e67e22, #f39c12); }
+.boss-hp-fill.critical { background: linear-gradient(90deg, #c0392b, #e74c3c); }
+.boss-hp-text {
+  font-size: 0.85rem; color: var(--text-secondary); margin-top: 6px;
+}
+.boss-dead-label {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg);
+  font-size: 3rem; font-weight: 900; color: rgba(231, 76, 60, 0.25);
+  letter-spacing: 8px; pointer-events: none;
+}
 
-.raid-hp-section { margin-bottom: 8px; }
-.raid-hp-bar { height: 16px; background: var(--bg-primary); border-radius: 8px; overflow: hidden; }
-.raid-hp-fill { height: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c); border-radius: 8px; transition: width 0.5s; }
-.raid-hp-text { font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; display: block; }
-.raid-attempts { font-size: 0.85rem; color: var(--text-secondary); }
-
-.raid-rankings { display: flex; flex-direction: column; gap: 8px; }
-.raid-rankings h3 { font-size: 1rem; }
-.raid-rank-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+/* 내 정보 */
+.raid-my-info {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
 }
-.raid-rank-item.is-me { border-color: var(--accent); background: var(--bg-card-hover); }
-.raid-rank-num { font-weight: 700; min-width: 30px; color: var(--text-secondary); }
-.raid-rank-name { flex: 1; font-size: 0.9rem; }
-.raid-rank-dmg { font-weight: 600; color: var(--accent); font-size: 0.85rem; }
-
-.raid-damage-report {
-  text-align: center; padding: 12px; font-size: 1.1rem; font-weight: 700;
-  color: var(--accent); margin-top: 8px;
+.raid-info-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 8px;
+}
+.raid-info-label {
+  font-size: 0.75rem; color: var(--text-muted); font-weight: 600;
+}
+.raid-info-value {
+  font-size: 0.95rem; font-weight: 700; color: var(--text-primary);
+  display: flex; align-items: center; gap: 4px;
 }
 
-.raid-party { display: flex; flex-direction: column; gap: 12px; }
+/* 도전 버튼 */
+.raid-challenge-btn {
+  align-self: center; min-width: 300px; font-size: 1.1rem; padding: 16px 40px;
+}
 
-/* 프리셋 선택 (레이드용) */
-.raid-page .preset-picker-section {
-  display: flex; flex-direction: column; gap: 14px;
-}
-.raid-page .preset-picker-header {
-  display: flex; align-items: center; justify-content: space-between;
-}
-.raid-page .preset-picker-header h3 {
-  font-size: 1.1rem; font-weight: 700; color: var(--text-secondary);
-}
-.raid-page .preset-picker-grid {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
-}
-.raid-page .preset-pick-card {
+/* 랭킹 */
+.raid-rankings {
   display: flex; flex-direction: column; gap: 10px;
-  padding: 16px; border-radius: 14px;
-  background: var(--bg-card); border: 2px solid var(--border);
-  cursor: pointer; transition: all 0.2s; min-height: 160px;
 }
-.raid-page .preset-pick-card:hover:not(.empty) {
-  border-color: rgba(233,69,96,0.4); transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+.raid-rankings h3 {
+  font-size: 1rem; font-weight: 700; color: var(--text-secondary);
 }
-.raid-page .preset-pick-card.selected {
-  border-color: var(--accent); background: var(--bg-card-hover);
-  box-shadow: 0 0 16px var(--accent-glow);
+.raid-rank-list {
+  display: flex; flex-direction: column; gap: 6px;
 }
-.raid-page .preset-pick-card.empty { opacity: 0.4; cursor: not-allowed; }
-.raid-page .preset-pick-header {
-  display: flex; align-items: center; gap: 8px;
+.raid-rank-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
 }
-.raid-page .preset-pick-num {
-  width: 24px; height: 24px; border-radius: 7px;
-  background: var(--bg-secondary); border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 0.8rem; flex-shrink: 0;
+.raid-rank-item.is-me {
+  border-color: var(--accent); background: rgba(233, 69, 96, 0.06);
 }
-.raid-page .preset-pick-card.selected .preset-pick-num {
-  background: var(--accent); border-color: var(--accent); color: white;
+.raid-rank-num {
+  font-weight: 900; min-width: 28px; text-align: center;
+  font-size: 0.9rem; color: var(--text-muted);
 }
-.raid-page .preset-pick-name { font-size: 0.9rem; font-weight: 700; }
-.raid-page .preset-pick-members {
-  display: flex; flex-direction: column; gap: 6px; flex: 1;
-}
-.raid-page .preset-pick-member {
-  display: flex; align-items: center; gap: 8px;
-  padding: 4px 6px; border-radius: 8px; background: var(--bg-secondary);
-}
-.raid-page .ppm-avatar {
-  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
-  background: var(--bg-primary); display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 0.7rem; flex-shrink: 0;
-}
-.raid-page .ppm-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.raid-page .ppm-info { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-.raid-page .ppm-name {
-  font-size: 0.78rem; font-weight: 600;
+.raid-rank-num.top-1 { color: #f1c40f; }
+.raid-rank-num.top-2 { color: #bdc3c7; }
+.raid-rank-num.top-3 { color: #cd7f32; }
+.raid-rank-name {
+  flex: 1; font-size: 0.9rem; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.raid-page .ppm-lv { font-size: 0.68rem; color: var(--text-muted); flex-shrink: 0; }
-.raid-page .preset-pick-power {
-  font-size: 0.75rem; color: var(--text-secondary); font-weight: 600;
-  text-align: right; padding-top: 4px; border-top: 1px solid var(--border);
+.raid-rank-dmg {
+  font-weight: 700; color: var(--accent); font-size: 0.9rem; flex-shrink: 0;
 }
-.raid-page .preset-pick-empty {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  color: var(--text-muted); font-size: 0.8rem;
+
+/* 전투 결과 */
+.raid-result-screen {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 20px; min-height: 500px;
 }
-.raid-page .btn-back {
-  background: none; color: var(--text-secondary); font-size: 0.9rem;
-  align-self: flex-start; padding: 4px 0; transition: color 0.2s;
+.raid-result-title {
+  font-size: 1.6rem; font-weight: 900;
+  background: linear-gradient(90deg, var(--accent), #f39c12);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
 }
-.raid-page .btn-back:hover { color: var(--text-primary); }
+.raid-result-damage {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.raid-result-label {
+  font-size: 0.85rem; color: var(--text-muted);
+}
+.raid-result-value {
+  font-size: 2.4rem; font-weight: 900; color: var(--accent);
+}
+.raid-result-rewards {
+  display: flex; gap: 16px;
+}
+.raid-result-reward {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 1.1rem; font-weight: 700; color: var(--gold);
+  background: var(--bg-card); border: 1px solid var(--border);
+  padding: 10px 20px; border-radius: 12px;
+}
+.raid-result-kill-notice {
+  font-size: 0.9rem; color: var(--green); font-weight: 600;
+  background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2);
+  padding: 10px 20px; border-radius: 10px;
+}
+.raid-result-boss-hp, .raid-result-total {
+  font-size: 0.85rem; color: var(--text-secondary);
+}
+.raid-result-btn {
+  min-width: 200px; padding: 14px 40px; font-size: 1rem;
+}
+
 .raid-page .battle-start-btn {
   align-self: center; min-width: 300px; font-size: 1.1rem; padding: 16px 40px;
 }
+.raid-page .preset-pick-edit {
+  margin-left: auto; background: none; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted); cursor: pointer;
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; transition: all 0.2s; flex-shrink: 0;
+}
+.raid-page .preset-pick-edit:hover { color: var(--accent); border-color: var(--accent); }

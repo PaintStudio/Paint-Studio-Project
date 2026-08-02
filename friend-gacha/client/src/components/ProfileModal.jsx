@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { getSocket } from '../utils/socket';
 import './ProfileModal.css';
 
 export default function ProfileModal({ user, onClose, onSave }) {
@@ -27,6 +28,7 @@ export default function ProfileModal({ user, onClose, onSave }) {
     setSaving(true);
     try {
       await api.updateProfile({ displayName, bio, profileIcon });
+      getSocket()?.emit('profile_update');
       onSave?.();
       onClose();
     } catch (e) {

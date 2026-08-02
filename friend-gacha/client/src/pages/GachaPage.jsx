@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../utils/api';
 import { getSocket } from '../utils/socket';
 import CharacterCard from '../components/CharacterCard';
@@ -6,34 +7,8 @@ import CurrencyIcon from '../components/CurrencyIcon';
 import DialogueBubble from '../components/DialogueBubble';
 import { loadDialogues, getGachaLine } from '../utils/dialogues';
 import gameConfig from '@gameConfig';
+import { RARITY_COLORS, SKILL_TYPE_LABELS, SKILL_TYPE_COLORS, getRarityStyle, SKILL_RARITY_COLORS, SKILL_RARITY_LABELS, getSkillRarityStyle } from '../utils/gameConstants';
 import './GachaPage.css';
-
-const RARITY_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
-
-const SKILL_RARITY_COLORS = {};
-const SKILL_RARITY_LABELS = {};
-for (const [k, v] of Object.entries(gameConfig.skillRarities)) {
-  SKILL_RARITY_COLORS[k] = v.color;
-  SKILL_RARITY_LABELS[k] = v.label;
-}
-
-const SKILL_TYPE_LABELS = {};
-const SKILL_TYPE_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.skillTypes)) {
-  SKILL_TYPE_LABELS[k] = v.label;
-  SKILL_TYPE_COLORS[k] = v.color;
-}
-
-function getRarityStyle(rarity) {
-  if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
-  return { color: RARITY_COLORS[rarity] || '#888' };
-}
-
-function getSkillRarityStyle(rarity) {
-  if (rarity === 'iridescent') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
-  return { color: SKILL_RARITY_COLORS[rarity] || '#aaa' };
-}
 
 export default function GachaPage({ user, onPull, addToast }) {
   const [pulling, setPulling] = useState(false);
@@ -44,8 +19,12 @@ export default function GachaPage({ user, onPull, addToast }) {
   const [gachaMode, setGachaMode] = useState('character');
   const [skillResults, setSkillResults] = useState([]);
   const [skillBanners, setSkillBanners] = useState([]);
+  const [showRatesFor, setShowRatesFor] = useState(null);
+  const [ratesData, setRatesData] = useState(null);
 
   const [gachaBubble, setGachaBubble] = useState(null);
+
+  const isTutorialPull = (user.tutorialStep || 0) < 3 && (user.totalPulls || 0) === 0;
 
   useEffect(() => {
     api.banners().then(d => {
@@ -56,6 +35,33 @@ export default function GachaPage({ user, onPull, addToast }) {
     }).catch(() => {});
     loadDialogues();
   }, []);
+
+  const toggleRates = async (bannerId) => {
+    if (showRatesFor === bannerId) { setShowRatesFor(null); return; }
+    try {
+      const data = await api.rates(bannerId);
+      setRatesData(data);
+      setShowRatesFor(bannerId);
+    } catch { addToast('확률 정보를 불러올 수 없습니다', 'error'); }
+  };
+
+  const calcCharRate = (rarity, charId) => {
+    if (!ratesData) return 0;
+    const totalRate = ratesData.rates[rarity] || 0;
+    const chars = ratesData.characters.filter(c => c.rarity === rarity);
+    if (chars.length === 0) return 0;
+    const featured = ratesData.featuredCharIds || [];
+    const featuredInRarity = chars.filter(c => featured.includes(c.id));
+    const rateUp = ratesData.featuredRateUp || 0;
+    if (rateUp > 0 && featuredInRarity.length > 0) {
+      const nonFeaturedCount = chars.length - featuredInRarity.length;
+      if (featured.includes(charId)) {
+        return totalRate * rateUp / featuredInRarity.length;
+      }
+      return nonFeaturedCount > 0 ? totalRate * (1 - rateUp) / nonFeaturedCount : 0;
+    }
+    return totalRate / chars.length;
+  };
 
   const doPull = async (multi, bannerId) => {
     setPulling(true);
@@ -243,7 +249,7 @@ export default function GachaPage({ user, onPull, addToast }) {
               const bRates = b.rates || gameConfig.gacha.rates;
               return (
                 <div key={b.id} className="banner-group">
-                  <div className="gacha-banner">
+                  <div className="gacha-banner" onClick={() => toggleRates(b.id)} style={{ cursor: 'pointer' }}>
                     {b.image ? (
                       <img src={b.image} alt={b.name} className="banner-img" />
                     ) : (
@@ -267,18 +273,20 @@ export default function GachaPage({ user, onPull, addToast }) {
                         ))}
                       </div>
                     )}
+                    <span className="banner-rates-hint">&#128202; 확률 상세</span>
                   </div>
+
                   <div className="pull-buttons">
                     <button className="btn-pull btn-pull-single" onClick={() => doPull(false, b.id)}
-                      disabled={pulling || user.currency < 100}>
+                      disabled={pulling || (!isTutorialPull && user.currency < 100)}>
                       <span className="pull-label">1회 뽑기</span>
-                      <span className="pull-cost"><CurrencyIcon type="prism" />100</span>
+                      <span className="pull-cost">{isTutorialPull ? '무료' : <><CurrencyIcon type="prism" />100</>}</span>
                     </button>
                     <button className="btn-pull btn-pull-multi" onClick={() => doPull(true, b.id)}
                       disabled={pulling || user.currency < 1000}>
                       <span className="pull-label">10연차</span>
                       <span className="pull-cost"><CurrencyIcon type="prism" />1,000</span>
-                      <span className="pull-bonus">R&#51060;&#49345; 1&#44060; &#48372;&#51109;!</span>
+                      <span className="pull-bonus">SR&#51060;&#49345; 1&#44060; &#48372;&#51109;!</span>
                     </button>
                   </div>
                 </div>
@@ -286,29 +294,74 @@ export default function GachaPage({ user, onPull, addToast }) {
             })}
             {banners.length === 0 && (
               <div className="banner-group">
-                <div className="gacha-banner">
+                <div className="gacha-banner" onClick={() => toggleRates('default')} style={{ cursor: 'pointer' }}>
                   <div className="banner-bg" />
                   <div className="banner-overlay">
                     <h2 className="banner-title">가챠</h2>
                   </div>
+                  <span className="banner-rates-hint">&#128202; 확률 상세</span>
                 </div>
+
                 <div className="pull-buttons">
                   <button className="btn-pull btn-pull-single" onClick={() => doPull(false)}
-                    disabled={pulling || user.currency < 100}>
+                    disabled={pulling || (!isTutorialPull && user.currency < 100)}>
                     <span className="pull-label">1회 뽑기</span>
-                    <span className="pull-cost"><CurrencyIcon type="prism" />100</span>
+                    <span className="pull-cost">{isTutorialPull ? '무료' : <><CurrencyIcon type="prism" />100</>}</span>
                   </button>
                   <button className="btn-pull btn-pull-multi" onClick={() => doPull(true)}
                     disabled={pulling || user.currency < 1000}>
                     <span className="pull-label">10연차</span>
                     <span className="pull-cost"><CurrencyIcon type="prism" />1,000</span>
-                    <span className="pull-bonus">R&#51060;&#49345; 1&#44060; &#48372;&#51109;!</span>
+                    <span className="pull-bonus">SR&#51060;&#49345; 1&#44060; &#48372;&#51109;!</span>
                   </button>
                 </div>
               </div>
             )}
           </div>
         </>
+      )}
+
+      {showRatesFor && ratesData && createPortal(
+        <div className="rates-modal-backdrop" onClick={() => setShowRatesFor(null)}>
+          <div className="rates-modal" onClick={e => e.stopPropagation()}>
+            <div className="rates-panel-header">
+              <h3>&#128202; 출현 확률 상세</h3>
+              <button className="rates-close" onClick={() => setShowRatesFor(null)}>&times;</button>
+            </div>
+            {['CR', 'SSR', 'SR', 'R', 'N'].map(rarity => {
+              const totalRate = ratesData.rates[rarity] || 0;
+              if (totalRate <= 0) return null;
+              const chars = ratesData.characters.filter(c => c.rarity === rarity);
+              if (chars.length === 0) return null;
+              const featured = ratesData.featuredCharIds || [];
+              return (
+                <div key={rarity} className="rates-rarity-section">
+                  <div className={`rates-rarity-header rarity-${rarity}`}>
+                    <span style={getRarityStyle(rarity)}>{rarity}</span>
+                    <span className="rates-total">{(totalRate * 100).toFixed(1)}%</span>
+                    <span className="rates-count">{chars.length}종</span>
+                  </div>
+                  <div className="rates-char-grid">
+                    {chars.map(c => {
+                      const charRate = calcCharRate(rarity, c.id);
+                      return (
+                        <div key={c.id} className={`rates-char-item ${featured.includes(c.id) ? 'featured' : ''}`}>
+                          <div className="rates-char-avatar">
+                            {c.image_url ? <img src={c.image_url} alt={c.name} /> : c.name?.[0]}
+                          </div>
+                          <span className="rates-char-name">{c.name}</span>
+                          <span className="rates-char-rate">{(charRate * 100).toFixed(3)}%</span>
+                          {featured.includes(c.id) && <span className="rates-up-badge">UP</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>,
+        document.getElementById('game-root')
       )}
 
       {gachaMode === 'skill' && (

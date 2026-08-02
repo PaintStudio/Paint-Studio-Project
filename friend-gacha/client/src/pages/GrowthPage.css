@@ -2,12 +2,8 @@
 .growth-page.detail-view { height: 100%; overflow: hidden; }
 .growth-page h2 { font-size: 1.2rem; margin: 0; }
 
-/* ========== 뒤로가기 ========== */
-.btn-back {
-  background: none; color: var(--text-secondary); font-size: 0.85rem;
-  padding: 4px 0; text-align: left; align-self: flex-start; flex-shrink: 0;
-}
-.btn-back:hover { color: var(--accent); }
+.growth-page .btn-back { font-size: 0.85rem; flex-shrink: 0; }
+.growth-page .btn-back:hover { color: var(--accent); }
 
 /* ========== 좌우 네비게이션 ========== */
 .detail-layout-wrap {
@@ -74,6 +70,11 @@
   filter: drop-shadow(0 0 1px rgba(0,0,0,0.5));
 }
 .detail-origin-label { font-size: 0.8rem; font-weight: 600; }
+.detail-clickable {
+  cursor: pointer; padding: 2px 6px; border-radius: 6px;
+  transition: background 0.15s;
+}
+.detail-clickable:hover { background: rgba(255,255,255,0.08); }
 
 /* 이름 블록 */
 .detail-name-block { display: flex; flex-direction: column; gap: 1px; }
@@ -243,6 +244,24 @@
 .sk-card.sk-empty:hover { opacity: 0.8; border-color: var(--accent); }
 .sk-empty-label { font-size: 0.75rem; color: var(--text-muted); }
 
+.sk-card.sk-locked-future {
+  border-style: dashed; border-color: rgba(255,255,255,0.1);
+  opacity: 0.5; position: relative; min-height: 72px;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 10px 14px; gap: 6px;
+}
+.sk-locked-overlay {
+  display: flex; align-items: center; gap: 6px;
+}
+.sk-lock-icon { font-size: 0.8rem; }
+.sk-lock-label { font-size: 0.68rem; color: var(--text-muted); font-weight: 600; }
+.sk-locked-preview {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sk-locked-type { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; }
+.sk-locked-name { font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); }
+.sk-locked-desc { font-size: 0.65rem; color: var(--text-muted); line-height: 1.3; }
+
 /* ========== 특기 탭 ========== */
 .tab-talent { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; }
 
@@ -274,12 +293,13 @@
   border-color: var(--accent); background: rgba(233,69,96,0.05);
 }
 .talent-card.talent-locked {
-  opacity: 0.35; cursor: default;
-  display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+  opacity: 0.55; cursor: default;
 }
 .talent-card.talent-locked:hover { border-color: var(--border); }
-.talent-lock-icon { font-size: 0.85rem; }
-.talent-lock-label { font-size: 0.75rem; color: var(--text-muted); }
+.talent-card.talent-locked .talent-card-name { color: var(--text-muted); }
+.talent-card.talent-locked .talent-card-desc { color: var(--text-muted); opacity: 0.7; }
+.talent-lock-icon { font-size: 0.75rem; margin-left: auto; }
+.talent-lock-label { font-size: 0.68rem; color: var(--text-muted); font-style: italic; }
 
 .talent-card-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .talent-card-name { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
@@ -370,8 +390,37 @@
   padding: 2px 8px; border-radius: 10px;
   background: rgba(46,204,113,0.3);
 }
+.promo-talent-unlock, .promo-skill-unlock {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.promo-talent-preview, .promo-skill-preview {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 8px 12px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.promo-talent-name {
+  font-size: 0.82rem; font-weight: 700; color: var(--text-primary);
+}
+.promo-talent-desc {
+  font-size: 0.75rem; color: var(--text-secondary); line-height: 1.4;
+}
+.promo-skill-header {
+  display: flex; align-items: center; gap: 6px;
+}
+.promo-skill-type {
+  font-size: 0.6rem; padding: 2px 7px; border-radius: 4px;
+  color: #fff; font-weight: 700;
+}
+.promo-skill-name {
+  font-size: 0.82rem; font-weight: 700; color: var(--text-primary);
+}
+.promo-skill-cost {
+  font-size: 0.72rem; color: var(--text-muted); margin-left: auto;
+}
+.promo-skill-desc {
+  font-size: 0.72rem; color: var(--text-secondary); line-height: 1.4;
+}
 
-.empty-msg { color: var(--text-muted); font-size: 0.82rem; text-align: center; padding: 16px; }
 
 /* ========== 경험치 아이템 UI ========== */
 .exp-item-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -462,7 +511,7 @@
 
 /* ========== 바스트샷 확대 ========== */
 .bust-zoom-overlay {
-  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  position: absolute; top: 0; bottom: 0; left: 0; width: 1920px;
   z-index: 9999;
   background: rgba(0, 0, 0, 0.85);
   display: flex; align-items: center; justify-content: center;
@@ -470,7 +519,7 @@
   animation: bust-zoom-in 0.2s ease-out;
 }
 .bust-zoom-img {
-  max-width: 90vw; max-height: 90vh;
+  max-width: 1728px; max-height: 972px;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
@@ -482,10 +531,9 @@
 
 /* ========== 승급 컷씬 ========== */
 .promo-cutscene-overlay {
-  position: fixed;
-  top: 0; left: 50%;
-  width: 1920px; height: 100vh;
-  transform: translateX(-50%);
+  position: absolute;
+  top: 0; left: 0;
+  width: 1920px; height: 1080px;
   z-index: 9999;
   cursor: pointer;
   animation: promo-fade-in 0.6s ease-out;

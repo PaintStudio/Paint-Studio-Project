@@ -7,266 +7,12 @@
 
 const items = {
 
-  fire_crystal: {
-      "id": "fire_crystal",
-      "name": "염화 결정",
-      "description": "불꽃 속성 몬스터에서 얻을 수 있는 붉은 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/fire_crystal.png",
-      "icon": "&#128308;"
-  },
-
-  water_crystal: {
-      "id": "water_crystal",
-      "name": "수류 결정",
-      "description": "물 속성 몬스터에서 얻을 수 있는 푸른 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/water_crystal.png",
-      "icon": "&#128309;"
-  },
-
-  wind_crystal: {
-      "id": "wind_crystal",
-      "name": "풍림 결정",
-      "description": "바람 속성 몬스터에서 얻을 수 있는 초록 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/wind_crystal.png",
-      "icon": "&#128994;"
-  },
-
-  light_crystal: {
-      "id": "light_crystal",
-      "name": "광휘 결정",
-      "description": "빛 속성 몬스터에서 얻을 수 있는 빛나는 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/light_crystal.png",
-      "icon": "&#128993;"
-  },
-
-  dark_crystal: {
-      "id": "dark_crystal",
-      "name": "암영 결정",
-      "description": "어둠 속성 몬스터에서 얻을 수 있는 검은 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/dark_crystal.png",
-      "icon": "&#9899;"
-  },
-
-  neutral_crystal: {
-      "id": "neutral_crystal",
-      "name": "무색 결정",
-      "description": "무속성 몬스터에서 얻을 수 있는 투명한 결정",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 50,
-      "image": "/uploads/items/neutral_crystal.png",
-      "icon": "&#9898;"
-  },
-
-  slime_jelly: {
-      "id": "slime_jelly",
-      "name": "슬라임 젤리",
-      "description": "슬라임의 끈적한 핵. 의외로 영양가가 높다",
-      "category": "material",
-      "rarity": "N",
-      "sellPrice": 15,
-      "image": "/uploads/items/slime_jelly.png",
-      "icon": "&#128167;"
-  },
-
-  goblin_cloth: {
-      "id": "goblin_cloth",
-      "name": "고블린 천조각",
-      "description": "고블린이 두른 낡은 천. 의외로 튼튼하다",
-      "category": "material",
-      "rarity": "N",
-      "sellPrice": 15,
-      "image": "/uploads/items/goblin_cloth.png",
-      "icon": "&#129511;"
-  },
-
-  wolf_fang: {
-      "id": "wolf_fang",
-      "name": "늑대 송곳니",
-      "description": "날카로운 늑대의 이빨",
-      "category": "material",
-      "rarity": "N",
-      "sellPrice": 20,
-      "image": "/uploads/items/wolf_fang.png",
-      "icon": "&#129463;"
-  },
-
-  bat_wing: {
-      "id": "bat_wing",
-      "name": "박쥐 날개막",
-      "description": "얇지만 질긴 박쥐 날개 조각",
-      "category": "material",
-      "rarity": "N",
-      "sellPrice": 10,
-      "image": "/uploads/items/bat_wing.png",
-      "icon": "&#129415;"
-  },
-
-  old_bone: {
-      "id": "old_bone",
-      "name": "낡은 뼈",
-      "description": "스켈레톤에서 떨어진 오래된 뼈",
-      "category": "material",
-      "rarity": "N",
-      "sellPrice": 15,
-      "image": "/uploads/items/old_bone.png",
-      "icon": "&#129460;"
-  },
-
-  treant_bark: {
-      "id": "treant_bark",
-      "name": "트렌트 수피",
-      "description": "생명력이 깃든 나무 껍질",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 30,
-      "image": "/uploads/items/treant_bark.png",
-      "icon": "&#127795;"
-  },
-
-  shadow_essence: {
-      "id": "shadow_essence",
-      "name": "그림자 정수",
-      "description": "그림자 박쥐에서 추출한 어둠의 에너지",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 35,
-      "image": "/uploads/items/shadow_essence.png",
-      "icon": "&#127761;"
-  },
-
-  toxic_spore: {
-      "id": "toxic_spore",
-      "name": "독성 포자",
-      "description": "독버섯에서 채집한 위험한 포자",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 30,
-      "image": "/uploads/items/toxic_spore.png",
-      "icon": "&#127812;"
-  },
-
-  fire_ember: {
-      "id": "fire_ember",
-      "name": "화염 잔불",
-      "description": "화염 임프의 꺼지지 않는 불씨",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 40,
-      "image": "/uploads/items/fire_ember.png",
-      "icon": "&#128293;"
-  },
-
-  magma_shard: {
-      "id": "magma_shard",
-      "name": "용암 파편",
-      "description": "용암 골렘의 굳은 용암 조각. 아직 뜨겁다",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 45,
-      "image": "/uploads/items/magma_shard.png",
-      "icon": "&#129707;"
-  },
-
-  serpent_scale: {
-      "id": "serpent_scale",
-      "name": "바다뱀 비늘",
-      "description": "단단하고 매끄러운 바다뱀의 비늘",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 45,
-      "image": "/uploads/items/serpent_scale.png",
-      "icon": "&#128032;"
-  },
-
-  jelly_membrane: {
-      "id": "jelly_membrane",
-      "name": "해파리 막",
-      "description": "전기를 머금은 투명한 막",
-      "category": "material",
-      "rarity": "R",
-      "sellPrice": 40,
-      "image": "/uploads/items/jelly_membrane.png",
-      "icon": "&#10035;"
-  },
-
-  light_fragment: {
-      "id": "light_fragment",
-      "name": "빛의 파편",
-      "description": "빛의 정령이 남긴 따뜻한 빛 조각",
-      "category": "material",
-      "rarity": "SR",
-      "sellPrice": 60,
-      "image": "/uploads/items/light_fragment.png",
-      "icon": "&#10024;"
-  },
-
-  dark_steel: {
-      "id": "dark_steel",
-      "name": "암흑강",
-      "description": "암흑 기사의 갑옷에서 떨어진 검은 금속",
-      "category": "material",
-      "rarity": "SR",
-      "sellPrice": 65,
-      "image": "/uploads/items/dark_steel.png",
-      "icon": "&#9876;"
-  },
-
-  awakening_shard_low: {
-      "id": "awakening_shard_low",
-      "name": "하급 각성석",
-      "description": "1~2단계 각성에 필요한 기본 각성 재료",
-      "category": "awakening",
-      "rarity": "R",
-      "sellPrice": 80,
-      "image": "/uploads/items/awakening_shard_low.png",
-      "icon": "&#9670;"
-  },
-
-  awakening_shard_mid: {
-      "id": "awakening_shard_mid",
-      "name": "중급 각성석",
-      "description": "3~4단계 각성에 필요한 중급 각성 재료",
-      "category": "awakening",
-      "rarity": "SR",
-      "sellPrice": 200,
-      "image": "/uploads/items/awakening_shard_mid.png",
-      "icon": "&#9671;"
-  },
-
-  awakening_shard_high: {
-      "id": "awakening_shard_high",
-      "name": "상급 각성석",
-      "description": "5단계 각성에 필요한 최고급 각성 재료",
-      "category": "awakening",
-      "rarity": "SSR",
-      "sellPrice": 500,
-      "image": "/uploads/items/awakening_shard_high.png",
-      "icon": "&#11045;"
-  },
-
   golem_core: {
       "id": "golem_core",
       "name": "골렘 핵",
       "description": "마을 수호 골렘의 동력원. 대지의 힘이 깃들어 있다",
       "category": "boss",
       "rarity": "SR",
-      "sellPrice": 150,
       "image": "/uploads/items/golem_core.png",
       "icon": "&#128296;"
   },
@@ -277,7 +23,6 @@ const items = {
       "description": "수백 년 된 엔트의 핵심 목재",
       "category": "boss",
       "rarity": "SR",
-      "sellPrice": 200,
       "image": "/uploads/items/ent_heart.png",
       "icon": "&#127811;"
   },
@@ -288,7 +33,6 @@ const items = {
       "description": "화산의 군주가 품고 있던 극열의 보석",
       "category": "boss",
       "rarity": "SSR",
-      "sellPrice": 350,
       "image": "/uploads/items/volcano_jewel.png",
       "icon": "&#128142;"
   },
@@ -299,7 +43,6 @@ const items = {
       "description": "심해의 왕이 내뿜는 특수한 먹물",
       "category": "boss",
       "rarity": "SSR",
-      "sellPrice": 400,
       "image": "/uploads/items/kraken_ink.png",
       "icon": "&#127754;"
   },
@@ -310,7 +53,6 @@ const items = {
       "description": "탑의 수호자가 남긴 신성한 문장. 강력한 힘이 봉인되어 있다",
       "category": "boss",
       "rarity": "SSR",
-      "sellPrice": 500,
       "image": "/uploads/items/guardian_crest.png",
       "icon": "&#127775;"
   },
@@ -321,7 +63,6 @@ const items = {
       "description": "스태미나를 20 회복한다",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 50,
       "icon": "&#9889;",
       "effect": {
           "type": "stamina",
@@ -335,7 +76,6 @@ const items = {
       "description": "스태미나를 50 회복한다",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 100,
       "icon": "&#9889;",
       "effect": {
           "type": "stamina",
@@ -349,7 +89,6 @@ const items = {
       "description": "스태미나를 전부 회복한다",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 300,
       "icon": "&#9889;",
       "effect": {
           "type": "stamina",
@@ -363,7 +102,6 @@ const items = {
       "description": "시간 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#4fc3f7",
       "effect": {
@@ -379,7 +117,6 @@ const items = {
       "description": "시간 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#4fc3f7",
       "effect": {
@@ -395,7 +132,6 @@ const items = {
       "description": "시간 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#4fc3f7",
       "effect": {
@@ -411,7 +147,6 @@ const items = {
       "description": "공간 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#7e57c2",
       "effect": {
@@ -427,7 +162,6 @@ const items = {
       "description": "공간 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#7e57c2",
       "effect": {
@@ -443,7 +177,6 @@ const items = {
       "description": "공간 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#7e57c2",
       "effect": {
@@ -459,7 +192,6 @@ const items = {
       "description": "생명 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#66bb6a",
       "effect": {
@@ -475,7 +207,6 @@ const items = {
       "description": "생명 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#66bb6a",
       "effect": {
@@ -491,7 +222,6 @@ const items = {
       "description": "생명 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#66bb6a",
       "effect": {
@@ -507,7 +237,6 @@ const items = {
       "description": "마음 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#ef5350",
       "effect": {
@@ -523,7 +252,6 @@ const items = {
       "description": "마음 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#ef5350",
       "effect": {
@@ -539,7 +267,6 @@ const items = {
       "description": "마음 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#ef5350",
       "effect": {
@@ -555,7 +282,6 @@ const items = {
       "description": "지성 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#42a5f5",
       "effect": {
@@ -571,7 +297,6 @@ const items = {
       "description": "지성 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#42a5f5",
       "effect": {
@@ -587,7 +312,6 @@ const items = {
       "description": "지성 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#42a5f5",
       "effect": {
@@ -603,7 +327,6 @@ const items = {
       "description": "기억 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#ab47bc",
       "effect": {
@@ -619,7 +342,6 @@ const items = {
       "description": "기억 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#ab47bc",
       "effect": {
@@ -635,7 +357,6 @@ const items = {
       "description": "기억 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#ab47bc",
       "effect": {
@@ -651,7 +372,6 @@ const items = {
       "description": "소리 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#ffa726",
       "effect": {
@@ -667,7 +387,6 @@ const items = {
       "description": "소리 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#ffa726",
       "effect": {
@@ -683,7 +402,6 @@ const items = {
       "description": "소리 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#ffa726",
       "effect": {
@@ -699,7 +417,6 @@ const items = {
       "description": "계절 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#26a69a",
       "effect": {
@@ -715,7 +432,6 @@ const items = {
       "description": "계절 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#26a69a",
       "effect": {
@@ -731,7 +447,6 @@ const items = {
       "description": "계절 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#26a69a",
       "effect": {
@@ -747,7 +462,6 @@ const items = {
       "description": "마력 근원의 하급 경험치 파편",
       "category": "consumable",
       "rarity": "N",
-      "sellPrice": 25,
       "icon": "&#9679;",
       "color": "#ec407a",
       "effect": {
@@ -763,7 +477,6 @@ const items = {
       "description": "마력 근원의 중급 경험치 파편",
       "category": "consumable",
       "rarity": "R",
-      "sellPrice": 125,
       "icon": "&#9679;",
       "color": "#ec407a",
       "effect": {
@@ -779,7 +492,6 @@ const items = {
       "description": "마력 근원의 상급 경험치 파편",
       "category": "consumable",
       "rarity": "SR",
-      "sellPrice": 500,
       "icon": "&#9679;",
       "color": "#ec407a",
       "effect": {
@@ -787,6 +499,712 @@ const items = {
           "value": 10000,
           "origin": "force"
       }
+  },
+
+  frag_time_top: {
+      "id": "frag_time_top",
+      "name": "시간의 최상급 파편",
+      "description": "시간 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#4fc3f7",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "time"
+      }
+  },
+
+  frag_space_top: {
+      "id": "frag_space_top",
+      "name": "공간의 최상급 파편",
+      "description": "공간 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#7e57c2",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "space"
+      }
+  },
+
+  frag_life_top: {
+      "id": "frag_life_top",
+      "name": "생명의 최상급 파편",
+      "description": "생명 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#66bb6a",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "life"
+      }
+  },
+
+  frag_heart_top: {
+      "id": "frag_heart_top",
+      "name": "마음의 최상급 파편",
+      "description": "마음 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#ef5350",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "heart"
+      }
+  },
+
+  frag_intellect_top: {
+      "id": "frag_intellect_top",
+      "name": "지성의 최상급 파편",
+      "description": "지성 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#42a5f5",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "intellect"
+      }
+  },
+
+  frag_memory_top: {
+      "id": "frag_memory_top",
+      "name": "기억의 최상급 파편",
+      "description": "기억 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#ab47bc",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "memory"
+      }
+  },
+
+  frag_sound_top: {
+      "id": "frag_sound_top",
+      "name": "소리의 최상급 파편",
+      "description": "소리 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#ffa726",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "sound"
+      }
+  },
+
+  frag_season_top: {
+      "id": "frag_season_top",
+      "name": "계절의 최상급 파편",
+      "description": "계절 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#26a69a",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "season"
+      }
+  },
+
+  frag_force_top: {
+      "id": "frag_force_top",
+      "name": "마력의 최상급 파편",
+      "description": "마력 근원의 최상급 경험치 파편",
+      "category": "consumable",
+      "rarity": "SSR",
+      "icon": "&#9679;",
+      "color": "#ec407a",
+      "effect": {
+          "type": "exp",
+          "value": 40000,
+          "origin": "force"
+      }
+  },
+
+  firecodesmall: {
+      "id": "firecodesmall",
+      "name": "저품질 불꽃의 코드",
+      "description": "염 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/firecodesmall.png",
+      "icon": ""
+  },
+
+  firecodemedium: {
+      "id": "firecodemedium",
+      "name": "불꽃의 코드",
+      "description": "염 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/firecodemedium.png",
+      "icon": ""
+  },
+
+  firecodebig: {
+      "id": "firecodebig",
+      "name": "고품질 불꽃의 코드",
+      "description": "염 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/firecodebig.png",
+      "icon": ""
+  },
+
+  firecodemax: {
+      "id": "firecodemax",
+      "name": "순수한 불꽃의 코드",
+      "description": "염 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/firecodemax.png",
+      "icon": ""
+  },
+
+  timestonelow: {
+      "id": "timestonelow",
+      "name": "부서진 시간의 정수",
+      "description": "시간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/timestonelow.png",
+      "icon": ""
+  },
+
+  timestonemedium: {
+      "id": "timestonemedium",
+      "name": "금이간 시간의 정수",
+      "description": "시간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/timestonemedium.png",
+      "icon": ""
+  },
+
+  timestonebig: {
+      "id": "timestonebig",
+      "name": "시간의 정수",
+      "description": "시간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/timestonebig.png",
+      "icon": ""
+  },
+
+  timestonemax: {
+      "id": "timestonemax",
+      "name": "완성된 시간의 정수",
+      "description": "시간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/timestonemax.png",
+      "icon": ""
+  },
+
+  watercodesmall: {
+      "id": "watercodesmall",
+      "name": "저품질 물결의 코드",
+      "description": "수 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/watercodesmall.png",
+      "icon": ""
+  },
+
+  watercodemedium: {
+      "id": "watercodemedium",
+      "name": "물결의 코드",
+      "description": "수 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/watercodemedium.png",
+      "icon": ""
+  },
+
+  watercodebig: {
+      "id": "watercodebig",
+      "name": "고품질 물결의 코드",
+      "description": "수 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/watercodebig.png",
+      "icon": ""
+  },
+
+  watercodemax: {
+      "id": "watercodemax",
+      "name": "순수한 물결의 코드",
+      "description": "수 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/watercodemax.png",
+      "icon": ""
+  },
+
+  windcodesmall: {
+      "id": "windcodesmall",
+      "name": "저품질 바람의 코드",
+      "description": "풍 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/windcodesmall.png",
+      "icon": ""
+  },
+
+  windcodemedium: {
+      "id": "windcodemedium",
+      "name": "바람의 코드",
+      "description": "풍 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/windcodemedium.png",
+      "icon": ""
+  },
+
+  windcodebig: {
+      "id": "windcodebig",
+      "name": "고품질 바람의 코드",
+      "description": "풍 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/windcodebig.png",
+      "icon": ""
+  },
+
+  windcodemax: {
+      "id": "windcodemax",
+      "name": "순수한 바람의 코드",
+      "description": "풍 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/windcodemax.png",
+      "icon": ""
+  },
+
+  lightcodesmall: {
+      "id": "lightcodesmall",
+      "name": "저품질 빛의 코드",
+      "description": "광 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/lightcodesmall.png",
+      "icon": ""
+  },
+
+  lightcodemedium: {
+      "id": "lightcodemedium",
+      "name": "빛의 코드",
+      "description": "광 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/lightcodemedium.png",
+      "icon": ""
+  },
+
+  lightcodebig: {
+      "id": "lightcodebig",
+      "name": "고품질 빛의 코드",
+      "description": "광 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/lightcodebig.png",
+      "icon": ""
+  },
+
+  lightcodemax: {
+      "id": "lightcodemax",
+      "name": "순수한 빛의 코드",
+      "description": "광 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/lightcodemax.png",
+      "icon": ""
+  },
+
+  darkcodesmall: {
+      "id": "darkcodesmall",
+      "name": "저품질 어둠의 코드",
+      "description": "암 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/darkcodesmall.png",
+      "icon": ""
+  },
+
+  darkcodemedium: {
+      "id": "darkcodemedium",
+      "name": "어둠의 코드",
+      "description": "암 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/darkcodemedium.png",
+      "icon": ""
+  },
+
+  darkcodebig: {
+      "id": "darkcodebig",
+      "name": "고품질 어둠의 코드",
+      "description": "암 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/darkcodebig.png",
+      "icon": ""
+  },
+
+  darkcodemax: {
+      "id": "darkcodemax",
+      "name": "순수한 어둠의 코드",
+      "description": "암 속성 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/darkcodemax.png",
+      "icon": ""
+  },
+
+  forcestonelow: {
+      "id": "forcestonelow",
+      "name": "부서진 마력의 정수",
+      "description": "마력 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/forcestonelow.png",
+      "icon": ""
+  },
+
+  forcestonemedium: {
+      "id": "forcestonemedium",
+      "name": "금이간 마력의 정수",
+      "description": "마력 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/forcestonemedium.png",
+      "icon": ""
+  },
+
+  forcestonebig: {
+      "id": "forcestonebig",
+      "name": "마력의 정수",
+      "description": "마력 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/forcestonebig.png",
+      "icon": ""
+  },
+
+  forcestonemax: {
+      "id": "forcestonemax",
+      "name": "완성된 마력의 정수",
+      "description": "마력 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/forcestonemax.png",
+      "icon": ""
+  },
+
+  lifestonelow: {
+      "id": "lifestonelow",
+      "name": "부서진 생명의 정수",
+      "description": "생명 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/lifestonelow.png",
+      "icon": ""
+  },
+
+  lifestonemedium: {
+      "id": "lifestonemedium",
+      "name": "금이간 생명의 정수",
+      "description": "생명 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/lifestonemedium.png",
+      "icon": ""
+  },
+
+  lifestonebig: {
+      "id": "lifestonebig",
+      "name": "생명의 정수",
+      "description": "생명 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/lifestonebig.png",
+      "icon": ""
+  },
+
+  lifestonemax: {
+      "id": "lifestonemax",
+      "name": "완성된 생명의 정수",
+      "description": "생명 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/lifestonemax.png",
+      "icon": ""
+  },
+
+  seasonstonelow: {
+      "id": "seasonstonelow",
+      "name": "부서진 계절의 정수",
+      "description": "계절 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/seasonstonelow.png",
+      "icon": ""
+  },
+
+  seasonstonemedium: {
+      "id": "seasonstonemedium",
+      "name": "금이간 계절의 정수",
+      "description": "계절 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/seasonstonemedium.png",
+      "icon": ""
+  },
+
+  seasonstonebig: {
+      "id": "seasonstonebig",
+      "name": "계절의 정수",
+      "description": "계절 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/seasonstonebig.png",
+      "icon": ""
+  },
+
+  seasonstonemax: {
+      "id": "seasonstonemax",
+      "name": "완성된 계절의 정수",
+      "description": "계절 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/seasonstonemax.png",
+      "icon": ""
+  },
+
+  memorystonelow: {
+      "id": "memorystonelow",
+      "name": "부서진 기억의 정수",
+      "description": "기억 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/memorystonelow.png",
+      "icon": ""
+  },
+
+  memorystonemedium: {
+      "id": "memorystonemedium",
+      "name": "금이간 기억의 정수",
+      "description": "기억 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/memorystonemedium.png",
+      "icon": ""
+  },
+
+  memorystonebig: {
+      "id": "memorystonebig",
+      "name": "기억의 정수",
+      "description": "기억 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/memorystonebig.png",
+      "icon": ""
+  },
+
+  memorystonemax: {
+      "id": "memorystonemax",
+      "name": "완성된 기억의 정수",
+      "description": "기억 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/memorystonemax.png",
+      "icon": ""
+  },
+
+  soundstonelow: {
+      "id": "soundstonelow",
+      "name": "부서진 소리의 정수",
+      "description": "소리 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/soundstonelow.png",
+      "icon": ""
+  },
+
+  soundstonemedium: {
+      "id": "soundstonemedium",
+      "name": "금이간 소리의 정수",
+      "description": "소리 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/soundstonemedium.png",
+      "icon": ""
+  },
+
+  soundstonebig: {
+      "id": "soundstonebig",
+      "name": "소리의 정수",
+      "description": "소리 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/soundstonebig.png",
+      "icon": ""
+  },
+
+  soundstonemax: {
+      "id": "soundstonemax",
+      "name": "완성된 소리의 정수",
+      "description": "소리 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/soundstonemax.png",
+      "icon": ""
+  },
+
+  spacestonelow: {
+      "id": "spacestonelow",
+      "name": "부서진 공간의 정수",
+      "description": "공간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/spacestonelow.png",
+      "icon": ""
+  },
+
+  spacestonemedium: {
+      "id": "spacestonemedium",
+      "name": "금이간 공간의 정수",
+      "description": "공간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/spacestonemedium.png",
+      "icon": ""
+  },
+
+  spacestonebig: {
+      "id": "spacestonebig",
+      "name": "공간의 정수",
+      "description": "공간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/spacestonebig.png",
+      "icon": ""
+  },
+
+  spacestonemax: {
+      "id": "spacestonemax",
+      "name": "완성된 공간의 정수",
+      "description": "공간 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/spacestonemax.png",
+      "icon": ""
+  },
+
+  intellectstonelow: {
+      "id": "intellectstonelow",
+      "name": "부서진 지성의 정수",
+      "description": "지성 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/intellectstonelow.png",
+      "icon": ""
+  },
+
+  intellectstonemedium: {
+      "id": "intellectstonemedium",
+      "name": "금이간 지성의 정수",
+      "description": "지성 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/intellectstonemedium.png",
+      "icon": ""
+  },
+
+  intellectstonebig: {
+      "id": "intellectstonebig",
+      "name": "지성의 정수",
+      "description": "지성 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/intellectstonebig.png",
+      "icon": ""
+  },
+
+  intellectstonemax: {
+      "id": "intellectstonemax",
+      "name": "완성된 지성의 정수",
+      "description": "지성 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/intellectstonemax.png",
+      "icon": ""
+  },
+
+  heartstonelow: {
+      "id": "heartstonelow",
+      "name": "부서진 마음의 정수",
+      "description": "마음 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "N",
+      "image": "/uploads/items/heartstonelow.png",
+      "icon": ""
+  },
+
+  heartstonemedium: {
+      "id": "heartstonemedium",
+      "name": "금이간 마음의 정수",
+      "description": "마음 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "R",
+      "image": "/uploads/items/heartstonemedium.png",
+      "icon": ""
+  },
+
+  heartstonebig: {
+      "id": "heartstonebig",
+      "name": "마음의 정수",
+      "description": "마음 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SR",
+      "image": "/uploads/items/heartstonebig.png",
+      "icon": ""
+  },
+
+  heartstonemax: {
+      "id": "heartstonemax",
+      "name": "완성된 마음의 정수",
+      "description": "마음 근원 캐릭터의 승급에 필요한 소재.",
+      "category": "awakening",
+      "rarity": "SSR",
+      "image": "/uploads/items/heartstonemax.png",
+      "icon": ""
+  },
+
+  red_broken_blade: {
+      "id": "red_broken_blade",
+      "name": "붉게 물든 검날 파편",
+      "description": "붉게 물든 검날 파편. 캐릭터를 승급시키는데에 필요하다.",
+      "category": "material",
+      "rarity": "N",
+      "flavor": "",
+      "image": "/uploads/items/red_broken_blade.png",
+      "icon": ""
   },
 };
 

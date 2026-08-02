@@ -1,6 +1,6 @@
 /* ========== 프로필 모달 오버레이 ========== */
 .profile-overlay {
-  position: fixed; top: 0; bottom: 0; left: 50%; width: 1920px; transform: translateX(-50%);
+  position: absolute; top: 0; bottom: 0; left: 0; width: 1920px;
   z-index: 500;
   background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
@@ -10,8 +10,8 @@
 
 .profile-modal {
   background: var(--bg-secondary); border: 1px solid var(--border);
-  border-radius: 16px; width: 380px; max-width: 90vw;
-  max-height: 85vh; overflow-y: auto;
+  border-radius: 16px; width: 380px; max-width: 1728px;
+  max-height: 918px; overflow-y: auto;
   display: flex; flex-direction: column;
   animation: profileSlideUp 0.25s ease;
 }

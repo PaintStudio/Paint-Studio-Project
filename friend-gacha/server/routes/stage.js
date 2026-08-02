@@ -1,7 +1,9 @@
 const express = require('express');
 const db = require('../db');
+const { userLog } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { createUnit, createBattleSetup, validateBattleResult, calcStats } = require('../battle');
+const { buildPartyUnits, collectTagCounts, giveItem, processDrops } = require('../battleUtils');
 const gameConfig = require('../../gameConfig.json');
 const itemDefs = require('../../data/items');
 
@@ -48,56 +50,13 @@ router.post('/battle-start', authMiddleware, (req, res) => {
   const stage = db.prepare('SELECT * FROM stages WHERE id = ?').get(stageId);
   if (!stage) return res.status(404).json({ error: '스테이지를 찾을 수 없습니다' });
 
-  // 스태미나 체크 및 차감
-  refreshStamina(req.user.id);
-  const user = db.prepare('SELECT stamina FROM users WHERE id = ?').get(req.user.id);
-  if (user.stamina < stage.stamina_cost) {
-    return res.status(400).json({ error: '스태미나가 부족합니다', need: stage.stamina_cost, have: user.stamina });
-  }
-  db.prepare('UPDATE users SET stamina = stamina - ? WHERE id = ?').run(stage.stamina_cost, req.user.id);
+  const stamina = deductStamina(req.user.id, stage.stamina_cost);
+  if (stamina.error) return res.status(400).json(stamina);
 
-  // 파티 유닛 생성 (장착 스킬 포함)
-  const partyUnits = [];
-  for (const invId of partyIds) {
-    const inv = db.prepare(`
-      SELECT i.*, c.name, c.rarity, c.element, c.origin, c.title, c.base_hp, c.base_atk, c.base_def, c.base_spd, c.turn_notes, c.image_url, c.image_sd
-      FROM inventory i JOIN characters c ON i.character_id = c.id
-      WHERE i.id = ? AND i.user_id = ?
-    `).get(invId, req.user.id);
-    if (!inv) return res.status(400).json({ error: `인벤토리 #${invId}를 찾을 수 없습니다` });
+  const { units: partyUnits, error: partyError } = buildPartyUnits(req.user.id, partyIds);
+  if (partyError) return res.status(400).json({ error: partyError });
 
-    // 장착된 스킬 조회
-    const equipped = db.prepare(`
-      SELECT s.* FROM equipped_skills es JOIN skills s ON es.skill_id = s.id
-      WHERE es.inventory_id = ? ORDER BY es.slot_number
-    `).all(invId);
-
-    // 장착 스킬이 없으면 캐릭터 기본 스킬 사용
-    let skills = equipped;
-    if (skills.length === 0) {
-      skills = db.prepare(`
-        SELECT s.* FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
-        WHERE cs.character_id = ? AND cs.is_default = 1
-      `).all(inv.character_id);
-    }
-
-    const talentData = require('../../data/talents');
-    const charTalents = talentData[inv.character_id];
-    const equippedTalentIdx = inv.equipped_talent ?? 0;
-    const activeTalent = charTalents?.talents?.[equippedTalentIdx] || null;
-
-    const unit = createUnit(inv, inv.level, inv.awakening, false, skills, activeTalent, inv.promotion || 0);
-    unit.characterId = inv.character_id;
-    partyUnits.push(unit);
-  }
-
-  // 태그 조건 해석 (tag ID 기반)
-  const tagCounts = {};
-  for (const u of partyUnits) {
-    const tags = db.prepare('SELECT t.id, t.label FROM character_tags ct JOIN tags t ON ct.tag_id = t.id WHERE ct.character_id = ?').all(u.characterId);
-    u.tags = tags.map(t => ({ id: t.id, label: t.label }));
-    for (const t of tags) tagCounts[t.id] = (tagCounts[t.id] || 0) + 1;
-  }
+  const tagCounts = collectTagCounts(partyUnits);
 
   // 적 유닛 생성
   const enemies = JSON.parse(stage.enemy_data);
@@ -115,9 +74,14 @@ router.post('/battle-start', authMiddleware, (req, res) => {
   setup.chapter = stage.chapter;
   setup.stageName = stage.name;
   setup.rewards = JSON.parse(stage.rewards);
+  if (stage.max_cycles) setup.maxCycles = stage.max_cycles;
+  if (stage.bg_image) setup.bgImage = `/uploads/bg/${stage.bg_image}`;
+  if (stage.bgm) setup.bgm = stage.bgm;
   if (stage.story_script) {
     try { setup.storyScript = JSON.parse(stage.story_script); } catch {}
   }
+
+  userLog(req.user.id, 'stage_enter', { stageId, stageName: stage.name, chapter: stage.chapter, staminaCost: stage.stamina_cost });
 
   const updatedUser = db.prepare('SELECT stamina, gold, currency FROM users WHERE id = ?').get(req.user.id);
   res.json({ setup, user: updatedUser });
@@ -125,6 +89,7 @@ router.post('/battle-start', authMiddleware, (req, res) => {
 
 // 전투 결과 제출
 router.post('/battle-end', authMiddleware, (req, res) => {
+  try {
   const { stageId, battleLog } = req.body;
 
   if (!validateBattleResult(battleLog, 4, 4)) {
@@ -163,96 +128,28 @@ router.post('/battle-end', authMiddleware, (req, res) => {
     addAccountExp(req.user.id, accExp);
     earnedRewards.accountExp = accExp;
 
-    // 드롭 아이템 처리
     const enemies = JSON.parse(stage.enemy_data);
-    const droppedItems = [];
-    for (const enemy of enemies) {
-      if (!enemy.drops) continue;
-      for (const drop of enemy.drops) {
-        if (Math.random() < drop.rate) {
-          const qty = drop.quantity || 1;
-          db.prepare(`INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)
-            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?`)
-            .run(req.user.id, drop.itemId, qty, qty);
-          const def = itemDefs[drop.itemId];
-          droppedItems.push({ itemId: drop.itemId, name: def?.name || drop.itemId, quantity: qty, rarity: def?.rarity || 'N' });
-        }
-      }
-    }
-    earnedRewards.items = droppedItems;
+    earnedRewards.items = processDrops(req.user.id, enemies);
   }
+
+  userLog(req.user.id, battleLog.result === 'victory' ? 'stage_clear' : 'stage_fail', { stageId, stageName: stage.name, result: battleLog.result, turns: battleLog.turnCycles, stars: earnedRewards?.stars });
 
   const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
   res.json({ rewards: earnedRewards, user: updatedUser });
+  } catch (err) {
+    console.error('[스테이지] battle-end 오류:', err.message);
+    res.status(500).json({ error: '전투 결과 처리 중 오류가 발생했습니다' });
+  }
 });
 
-// === 기존 호환용: 자동전투 (레거시) ===
-router.post('/battle', authMiddleware, (req, res) => {
-  // battle-start로 리다이렉트
-  req.body.commands = null;
-  // 기존 방식도 지원
-  const { stageId, partyIds } = req.body;
+function deductStamina(userId, cost) {
+  refreshStamina(userId);
+  const user = db.prepare('SELECT stamina FROM users WHERE id = ?').get(userId);
+  if (user.stamina < cost) return { error: '스태미나가 부족합니다', need: cost, have: user.stamina };
+  db.prepare('UPDATE users SET stamina = stamina - ? WHERE id = ?').run(cost, userId);
+  return { ok: true };
+}
 
-  if (!partyIds || partyIds.length === 0 || partyIds.length > 3) {
-    return res.status(400).json({ error: '파티는 1~3명으로 편성하세요' });
-  }
-
-  const stage = db.prepare('SELECT * FROM stages WHERE id = ?').get(stageId);
-  if (!stage) return res.status(404).json({ error: '스테이지를 찾을 수 없습니다' });
-
-  refreshStamina(req.user.id);
-  const user = db.prepare('SELECT stamina FROM users WHERE id = ?').get(req.user.id);
-  if (user.stamina < stage.stamina_cost) {
-    return res.status(400).json({ error: '스태미나가 부족합니다' });
-  }
-  db.prepare('UPDATE users SET stamina = stamina - ? WHERE id = ?').run(stage.stamina_cost, req.user.id);
-
-  // 간단한 자동전투 결과 생성 (레거시 호환)
-  const rewards = JSON.parse(stage.rewards);
-  const victory = Math.random() > 0.3; // 70% 승률 (임시)
-  let victoryRewards = null;
-
-  if (victory) {
-    db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
-    const existing = db.prepare('SELECT * FROM stage_clears WHERE user_id = ? AND stage_id = ?').get(req.user.id, stageId);
-    if (!existing) {
-      db.prepare('UPDATE users SET currency = currency + ? WHERE id = ?').run(rewards.first_clear_diamond, req.user.id);
-      db.prepare('INSERT INTO stage_clears (user_id, stage_id, stars, best_turns) VALUES (?, ?, ?, ?)')
-        .run(req.user.id, stageId, 1, 10);
-    }
-    progressMission(req.user.id, 'battle', 1);
-
-    const accExp = rewards.exp || 20;
-    addAccountExp(req.user.id, accExp);
-
-    // 드롭 아이템 처리
-    const enemies = JSON.parse(stage.enemy_data);
-    const droppedItems = [];
-    for (const enemy of enemies) {
-      if (!enemy.drops) continue;
-      for (const drop of enemy.drops) {
-        if (Math.random() < drop.rate) {
-          const qty = drop.quantity || 1;
-          db.prepare(`INSERT INTO user_items (user_id, item_id, quantity) VALUES (?, ?, ?)
-            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?`)
-            .run(req.user.id, drop.itemId, qty, qty);
-          const def = itemDefs[drop.itemId];
-          droppedItems.push({ itemId: drop.itemId, name: def?.name || drop.itemId, quantity: qty, rarity: def?.rarity || 'N' });
-        }
-      }
-    }
-    victoryRewards = { gold: rewards.gold, accountExp: accExp, items: droppedItems };
-  }
-
-  const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
-  res.json({
-    battle: { result: victory ? 'victory' : 'defeat', turns: 10, stars: victory ? 1 : 0, log: [], totalDamage: 0, partyState: [], enemyState: [] },
-    rewards: victory ? victoryRewards : null,
-    user: updatedUser,
-  });
-});
-
-// 유틸
 function refreshStamina(userId) {
   const user = db.prepare('SELECT stamina, stamina_updated_at FROM users WHERE id = ?').get(userId);
   const now = Date.now();
@@ -265,19 +162,23 @@ function refreshStamina(userId) {
   }
 }
 
-function addExp(inventoryId, amount) {
-  const inv = db.prepare('SELECT i.*, c.rarity FROM inventory i JOIN characters c ON i.character_id = c.id WHERE i.id = ?').get(inventoryId);
-  if (!inv) return;
-  const maxLevels = gameConfig.growth.maxLevels;
-  const maxLevel = (maxLevels[inv.rarity] || 40);
-  if (inv.level >= maxLevel) return;
-  let exp = inv.exp + amount;
-  let level = inv.level;
+function calcLevelUp(currentLevel, currentExp, addedExp, maxLevel) {
+  let exp = currentExp + addedExp;
+  let level = currentLevel;
   while (level < maxLevel) {
     const needed = level * level * 10 + level * 50;
     if (exp >= needed) { exp -= needed; level++; } else break;
   }
   if (level >= maxLevel) exp = 0;
+  return { level, exp };
+}
+
+function addExp(inventoryId, amount) {
+  const inv = db.prepare('SELECT i.*, c.rarity FROM inventory i JOIN characters c ON i.character_id = c.id WHERE i.id = ?').get(inventoryId);
+  if (!inv) return;
+  const maxLevel = (gameConfig.growth.maxLevels[inv.rarity] || 40);
+  if (inv.level >= maxLevel) return;
+  const { level, exp } = calcLevelUp(inv.level, inv.exp, amount, maxLevel);
   db.prepare('UPDATE inventory SET exp = ?, level = ? WHERE id = ?').run(exp, level, inventoryId);
 }
 
@@ -314,6 +215,8 @@ function addAccountExp(userId, amount) {
 
 module.exports = router;
 module.exports.refreshStamina = refreshStamina;
+module.exports.deductStamina = deductStamina;
 module.exports.progressMission = progressMission;
 module.exports.addExp = addExp;
 module.exports.addAccountExp = addAccountExp;
+module.exports.calcLevelUp = calcLevelUp;

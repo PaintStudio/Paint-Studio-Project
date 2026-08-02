@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const db = require('../db');
+const { userLog } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
 const gameConfig = require('../../gameConfig.json');
@@ -75,25 +76,28 @@ function pickCharacter(rarity, banner) {
   if (banner && banner.characterPool !== 'all' && Array.isArray(banner.characterPool) && banner.characterPool.length > 0) {
     // 한정 풀: 해당 등급 + 풀에 포함된 캐릭터
     const placeholders = banner.characterPool.map(() => '?').join(',');
-    chars = db.prepare(`SELECT * FROM characters WHERE rarity = ? AND id IN (${placeholders})`).all(rarity, ...banner.characterPool);
+    chars = db.prepare(`SELECT * FROM characters WHERE rarity = ? AND is_released = 1 AND id IN (${placeholders})`).all(rarity, ...banner.characterPool);
     // 풀에 해당 등급이 없으면 전체에서
     if (chars.length === 0) {
-      chars = db.prepare('SELECT * FROM characters WHERE rarity = ?').all(rarity);
+      chars = db.prepare('SELECT * FROM characters WHERE rarity = ? AND is_released = 1').all(rarity);
     }
   } else {
-    chars = db.prepare('SELECT * FROM characters WHERE rarity = ?').all(rarity);
+    chars = db.prepare('SELECT * FROM characters WHERE rarity = ? AND is_released = 1').all(rarity);
   }
 
   // 픽업 캐릭터 확률 업
   if (banner && banner.featuredCharIds && banner.featuredCharIds.length > 0 && banner.featuredRateUp > 0) {
     const featured = chars.filter(c => banner.featuredCharIds.includes(c.id));
-    if (featured.length > 0 && Math.random() < banner.featuredRateUp) {
-      return featured[Math.floor(Math.random() * featured.length)];
+    if (featured.length > 0) {
+      if (Math.random() < banner.featuredRateUp) {
+        return featured[Math.floor(Math.random() * featured.length)];
+      }
+      chars = chars.filter(c => !banner.featuredCharIds.includes(c.id));
     }
   }
 
   if (chars.length === 0) {
-    const fallback = db.prepare('SELECT * FROM characters ORDER BY RANDOM() LIMIT 1').get();
+    const fallback = db.prepare('SELECT * FROM characters WHERE is_released = 1 ORDER BY RANDOM() LIMIT 1').get();
     return fallback;
   }
   return chars[Math.floor(Math.random() * chars.length)];
@@ -102,17 +106,26 @@ function pickCharacter(rarity, banner) {
 const { initCharacterSkills } = require('../db');
 
 // 단일 뽑기 실행
-function executePull(userId, banner) {
+function executePull(userId, banner, free = false) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  const costDeduct = free ? 0 : gachaCfg.pullCost;
+  if (costDeduct > 0 && user.currency < costDeduct) {
+    throw new Error('재화가 부족합니다');
+  }
+
   const rarity = rollRarity(user.pity_counter, banner);
   const character = pickCharacter(rarity, banner);
-
-  const inv = db.prepare('INSERT INTO inventory (user_id, character_id) VALUES (?, ?)').run(userId, character.id);
-  db.prepare('INSERT INTO pull_log (user_id, character_id, rarity) VALUES (?, ?, ?)').run(userId, character.id, rarity);
-
   const newPity = rarity === 'SSR' ? 0 : user.pity_counter + 1;
-  db.prepare('UPDATE users SET currency = currency - ?, total_pulls = total_pulls + 1, pity_counter = ? WHERE id = ?')
-    .run(gachaCfg.pullCost, newPity, userId);
+
+  const doPull = db.transaction(() => {
+    db.prepare('UPDATE users SET currency = currency - ?, total_pulls = total_pulls + 1, pity_counter = ? WHERE id = ?')
+      .run(costDeduct, newPity, userId);
+    const inv = db.prepare('INSERT INTO inventory (user_id, character_id) VALUES (?, ?)').run(userId, character.id);
+    db.prepare('INSERT INTO pull_log (user_id, character_id, rarity) VALUES (?, ?, ?)').run(userId, character.id, rarity);
+    return inv;
+  });
+
+  const inv = doPull();
 
   try { initCharacterSkills(userId, inv.lastInsertRowid, character.id); } catch (e) {
     console.error('[가챠] 스킬 초기화 실패:', e.message);
@@ -148,50 +161,74 @@ router.get('/banners', (req, res) => {
 
 // 단일 뽑기
 router.post('/pull', authMiddleware, (req, res) => {
-  const { bannerId } = req.body || {};
-  const banner = bannerId ? getBannerById(bannerId) : getActiveBanners()[0];
-  if (!banner) return res.status(400).json({ error: '유효하지 않은 배너입니다' });
+  try {
+    const { bannerId } = req.body || {};
+    const banner = bannerId ? getBannerById(bannerId) : getActiveBanners()[0];
+    if (!banner) return res.status(400).json({ error: '유효하지 않은 배너입니다' });
 
-  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
-  if (user.currency < gachaCfg.pullCost) return res.status(400).json({ error: '재화가 부족합니다', needed: gachaCfg.pullCost, have: user.currency });
+    const user = db.prepare('SELECT currency, tutorial_step, total_pulls FROM users WHERE id = ?').get(req.user.id);
+    const isTutorialFree = (user.tutorial_step || 0) < 3 && user.total_pulls === 0;
+    if (!isTutorialFree && user.currency < gachaCfg.pullCost) return res.status(400).json({ error: '재화가 부족합니다', needed: gachaCfg.pullCost, have: user.currency });
 
-  const result = executePull(req.user.id, banner);
-  const updated = db.prepare('SELECT currency, pity_counter FROM users WHERE id = ?').get(req.user.id);
+    const result = executePull(req.user.id, banner, isTutorialFree);
+    const updated = db.prepare('SELECT currency, pity_counter FROM users WHERE id = ?').get(req.user.id);
 
-  try { require('./stage').progressMission(req.user.id, 'gacha', 1); } catch {}
+    userLog(req.user.id, 'pull', { banner: banner.name, rarity: result.rarity, characterId: result.character.id, characterName: result.character.name });
 
-  res.json({ result, currency: updated.currency, pityCounter: updated.pity_counter });
+    try { require('./stage').progressMission(req.user.id, 'gacha', 1); } catch {}
+
+    res.json({ result, currency: updated.currency, pityCounter: updated.pity_counter });
+  } catch (err) {
+    console.error('[가챠] 뽑기 오류:', err.message);
+    res.status(500).json({ error: '뽑기 중 오류가 발생했습니다' });
+  }
 });
 
 // 10연차
 router.post('/pull10', authMiddleware, (req, res) => {
-  const { bannerId } = req.body || {};
-  const banner = bannerId ? getBannerById(bannerId) : getActiveBanners()[0];
-  if (!banner) return res.status(400).json({ error: '유효하지 않은 배너입니다' });
+  try {
+    const { bannerId } = req.body || {};
+    const banner = bannerId ? getBannerById(bannerId) : getActiveBanners()[0];
+    if (!banner) return res.status(400).json({ error: '유효하지 않은 배너입니다' });
 
-  const multiCost = gachaCfg.pullCost * gachaCfg.multiPullCount;
-  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
-  if (user.currency < multiCost) return res.status(400).json({ error: '재화가 부족합니다', needed: multiCost, have: user.currency });
+    const multiCost = gachaCfg.pullCost * gachaCfg.multiPullCount;
+    const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+    if (user.currency < multiCost) return res.status(400).json({ error: '재화가 부족합니다', needed: multiCost, have: user.currency });
 
-  const results = [];
-  for (let i = 0; i < gachaCfg.multiPullCount; i++) {
-    results.push(executePull(req.user.id, banner));
+    const results = [];
+    for (let i = 0; i < gachaCfg.multiPullCount; i++) {
+      results.push(executePull(req.user.id, banner));
+    }
+
+    const updated = db.prepare('SELECT currency, pity_counter FROM users WHERE id = ?').get(req.user.id);
+
+    // 10연차 SR 이상 보장
+    const hasSR = results.some(r => r.rarity !== 'N' && r.rarity !== 'R');
+    if (!hasSR) {
+      const srChar = pickCharacter('SR', banner);
+      if (srChar) {
+        const last = results[results.length - 1];
+        db.prepare('UPDATE inventory SET character_id = ? WHERE id = ?').run(srChar.id, last.inventoryId);
+        db.prepare('UPDATE pull_log SET character_id = ?, rarity = ? WHERE id = (SELECT id FROM pull_log WHERE user_id = ? AND character_id = ? ORDER BY id DESC LIMIT 1)')
+          .run(srChar.id, 'SR', req.user.id, last.character.id);
+        const oldSiIds = db.prepare('SELECT skill_inventory_id FROM equipped_skills WHERE inventory_id = ? AND skill_inventory_id IS NOT NULL').all(last.inventoryId).map(r => r.skill_inventory_id);
+        db.prepare('DELETE FROM equipped_skills WHERE inventory_id = ?').run(last.inventoryId);
+        for (const siId of oldSiIds) db.prepare('DELETE FROM skill_inventory WHERE id = ? AND user_id = ?').run(siId, req.user.id);
+        db.prepare('UPDATE inventory SET skills_initialized = 0 WHERE id = ?').run(last.inventoryId);
+        try { initCharacterSkills(req.user.id, last.inventoryId, srChar.id); } catch (e) {
+          console.error('[가챠] SR보장 스킬 재초기화 실패:', e.message);
+        }
+        results[results.length - 1] = { ...last, character: srChar, rarity: 'SR' };
+      }
+    }
+
+    userLog(req.user.id, 'pull10', { banner: banner.name, results: results.map(r => ({ rarity: r.rarity, characterId: r.character.id, characterName: r.character.name })) });
+
+    res.json({ results, currency: updated.currency, pityCounter: updated.pity_counter });
+  } catch (err) {
+    console.error('[가챠] 10연차 오류:', err.message);
+    res.status(500).json({ error: '뽑기 중 오류가 발생했습니다' });
   }
-
-  const updated = db.prepare('SELECT currency, pity_counter FROM users WHERE id = ?').get(req.user.id);
-
-  // 10연차 R 이상 보장
-  const hasR = results.some(r => r.rarity !== 'N');
-  if (!hasR) {
-    const rChar = pickCharacter('R', banner);
-    const last = results[results.length - 1];
-    db.prepare('UPDATE inventory SET character_id = ? WHERE id = ?').run(rChar.id, last.inventoryId);
-    db.prepare('UPDATE pull_log SET character_id = ?, rarity = ? WHERE user_id = ? AND character_id = ? ORDER BY id DESC LIMIT 1')
-      .run(rChar.id, 'R', req.user.id, last.character.id);
-    results[results.length - 1] = { ...last, character: rChar, rarity: 'R' };
-  }
-
-  res.json({ results, currency: updated.currency, pityCounter: updated.pity_counter });
 });
 
 // 확률표
@@ -199,8 +236,16 @@ router.get('/rates', (req, res) => {
   const { bannerId } = req.query;
   const banner = bannerId ? getBannerById(bannerId) : null;
   const rates = banner?.rates || gachaCfg.rates;
-  const characters = db.prepare('SELECT id, name, rarity, title FROM characters ORDER BY CASE rarity WHEN "SSR" THEN 1 WHEN "SR" THEN 2 WHEN "R" THEN 3 ELSE 4 END').all();
-  res.json({ rates, pityThreshold: gachaCfg.pityThreshold, characters, pullCost: gachaCfg.pullCost, featuredCharIds: banner?.featuredCharIds || [] });
+
+  let characters;
+  if (banner && banner.characterPool !== 'all' && Array.isArray(banner.characterPool) && banner.characterPool.length > 0) {
+    const placeholders = banner.characterPool.map(() => '?').join(',');
+    characters = db.prepare(`SELECT id, name, rarity, title, image_url FROM characters WHERE is_released = 1 AND id IN (${placeholders}) ORDER BY CASE rarity WHEN "CR" THEN 0 WHEN "SSR" THEN 1 WHEN "SR" THEN 2 WHEN "R" THEN 3 ELSE 4 END, name`).all(...banner.characterPool);
+  } else {
+    characters = db.prepare('SELECT id, name, rarity, title, image_url FROM characters WHERE is_released = 1 ORDER BY CASE rarity WHEN "CR" THEN 0 WHEN "SSR" THEN 1 WHEN "SR" THEN 2 WHEN "R" THEN 3 ELSE 4 END, name').all();
+  }
+
+  res.json({ rates, pityThreshold: gachaCfg.pityThreshold, characters, pullCost: gachaCfg.pullCost, featuredCharIds: banner?.featuredCharIds || [], featuredRateUp: banner?.featuredRateUp || 0 });
 });
 
 // ============ 스킬 가챠 ============
@@ -277,13 +322,22 @@ function pickSkill(rarity, banner) {
 
 function executeSkillPull(userId, banner) {
   const cost = banner?.pullCost ?? skillGachaCfg.pullCost;
+  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(userId);
+  if (user.currency < cost) {
+    throw new Error('재화가 부족합니다');
+  }
+
   const rarity = rollSkillRarity(banner);
   const skill = pickSkill(rarity, banner);
 
-  const inv = db.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
-    .run(userId, skill.id, 'gacha');
+  const doPull = db.transaction(() => {
+    db.prepare('UPDATE users SET currency = currency - ? WHERE id = ?').run(cost, userId);
+    const inv = db.prepare('INSERT INTO skill_inventory (user_id, skill_id, obtained_from) VALUES (?, ?, ?)')
+      .run(userId, skill.id, 'gacha');
+    return inv;
+  });
 
-  db.prepare('UPDATE users SET currency = currency - ? WHERE id = ?').run(cost, userId);
+  const inv = doPull();
 
   return {
     skillInventoryId: inv.lastInsertRowid,
@@ -314,53 +368,65 @@ router.get('/skill-banners', (req, res) => {
 
 // 스킬 단일 뽑기
 router.post('/skill-pull', authMiddleware, (req, res) => {
-  const { bannerId } = req.body || {};
-  const banner = bannerId ? getSkillBannerById(bannerId) : getActiveSkillBanners()[0];
-  if (!banner) return res.status(400).json({ error: '유효하지 않은 스킬 배너입니다' });
+  try {
+    const { bannerId } = req.body || {};
+    const banner = bannerId ? getSkillBannerById(bannerId) : getActiveSkillBanners()[0];
+    if (!banner) return res.status(400).json({ error: '유효하지 않은 스킬 배너입니다' });
 
-  const cost = banner.pullCost ?? skillGachaCfg.pullCost;
-  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
-  if (user.currency < cost) return res.status(400).json({ error: '재화가 부족합니다', needed: cost, have: user.currency });
+    const cost = banner.pullCost ?? skillGachaCfg.pullCost;
+    const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+    if (user.currency < cost) return res.status(400).json({ error: '재화가 부족합니다', needed: cost, have: user.currency });
 
-  const result = executeSkillPull(req.user.id, banner);
-  const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+    const result = executeSkillPull(req.user.id, banner);
+    const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
 
-  res.json({ result, currency: updated.currency });
+    res.json({ result, currency: updated.currency });
+  } catch (err) {
+    console.error('[스킬가챠] 뽑기 오류:', err.message);
+    res.status(500).json({ error: '뽑기 중 오류가 발생했습니다' });
+  }
 });
 
 // 스킬 10연차
 router.post('/skill-pull10', authMiddleware, (req, res) => {
-  const { bannerId } = req.body || {};
-  const banner = bannerId ? getSkillBannerById(bannerId) : getActiveSkillBanners()[0];
-  if (!banner) return res.status(400).json({ error: '유효하지 않은 스킬 배너입니다' });
+  try {
+    const { bannerId } = req.body || {};
+    const banner = bannerId ? getSkillBannerById(bannerId) : getActiveSkillBanners()[0];
+    if (!banner) return res.status(400).json({ error: '유효하지 않은 스킬 배너입니다' });
 
-  const cost = banner.pullCost ?? skillGachaCfg.pullCost;
-  const multiCount = skillGachaCfg.multiPullCount;
-  const totalCost = cost * multiCount;
-  const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
-  if (user.currency < totalCost) return res.status(400).json({ error: '재화가 부족합니다', needed: totalCost, have: user.currency });
+    const cost = banner.pullCost ?? skillGachaCfg.pullCost;
+    const multiCount = skillGachaCfg.multiPullCount;
+    const totalCost = cost * multiCount;
+    const user = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+    if (user.currency < totalCost) return res.status(400).json({ error: '재화가 부족합니다', needed: totalCost, have: user.currency });
 
-  const results = [];
-  for (let i = 0; i < multiCount; i++) {
-    results.push(executeSkillPull(req.user.id, banner));
+    const results = [];
+    for (let i = 0; i < multiCount; i++) {
+      results.push(executeSkillPull(req.user.id, banner));
+    }
+
+    // 10연차 pale 이상 보장
+    const hasPale = results.some(r => r.rarity !== 'faint');
+    if (!hasPale) {
+      const last = results[results.length - 1];
+      const paleSkill = pickSkill('pale', banner);
+      if (paleSkill) {
+        db.prepare('UPDATE skill_inventory SET skill_id = ? WHERE id = ?').run(paleSkill.id, last.skillInventoryId);
+        results[results.length - 1] = {
+          ...last,
+          skill: { id: paleSkill.id, name: paleSkill.name, type: paleSkill.type, rarity: paleSkill.rarity,
+                   description: paleSkill.description, cost: paleSkill.cost, power: paleSkill.power, element: paleSkill.element },
+          rarity: paleSkill.rarity,
+        };
+      }
+    }
+
+    const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
+    res.json({ results, currency: updated.currency });
+  } catch (err) {
+    console.error('[스킬가챠] 10연차 오류:', err.message);
+    res.status(500).json({ error: '뽑기 중 오류가 발생했습니다' });
   }
-
-  // 10연차 pale 이상 보장
-  const hasPale = results.some(r => r.rarity !== 'faint');
-  if (!hasPale) {
-    const last = results[results.length - 1];
-    const paleSkill = pickSkill('pale', banner);
-    db.prepare('UPDATE skill_inventory SET skill_id = ? WHERE id = ?').run(paleSkill.id, last.skillInventoryId);
-    results[results.length - 1] = {
-      ...last,
-      skill: { id: paleSkill.id, name: paleSkill.name, type: paleSkill.type, rarity: paleSkill.rarity,
-               description: paleSkill.description, cost: paleSkill.cost, power: paleSkill.power, element: paleSkill.element },
-      rarity: paleSkill.rarity,
-    };
-  }
-
-  const updated = db.prepare('SELECT currency FROM users WHERE id = ?').get(req.user.id);
-  res.json({ results, currency: updated.currency });
 });
 
 // 스킬 가챠 확률표

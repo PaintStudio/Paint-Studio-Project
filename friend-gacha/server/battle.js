@@ -53,10 +53,8 @@ function calcStats(char, level, awakening, promotion) {
  * @param {boolean} isEnemy
  * @param {Array} equippedSkills - 장착된 스킬 배열 [{name, type, cost, power, element, target, defense_mult, extra}]
  */
-function loadPromotions() {
-  delete require.cache[require.resolve('../data/promotions')];
-  return require('../data/promotions');
-}
+const hotRequire = require('./hotRequire');
+const loadPromotions = () => hotRequire('promotions');
 
 function createUnit(charData, level = 1, awakening = 0, isEnemy = false, equippedSkills = [], talent = null, promotion = 0) {
   const stats = isEnemy
@@ -92,6 +90,7 @@ function createUnit(charData, level = 1, awakening = 0, isEnemy = false, equippe
     rarity: charData.rarity || 'N',
     isEnemy,
     isBoss: charData.isBoss || false,
+    aiType: charData.ai_type || charData.aiType || 'basic',
     maxHp: stats.hp, hp: stats.hp,
     atk: stats.atk, def: stats.def, spd: stats.spd,
     maxNotes: turnNotes + noteBonus, notes: turnNotes + noteBonus,
@@ -172,7 +171,7 @@ function serializeUnit(u, tagCounts) {
 
   return {
     id: u.id, characterId: u.characterId || null, name: u.name, element: u.element, origin: u.origin, rarity: u.rarity,
-    isEnemy: u.isEnemy, isBoss: u.isBoss,
+    isEnemy: u.isEnemy, isBoss: u.isBoss, aiType: u.aiType || 'basic',
     maxHp: u.maxHp, hp: u.hp, atk: u.atk, def: u.def, spd: u.spd,
     maxNotes: u.maxNotes, notes: u.notes,
     image_sd: u.image_sd || null,
@@ -184,7 +183,7 @@ function serializeUnit(u, tagCounts) {
         typeof e !== 'object' || meetsTagCondition(e.tagCondition, tagCounts)
       );
       return {
-        id: s.id, name: s.name, type: s.type, cost: s.cost, power: s.power || 0,
+        id: s.id, name: s.name, description: s.description || '', icon: s.icon || '', type: s.type, cost: s.cost, power: s.power || 0,
         element: s.element || u.element, target: s.target,
         defense_mult: s.defense_mult || 0, cooldown: s.cooldown || 0,
         extra: restExtra,
@@ -210,66 +209,8 @@ function validateBattleResult(battleLog, partyCount, enemyCount) {
   return true;
 }
 
-/**
- * 적 AI - 단순 턴 노트 관리
- * @param {Object} enemy - 적 유닛
- * @param {Array} targets - 공격 대상 (아군)
- * @returns {Array} 행동 목록 [{skill, targetIndex}]
- */
-function enemyAI(enemy, targets) {
-  const actions = [];
-  let remainingNotes = enemy.notes;
-  const attackSkills = enemy.skills.filter(s => s.type === 'attack');
-  const defenseSkills = enemy.skills.filter(s => s.type === 'defense');
-
-  // 단순 AI: 노트의 60~80%를 공격에 쓰고 나머지는 방어용으로 남김
-  const offenseBudget = Math.ceil(remainingNotes * (0.6 + Math.random() * 0.2));
-  let spent = 0;
-
-  while (spent < offenseBudget && attackSkills.length > 0) {
-    // 예산 내에서 쓸 수 있는 가장 강한 스킬 선택
-    const affordable = attackSkills.filter(s => s.cost <= (offenseBudget - spent));
-    if (affordable.length === 0) break;
-
-    // 50% 확률로 강한 스킬, 50% 확률로 랜덤
-    affordable.sort((a, b) => b.power - a.power);
-    const skill = Math.random() < 0.5 ? affordable[0] : affordable[Math.floor(Math.random() * affordable.length)];
-
-    const livingTargets = targets.filter(t => t.alive);
-    if (livingTargets.length === 0) break;
-
-    const targetIndex = Math.floor(Math.random() * livingTargets.length);
-    actions.push({ skill, targetIndex, targetId: livingTargets[targetIndex].id });
-    spent += skill.cost;
-  }
-
-  return { actions, notesReserved: remainingNotes - spent };
-}
-
-/**
- * 적 방어 AI 결정
- * @param {Object} enemy - 방어할 적 유닛
- * @param {Object} incomingAttack - 날아오는 공격 정보
- * @returns {Object|null} 방어 스킬 또는 null (방어 안 함)
- */
-function enemyDefenseAI(enemy, incomingAttack) {
-  if (enemy.notes <= 0) return null;
-
-  const defenseSkills = enemy.skills.filter(s => s.type === 'defense' && s.cost <= enemy.notes);
-  if (defenseSkills.length === 0) return null;
-
-  // 70% 확률로 방어 시도 (노트 남아있으면)
-  if (Math.random() < 0.7) {
-    // 가장 경제적인 방어 선택
-    defenseSkills.sort((a, b) => a.cost - b.cost);
-    return defenseSkills[0];
-  }
-  return null;
-}
-
 module.exports = {
   createUnit, calcStats, getElementMultiplier, calcDamage, calcDamageIgnoreDef,
   createBattleSetup, validateBattleResult, serializeUnit,
-  enemyAI, enemyDefenseAI, getEffectiveStat,
-  ELEMENT_CHART,
+  getEffectiveStat, ELEMENT_CHART,
 };

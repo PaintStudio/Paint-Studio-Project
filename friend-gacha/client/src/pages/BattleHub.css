@@ -41,5 +41,6 @@
 .mode-placeholder p { font-size: 0.9rem; }
 
 /* 전투 진입 시 모드탭 숨김 */
+.battle-hub:has(.battle-page) { height: 100%; gap: 0; }
 .battle-hub:has(.battle-page) .battle-mode-tabs { display: none; }
-.battle-hub:has(.battle-page) .battle-mode-content { min-height: 0; }
+.battle-hub:has(.battle-page) .battle-mode-content { min-height: 0; height: 100%; }

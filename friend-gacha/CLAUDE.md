@@ -7,72 +7,109 @@
 - **백엔드**: Node.js + Express, sql.js (SQLite in-memory + 파일 저장), Socket.io (실시간 채팅/알림), JWT 인증
 - **프론트엔드**: React 18 + Vite 5, PWA (manifest + service worker)
 - **DB**: sql.js with DatabaseWrapper 클래스 (Proxy 패턴으로 lazy init, better-sqlite3 호환 API)
+- **인증**: JWT (`.env`의 `JWT_SECRET`), 어드민은 `ADMIN_PASSWORD` 환경변수 + `x-admin-key` 헤더
 
 ## 실행 방법
 ```bash
 npm start          # 서버만 (프로덕션, client/dist 서빙)
 npm run dev        # 서버 + Vite dev 동시 실행
-npm run build      # 클라이언트 빌드
+npm run build      # 클라이언트 빌드 (friend-gacha/client/ 에서 실행)
 ```
-서버 포트: 3000
+- 서버 포트: 3000, Vite dev: 5173 (→ 3000으로 프록시)
+- **빌드 디렉토리 주의**: `npm run build`는 반드시 `friend-gacha/client/` 에서 실행. `friend-gacha/`에서 실행 시 `UNRESOLVED_ENTRY` 에러
+
+## 환경 변수 (.env)
+```
+JWT_SECRET=...         # JWT 서명 키
+ADMIN_PASSWORD=...     # 어드민 인증 비밀번호 (없으면 서버 시작 불가 — process.exit(1))
+PORT=3000              # 서버 포트
+```
+`.env`는 `.gitignore`에 포함됨. 절대 하드코딩하지 말 것.
 
 ## 프로젝트 구조
 ```
 friend-gacha/
 ├── server/
-│   ├── index.js          # Express + Socket.io 메인
-│   ├── db.js             # sql.js DatabaseWrapper + 테이블/시드/마이그레이션 (~700줄)
-│   ├── battle.js         # Turn Note 기반 전투 엔진
+│   ├── index.js          # Express + Socket.io 메인, 정적 파일 서빙
+│   ├── db.js             # sql.js DatabaseWrapper + 테이블/시드/마이그레이션
+│   ├── battle.js         # Turn Note 기반 전투 엔진 (createUnit, createBattleSetup, validateBattleResult, calcStats)
+│   ├── battleUtils.js    # 전투 공유 유틸 (buildPartyUnits, collectTagCounts, buildEnemyFromMonster, giveItem, processDrops)
+│   ├── hotRequire.js     # data 파일 핫리로드 유틸 (require 캐시 무효화)
 │   ├── middleware/
-│   │   └── auth.js       # JWT 인증 미들웨어
+│   │   └── auth.js       # JWT 인증 미들웨어 (authMiddleware)
 │   └── routes/
 │       ├── auth.js       # 회원가입/로그인/내정보
-│       ├── gacha.js      # 1회/10연차 뽑기, 배너별 분기
-│       ├── collection.js # 인벤토리/컬렉션
+│       ├── gacha.js      # 캐릭터/스킬 가챠, 배너 관리 (loadBanners/saveBanners export)
+│       ├── collection.js # 인벤토리/컬렉션 상세
 │       ├── trade.js      # 유저간 교환
-│       ├── stage.js      # 스테이지 전투
-│       ├── raid.js       # 레이드 전투
-│       ├── daily.js      # 일일 미션/로그인 보상
-│       ├── growth.js     # 캐릭터 육성 (레벨업/각성/스킬장착)
-│       ├── admin.js      # 어드민 (캐릭터/배너 관리, 이미지 업로드)
+│       ├── stage.js      # 스테이지 전투 + 공유 유틸 export (refreshStamina, deductStamina, addExp, calcLevelUp, addAccountExp, progressMission)
+│       ├── raid.js       # 레이드 (주간 보스, 랭킹, 정산)
+│       ├── farming.js    # 파밍 던전 (요일별 개방, 해금 조건)
+│       ├── story.js      # 스토리 (노드/스크립트/게스트 시스템)
+│       ├── daily.js      # 일일 미션/로그인 보상/스태미나 갱신
+│       ├── growth.js     # 캐릭터 육성 (레벨업/각성/스킬장착/승급)
+│       ├── admin.js      # 어드민 CRUD 전체 (saveImageFile, saveJsModule 공유)
 │       ├── mail.js       # 우편함 시스템
 │       └── profile.js    # 프로필 CRUD (닉네임/소개/아이콘)
 ├── client/
 │   ├── src/
-│   │   ├── App.jsx       # 라우팅 + 인증 상태 관리
+│   │   ├── App.jsx       # 라우팅 + 인증 상태 관리 + PC/모바일 분기
+│   │   ├── hooks/
+│   │   │   ├── usePartyPresets.js  # 파티 프리셋 공유 훅
+│   │   │   └── useIsMobile.js     # 모바일 감지 훅
 │   │   ├── utils/
-│   │   │   ├── api.js    # fetch 래퍼 (모든 API 엔드포인트)
-│   │   │   └── socket.js # Socket.io 클라이언트
-│   │   ├── components/
-│   │   │   ├── CharacterCard.jsx
-│   │   │   ├── CharacterDetail.jsx
-│   │   │   ├── BottomNav.jsx
-│   │   │   └── ProfileModal.jsx   # 프로필 편집 모달
-│   │   └── pages/
-│   │       ├── LobbyPage.jsx      # 메인 로비 (대표캐릭터 + 프로필)
-│   │       ├── GachaPage.jsx      # 가챠 뽑기
-│   │       ├── CollectionPage.jsx # 컬렉션/인벤토리
-│   │       ├── SocialPage.jsx     # 소셜 (채팅/교환/랭킹/피드)
-│   │       ├── BattlePage.jsx     # 인터랙티브 전투
-│   │       ├── StagePage.jsx      # 스테이지 선택
-│   │       └── AdminPage.jsx      # 어드민 페이지
-│   └── vite.config.js
-├── gameConfig.json       # 게임 설정 (레어도/속성/근원/가챠확률 등)
-├── gachaBanners.json     # 배너 정의 (상시/한정)
-├── data/                 # DB 파일 + 업로드 이미지
+│   │   │   ├── api.js            # fetch 래퍼 (모든 API 엔드포인트)
+│   │   │   ├── socket.js         # Socket.io 클라이언트
+│   │   │   ├── gameConstants.js  # 게임 상수/유틸 (색상, 라벨, 스타일, timeAgo 등)
+│   │   │   ├── bgm.js            # BGM 재생 관리
+│   │   │   ├── toast.js          # 토스트 알림
+│   │   │   ├── dialogues.js      # 대사 데이터 로더
+│   │   │   └── skillEffects.js   # 스킬 이펙트 텍스트 표시
+│   │   ├── battle/
+│   │   │   ├── battleActions.js  # 턴 실행 로직, STACK_REGISTRY
+│   │   │   ├── effectSystem.js   # Effect 훅 실행 (runCalc, runEvent, processResults, attachBuff/attachDebuff)
+│   │   │   ├── modSystem.js      # 스탯 수정자 시스템
+│   │   │   └── effects/          # Effect 클래스 (passive/, trigger/, talent/, status/, skill/, buff/, stack/)
+│   │   ├── components/           # 공유 컴포넌트 (PresetPicker, CharacterCard, CharacterGrid, ProfileModal 등)
+│   │   ├── pages/                # PC 페이지 (LobbyPage, GachaPage, CollectionPage 등)
+│   │   │   └── mobile/           # 모바일 페이지 (MobileLobbyPage, MobileGachaPage 등)
+│   │   └── styles/
+│   │       ├── global.css        # CSS 변수, 공통 클래스 (.btn-back, .empty-msg, rarity-bg-*)
+│   │       └── app.css           # 앱 레이아웃
+│   └── vite.config.js            # @gameConfig alias, API 프록시
+├── gameConfig.json       # 게임 설정 (레어도/속성/근원/가챠확률/육성수치 등)
+├── gachaBanners.json     # 캐릭터 배너 정의 (상시/한정)
+├── data/
+│   ├── game_seed.json    # 캐릭터/스킬 시드 데이터 (없으면 서버 시작 불가)
+│   ├── gacha.db          # SQLite DB 파일 (.gitignore)
+│   ├── items.js          # 아이템 정의 (어드민에서 자동 생성)
+│   ├── talents.js        # 특기 정의
+│   ├── promotions.js     # 승급 정의
+│   ├── dialogues.js      # 대사 정의
+│   ├── lore.js           # 로어/배경 스토리
+│   ├── stages.js         # 스테이지 정의
+│   ├── farming_dungeons.js # 파밍 던전 정의
+│   ├── raid_bosses.js    # 레이드 보스 정의
+│   ├── monsters.js       # 몬스터 정의
+│   └── images/           # 업로드 이미지 (characters/, skills/, banners/, items/, monsters/, bg/, icons/, origins/, standings/)
 └── GAME_DESIGN.md        # 게임 시스템 설계서
 ```
 
 ## DB 구조 (server/db.js)
 ### 주요 테이블
-- `users`: id, username, password_hash, display_name, currency, gold, stamina, total_pulls, pity_counter, representative_inventory_id, bio, profile_icon
-- `characters`: id, name, rarity, element, origin, title, description, image_url/bust/sd/ld, quote, base_hp/atk/def/spd, turn_notes
-- `skills`: id, name, type(attack/defense/ultimate/heal/buff/debuff/support), rarity(faint/pale/deep/iridescent), cost, power, element, target
-- `character_skills`: 캐릭터-스킬 매핑 (is_default, is_fixed)
-- `inventory`: 유저 보유 캐릭터 (level, exp, awakening)
-- `skill_inventory`: 유저 보유 스킬
-- `equipped_skills`: 캐릭터별 장착 스킬
-- `trades`, `pull_log`, `stages`, `stage_clears`, `raids`, `raid_entries`, `daily_missions`, `mail`
+- `users`: id, username, password_hash, display_name, currency, gold, stamina, stamina_updated_at, total_pulls, pity_counter, login_streak, representative_inventory_id, bio, profile_icon, tutorial_done, tutorial_step, account_level, account_exp
+- `characters`: id, name, rarity, element, origin, title, description, image_url/bust/sd/ld, quote, base_hp/atk/def/spd, turn_notes, attack_slots, defense_slots, is_limited, is_released
+- `skills`: id, name, type(attack/defense/ultimate/heal/buff/debuff/support), rarity(faint/pale/deep/iridescent), cost, power, element, target, icon, extra(JSON — effectIds 포함)
+- `character_skills`: 캐릭터-스킬 매핑 (is_default, is_fixed, awakening_required)
+- `inventory`: 유저 보유 캐릭터 (level, exp, awakening, promotion, equipped_talent)
+- `skill_inventory`: 유저 보유 스킬 (user_id, skill_id)
+- `equipped_skills`: 캐릭터별 장착 스킬 (inventory_id, skill_id, slot_number)
+- `stages`, `stage_clears`: 스테이지 정의 및 클리어 기록
+- `story_nodes`, `story_clears`: 스토리 노드 및 클리어 기록
+- `monsters`, `monster_tags`: 몬스터 정의 및 태그
+- `tags`, `character_tags`: 태그 시스템
+- `raids`, `raid_entries`: 레이드 정의 및 참여 기록
+- `trades`, `pull_log`, `daily_missions`, `mail`, `user_items`, `party_presets`
 
 ### 마이그레이션 패턴
 ```js
@@ -87,12 +124,19 @@ try {
 - **레어도**: N → R → SR → SSR → CR (무지개)
 - **속성**: fire, water, wind, light, dark + neutral
 - **근원(origin)**: force, life, season, memory, sound, time, space, intellect, heart
-- **가챠**: 천장 90회, 배너별 확률 분기
+- **가챠**: 천장 90회, 배너별 확률 분기 (캐릭터/스킬 별도)
 - **전투**: Turn Note 시스템 (노트 수만큼 스킬 배치 → 자동 실행)
+- **육성**: 레벨업(경험치 아이템) → 각성(재료) → 승급(promotion) → 스킬 장착/교체
+- **경험치 공식**: `needed = level * level * 10 + level * 50`
 - **프로필**: 닉네임(1-20자) + 한줄소개(100자) + 아이콘(보유 캐릭터 포트레이트)
 
 ## JWT 토큰
 `{ id, username }` 저장. display_name은 토큰에 없으므로 DB에서 조회해야 함.
+
+## 어드민 인증
+- 헤더: `x-admin-key: <ADMIN_PASSWORD>` (모든 어드민 API 요청에 필요)
+- 스킬 effectIds 업데이트: `PUT /api/admin/skills/:id` — effectIds는 `extra` 필드 안에 JSON으로 저장
+- AdminPage.jsx의 `req()` 함수가 `X-Admin-Key` 헤더를 자동 추가
 
 ## Socket.io 이벤트
 - `chat_message`: 채팅 (display_name + profile_icon DB 실시간 조회)
@@ -101,25 +145,9 @@ try {
 - `online_users`: 접속자 목록
 
 ## Vite 설정
-- `@gameConfig` alias → `../../gameConfig.json`
-- PWA: VitePWA 플러그인
+- `@gameConfig` alias → `../../gameConfig.json` (클라이언트에서 `import gameConfig from '@gameConfig'`)
+- Proxy: `/api` → `http://localhost:3000`, `/socket.io` → ws
 - 빌드 출력: `client/dist/`
-
-## 현재 상태 (2026-06-17)
-
-### 완료된 기능
-- 회원가입/로그인, 가챠(1회/10연차, 배너별), 컬렉션, 캐릭터 상세, 교환
-- Turn Note 전투 시스템, 스테이지(5챕터x8스테이지), 레이드
-- 캐릭터 육성 (레벨업/각성/스킬장착), 일일미션/로그인보상
-- 어드민 (캐릭터CRUD/이미지업로드/배너관리)
-- 소셜 탭 (실시간채팅/교환/랭킹/피드), 우편함
-- 유저 프로필 시스템 (닉네임/소개/아이콘 편집, 채팅에 프로필 반영)
-- 로비 페이지 (대표캐릭터 LD 이미지, 재화바, 알림)
-
-### 미완료/예정 작업
-- 스킬 가챠 API + 스킬 장착/해제 API 리워크 (skill_inventory 기반으로 전환)
-- 어드민 UI에 스킬 관리 섹션 추가
-- 스킬 가챠 클라이언트 UI
 
 ## 스킬/전투 설계 원칙
 
@@ -199,6 +227,88 @@ try {
 - 한국어 주석/로그 사용
 - CSS: BEM 아님, 컴포넌트별 .css 파일 (className 기반)
 - HTML 엔티티 사용 (&#9998; 등) - 이모지 직접 사용 시 빌드 에러 가능성
-- **레이아웃 1920px 기준**: 앱 전체 `width: 1920px; margin: 0 auto`. 모든 `position: fixed` 오버레이/모달도 `left: 50%; width: 1920px; transform: translateX(-50%)`로 맞출 것. `inset: 0` 사용 금지
-- DB 쿼리: prepare().get/all/run 패턴
+- DB 쿼리: `prepare().get/all/run` 패턴
 - API 응답: `{ error: '메시지' }` 또는 데이터 객체 직접 반환
+- **Windows 환경**: curl로 한국어 포함 요청 시 UTF-8 깨짐 → Node.js http 모듈 사용
+
+### 레이아웃 규칙
+- **PC**: `#game-root` 1920x1080px 고정, `transform: scale()`로 뷰포트 맞춤
+  - 내부에서 `position: fixed` 사용 금지 → `position: absolute` 사용
+  - `vw`/`vh`/`dvh` 단위 금지 → `px` 사용
+  - `inset: 0` 사용 금지
+- **모바일**: `pages/mobile/` 별도 컴포넌트, PC 레이아웃 제약 면제
+- App.jsx에서 `useIsMobile()` 훅으로 PC/모바일 분기
+
+## 공유 모듈 가이드 (중복 방지)
+새 기능 추가 시 아래 공유 모듈을 **먼저 확인**하고, 이미 있는 것을 다시 만들지 말 것.
+
+### 서버 공유 유틸
+| 모듈 | 함수 | 용도 | 사용처 |
+|---|---|---|---|
+| `battleUtils.js` | `buildPartyUnits(userId, partyIds)` | 인벤토리 → 전투 유닛 생성 | stage, raid, farming, story |
+| | `collectTagCounts(partyUnits)` | 파티 태그 집계 | stage, raid, farming, story |
+| | `buildEnemyFromMonster(e, idx, prefix)` | 몬스터 DB → 적 유닛 생성 | farming, story |
+| | `giveItem(userId, itemId, qty)` | 아이템 upsert (ON CONFLICT) | stage, farming |
+| | `processDrops(userId, enemyData)` | 드랍 처리 | stage, farming |
+| `hotRequire.js` | `hotRequire(path)` | data 파일 핫리로드 (require 캐시 무효화) | admin, growth, collection, battle, index |
+| `routes/stage.js` | `refreshStamina(userId)` | 스태미나 시간 회복 | stage, farming, daily |
+| | `deductStamina(userId, cost)` | 스태미나 체크+차감 (에러 객체 반환) | stage, farming |
+| | `calcLevelUp(level, exp, added, max)` | 순수 레벨업 계산 (DB 미접근) | stage(addExp), growth |
+| | `addExp(inventoryId, amount)` | 캐릭터 경험치 추가 + DB 저장 | stage |
+| | `addAccountExp(userId, amount)` | 계정 경험치 추가 | stage, farming, story |
+| | `progressMission(userId, type, count)` | 일일미션 진행 | stage, story |
+| `routes/admin.js` | `saveImageFile(body, contentType, dir, prefix, id, urlBase)` | 이미지 업로드 통합 (확장자 감지, 기존 파일 삭제, 저장, URL 반환) | admin 내 6곳 |
+| | `saveJsModule(filePath, varName, data)` | JS 데이터 파일 저장 (`const x = {...}; module.exports = x;`) | admin (talents, promotions, dialogues) |
+| `routes/gacha.js` | `loadBanners()` / `saveBanners(data)` | 배너 JSON 로드/저장 | gacha, admin |
+| | `loadSkillBanners()` / `saveSkillBanners(data)` | 스킬배너 JSON 로드/저장 | gacha, admin |
+
+### 클라이언트 공유 유틸
+| 모듈 | export | 용도 |
+|---|---|---|
+| `utils/gameConstants.js` | `RARITY_COLORS`, `ELEM_COLORS/LABELS`, `ORIGIN_COLORS/LABELS` | 게임 상수 색상/라벨 |
+| | `SKILL_RARITY_LABELS/COLORS`, `getSkillRarityStyle(rarity)` | 스킬 레어도 스타일 |
+| | `SKILL_TYPE_LABELS/COLORS` | 스킬 타입 라벨/색상 |
+| | `getRarityStyle(rarity)` | 캐릭터 레어도 텍스트 스타일 (CR=무지개) |
+| | `timeAgo(dateStr)` | 상대 시간 표시 (방금 전/N분 전/N시간 전) |
+| | `canEquipSkill(condition, character)` | 스킬 장착 조건 체크 |
+| | `simulateLevelUp(level, exp, added, max)` | 레벨업 시뮬레이션 |
+| | `calcExpToMax(level, exp, max)` | 만렙까지 필요 경험치 |
+| `hooks/usePartyPresets.js` | `usePartyPresets(addToast)` | 프리셋 로드/저장/캐릭터 조회 |
+| `components/PresetPicker.jsx` | `<PresetPicker>` | 프리셋 선택 그리드 UI (maxSlots prop으로 게스트 대응) |
+
+### 공통 CSS (global.css)
+- CSS 변수: `--bg-primary`, `--accent`, `--gold`, `--rarity-*` 등
+- `.btn-back`: 뒤로가기 버튼 (페이지별 override만 작성)
+- `.empty-msg`: 빈 상태 메시지 (페이지별 override만 작성)
+- `.rarity-bg-*`: 레어도별 배경 그라디언트
+
+## 작업 시 주의사항
+
+### 절대 금지
+- **서버 start/stop 금지** — 테스트는 유저가 직접 함. 마음대로 서버 닫았다 열지 말 것
+- **extra 핸들러 신규 작성 금지** — 모든 스킬 동작은 effectIds + Effect 클래스
+- **key-value args 금지** — Effect args는 인덱스 배열 `[0, 1, 2]`만 사용
+- **같은 ID로 다른 효과 금지** — 다른 효과면 새 Effect ID 할당
+
+### 스킬 effectIds 수정 절차
+effectIds 변경은 반드시 어드민 API를 통해야 함 (DB에 저장되므로):
+```
+PUT /api/admin/skills/:id
+Header: x-admin-key: <ADMIN_PASSWORD>
+Body: { "extra": "{\"effectIds\":[{\"id\":301,\"args\":[0.3]}]}" }
+```
+
+### data/ 파일 관리
+- `data/*.js` 파일은 어드민 페이지에서 자동 생성/수정됨 (수동 편집 가능하지만 어드민 API 우선)
+- 핫리로드: `hotRequire()` 사용 — 서버 재시작 없이 데이터 반영
+- `data/game_seed.json` 없으면 서버 시작 불가 (process.exit(1))
+
+### 이미지 업로드 경로
+| 대상 | 디렉토리 | URL 경로 | 파일명 패턴 |
+|---|---|---|---|
+| 캐릭터 | `data/images/characters/` | `/uploads/characters/` | `char_{id}`, `char_bust_{id}`, `char_sd_{id}`, `char_ld_{id}` |
+| 스킬 아이콘 | `data/images/skills/` | `/uploads/skills/` | `skill_{id}` |
+| 배너 | `data/images/banners/` | `/uploads/banners/` | `banner_{id}`, `sbanner_{id}` |
+| 아이템 | `data/images/items/` | `/uploads/items/` | `{id}` |
+| 몬스터 | `data/images/monsters/` | `/uploads/monsters/` | `mon_{id}` |
+| 배경 | `data/images/bg/` | `/uploads/bg/` | 수동 배치 |

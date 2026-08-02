@@ -30,7 +30,7 @@ export default function CharacterCard({ character, rarity, isNew, onClick, compa
         {imgUrl
           ? <img src={imgUrl} alt={character.name} className="avatar-img" />
           : <span className="avatar-letter">{character.name?.[0] || '?'}</span>}
-        <span className="avatar-emoji">{RARITY_EMOJI[r]}</span>
+        <span className="avatar-emoji" dangerouslySetInnerHTML={{ __html: RARITY_EMOJI[r] }} />
       </div>
       <div className="char-rarity-badge">
         <span className={`rarity-text rarity-${r}`}>

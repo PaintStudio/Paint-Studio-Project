@@ -3,11 +3,15 @@ const db = require('../db');
 const { exportGameData, resetUserData } = require('../db');
 const path = require('path');
 const fs = require('fs');
+const hotRequire = require('../hotRequire');
 
 const router = express.Router();
 
-// 어드민 비밀번호 (환경변수 또는 기본값)
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'dawnsky58';
+if (!process.env.ADMIN_PASSWORD) {
+  console.error('[치명] ADMIN_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.');
+  process.exit(1);
+}
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // 어드민 인증 미들웨어
 function adminAuth(req, res, next) {
@@ -96,7 +100,7 @@ router.put('/characters/:id', (req, res) => {
 
   const fields = ['name', 'rarity', 'element', 'origin', 'title', 'description', 'quote',
     'base_hp', 'base_atk', 'base_def', 'base_spd', 'turn_notes', 'image_url', 'image_bust', 'image_sd', 'image_ld', 'is_limited',
-    'attack_slots', 'defense_slots'];
+    'attack_slots', 'defense_slots', 'is_released'];
 
   const updates = [];
   const values = [];
@@ -124,31 +128,34 @@ router.delete('/characters/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+function saveJsModule(filePath, varName, data) {
+  fs.writeFileSync(filePath, `const ${varName} = ${JSON.stringify(data, null, 2)};\n\nmodule.exports = ${varName};\n`, 'utf-8');
+  delete require.cache[require.resolve(filePath)];
+}
+
 // ============ 이미지 업로드 ============
+
+function saveImageFile(body, contentType, dir, prefix, id, urlBase) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
+    : contentType.includes('webp') ? 'webp'
+    : contentType.includes('gif') ? 'gif' : 'png';
+  const filename = `${prefix}${id}.${ext}`;
+  for (const old of ['png', 'jpg', 'webp', 'gif']) {
+    const oldPath = path.join(dir, `${prefix}${id}.${old}`);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+  fs.writeFileSync(path.join(dir, filename), body);
+  return `${urlBase}/${filename}`;
+}
 
 const IMAGE_TYPES = { portrait: 'image_url', bust: 'image_bust', sd: 'image_sd', ld: 'image_ld' };
 
 function handleImageUpload(req, res, imageType) {
   const char = db.prepare('SELECT * FROM characters WHERE id = ?').get(req.params.id);
   if (!char) return res.status(404).json({ error: '캐릭터를 찾을 수 없습니다' });
-  if (!fs.existsSync(IMAGE_DIR)) fs.mkdirSync(IMAGE_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp'
-    : contentType.includes('gif') ? 'gif' : 'png';
-
-  const prefix = imageType === 'portrait' ? 'char' : `char_${imageType}`;
-  const filename = `${prefix}_${req.params.id}.${ext}`;
-  const filepath = path.join(IMAGE_DIR, filename);
-
-  for (const old of ['png', 'jpg', 'webp', 'gif']) {
-    const oldPath = path.join(IMAGE_DIR, `${prefix}_${req.params.id}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const imageUrl = `/uploads/characters/${filename}`;
+  const prefix = imageType === 'portrait' ? 'char_' : `char_${imageType}_`;
+  const imageUrl = saveImageFile(req.body, req.headers['content-type'] || 'image/png', IMAGE_DIR, prefix, req.params.id, '/uploads/characters');
   const column = IMAGE_TYPES[imageType];
   db.prepare(`UPDATE characters SET ${column} = ? WHERE id = ?`).run(imageUrl, req.params.id);
   res.json({ ok: true, [column]: imageUrl });
@@ -222,21 +229,7 @@ const SKILL_ICON_DIR = path.join(__dirname, '..', '..', 'data', 'images', 'skill
 router.post('/skills/:id/icon', express.raw({ type: ['image/*'], limit: '2mb' }), (req, res) => {
   const skill = db.prepare('SELECT id FROM skills WHERE id = ?').get(req.params.id);
   if (!skill) return res.status(404).json({ error: '스킬을 찾을 수 없습니다' });
-  if (!fs.existsSync(SKILL_ICON_DIR)) fs.mkdirSync(SKILL_ICON_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp' : 'png';
-  const filename = `skill_${req.params.id}.${ext}`;
-  const filepath = path.join(SKILL_ICON_DIR, filename);
-
-  for (const old of ['png', 'jpg', 'webp']) {
-    const oldPath = path.join(SKILL_ICON_DIR, `skill_${req.params.id}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const icon = `/uploads/skills/${filename}`;
+  const icon = saveImageFile(req.body, req.headers['content-type'] || 'image/png', SKILL_ICON_DIR, 'skill_', req.params.id, '/uploads/skills');
   db.prepare('UPDATE skills SET icon = ? WHERE id = ?').run(icon, req.params.id);
   res.json({ ok: true, icon });
 });
@@ -415,12 +408,12 @@ router.get('/stages', (req, res) => {
 router.post('/stages', (req, res) => {
   const { chapter, stage_number, name, difficulty, stamina_cost, recommended_level,
     enemy_data, rewards, type, open_days, always_open, unlock_condition,
-    dungeon_group, description, icon } = req.body;
+    dungeon_group, description, icon, bgm } = req.body;
   if (!name) return res.status(400).json({ error: '이름은 필수입니다' });
   const result = db.prepare(
     `INSERT INTO stages (chapter, stage_number, name, difficulty, stamina_cost, recommended_level,
-      enemy_data, rewards, type, open_days, always_open, unlock_condition, dungeon_group, description, icon)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      enemy_data, rewards, type, open_days, always_open, unlock_condition, dungeon_group, description, icon, bgm)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     chapter || 0, stage_number || 0, name, difficulty || 'normal',
     stamina_cost || 6, recommended_level || 1,
@@ -429,7 +422,8 @@ router.post('/stages', (req, res) => {
     open_days ? JSON.stringify(open_days) : null,
     always_open ? 1 : 0,
     unlock_condition ? JSON.stringify(unlock_condition) : null,
-    dungeon_group || null, description || null, icon || null
+    dungeon_group || null, description || null, icon || null,
+    bgm || null
   );
   res.json({ id: result.lastInsertRowid });
 });
@@ -441,7 +435,7 @@ router.put('/stages/:id', (req, res) => {
   db.prepare(
     `UPDATE stages SET chapter=?, stage_number=?, name=?, difficulty=?, stamina_cost=?, recommended_level=?,
       enemy_data=?, rewards=?, type=?, open_days=?, always_open=?, unlock_condition=?,
-      dungeon_group=?, description=?, icon=? WHERE id=?`
+      dungeon_group=?, description=?, icon=?, bg_image=?, bgm=? WHERE id=?`
   ).run(
     b.chapter ?? stage.chapter, b.stage_number ?? stage.stage_number,
     b.name ?? stage.name, b.difficulty ?? stage.difficulty,
@@ -455,6 +449,8 @@ router.put('/stages/:id', (req, res) => {
     b.dungeon_group !== undefined ? (b.dungeon_group || null) : stage.dungeon_group,
     b.description !== undefined ? (b.description || null) : stage.description,
     b.icon !== undefined ? (b.icon || null) : stage.icon,
+    b.bg_image !== undefined ? (b.bg_image || null) : stage.bg_image,
+    b.bgm !== undefined ? (b.bgm || null) : stage.bgm,
     req.params.id
   );
   res.json({ ok: true });
@@ -474,67 +470,58 @@ router.put('/stages/:id/story', (req, res) => {
 });
 
 // ============ 스토리 노드 관리 ============
+const STORIES_PATH = path.join(__dirname, '../../data/stories.js');
+const loadStories = () => hotRequire('stories');
+const saveStories = data => saveJsModule(STORIES_PATH, 'stories', data);
 
 router.get('/story-nodes', (req, res) => {
-  const nodes = db.prepare('SELECT * FROM story_nodes ORDER BY category, chapter, node_number').all();
-  res.json({ nodes: nodes.map(n => ({
-    ...n,
-    story_script: n.story_script ? JSON.parse(n.story_script) : null,
-    enemy_data: n.enemy_data ? JSON.parse(n.enemy_data) : null,
-    rewards: n.rewards ? JSON.parse(n.rewards) : null,
-  })) });
+  res.json({ nodes: loadStories() });
 });
 
 router.post('/story-nodes', (req, res) => {
-  const { category, chapter, node_number, title, node_type, story_script,
-    enemy_data, stamina_cost, rewards, recommended_level, difficulty,
-    character_id, event_id } = req.body;
-  if (!title) return res.status(400).json({ error: '제목은 필수입니다' });
-  const result = db.prepare(
-    `INSERT INTO story_nodes (category, chapter, node_number, title, node_type, story_script,
-      enemy_data, stamina_cost, rewards, recommended_level, difficulty, character_id, event_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(
-    category || 'main', chapter || 1, node_number || 1, title,
-    node_type || 'story',
-    story_script ? JSON.stringify(story_script) : null,
-    enemy_data ? JSON.stringify(enemy_data) : null,
-    stamina_cost || 0,
-    rewards ? JSON.stringify(rewards) : null,
-    recommended_level || 1, difficulty || 'normal',
-    character_id || null, event_id || null
-  );
-  res.json({ id: result.lastInsertRowid });
+  const b = req.body;
+  if (!b.title) return res.status(400).json({ error: '제목은 필수입니다' });
+  const nodes = loadStories();
+  const id = nodes.reduce((max, n) => Math.max(max, n.id || 0), 0) + 1;
+  nodes.push({
+    id,
+    category: b.category || 'main', chapter: b.chapter || 1, node_number: b.node_number || 1,
+    title: b.title, node_type: b.node_type || 'story',
+    story_script: b.story_script || null, enemy_data: b.enemy_data || null,
+    stamina_cost: b.stamina_cost || 0, rewards: b.rewards || null,
+    recommended_level: b.recommended_level || 1, difficulty: b.difficulty || 'normal',
+    character_id: b.character_id || null, event_id: b.event_id || null,
+    description: b.description || null, fixed_party: b.fixed_party || null,
+    required_guests: b.required_guests || null, bgm: b.bgm || null,
+  });
+  saveStories(nodes);
+  res.json({ id });
 });
 
 router.put('/story-nodes/:id', (req, res) => {
+  const nodes = loadStories();
+  const idx = nodes.findIndex(n => n.id === Number(req.params.id));
+  if (idx === -1) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
   const b = req.body;
-  const node = db.prepare('SELECT * FROM story_nodes WHERE id = ?').get(req.params.id);
-  if (!node) return res.status(404).json({ error: '노드를 찾을 수 없습니다' });
-  db.prepare(
-    `UPDATE story_nodes SET category=?, chapter=?, node_number=?, title=?, node_type=?,
-      story_script=?, enemy_data=?, stamina_cost=?, rewards=?, recommended_level=?,
-      difficulty=?, character_id=?, event_id=? WHERE id=?`
-  ).run(
-    b.category ?? node.category, b.chapter ?? node.chapter,
-    b.node_number ?? node.node_number, b.title ?? node.title,
-    b.node_type ?? node.node_type,
-    b.story_script !== undefined ? (b.story_script ? JSON.stringify(b.story_script) : null) : node.story_script,
-    b.enemy_data !== undefined ? (b.enemy_data ? JSON.stringify(b.enemy_data) : null) : node.enemy_data,
-    b.stamina_cost ?? node.stamina_cost,
-    b.rewards !== undefined ? (b.rewards ? JSON.stringify(b.rewards) : null) : node.rewards,
-    b.recommended_level ?? node.recommended_level,
-    b.difficulty ?? node.difficulty,
-    b.character_id !== undefined ? (b.character_id || null) : node.character_id,
-    b.event_id !== undefined ? (b.event_id || null) : node.event_id,
-    req.params.id
-  );
+  const node = nodes[idx];
+  for (const key of ['category','chapter','node_number','title','node_type','story_script',
+    'enemy_data','stamina_cost','rewards','recommended_level','difficulty',
+    'character_id','event_id','description','fixed_party','required_guests','bgm']) {
+    if (b[key] !== undefined) node[key] = b[key] || null;
+  }
+  if (b.title) node.title = b.title;
+  if (b.stamina_cost !== undefined) node.stamina_cost = b.stamina_cost;
+  if (b.recommended_level !== undefined) node.recommended_level = b.recommended_level;
+  if (b.chapter !== undefined) node.chapter = b.chapter;
+  if (b.node_number !== undefined) node.node_number = b.node_number;
+  saveStories(nodes);
   res.json({ ok: true });
 });
 
 router.delete('/story-nodes/:id', (req, res) => {
+  const nodes = loadStories().filter(n => n.id !== Number(req.params.id));
+  saveStories(nodes);
   db.prepare('DELETE FROM story_clears WHERE node_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM story_nodes WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
@@ -606,23 +593,7 @@ router.post('/banners/:bannerId/image', express.raw({ type: ['image/*'], limit: 
   const banner = data.banners.find(b => b.id === req.params.bannerId);
   if (!banner) return res.status(404).json({ error: '배너를 찾을 수 없습니다' });
 
-  if (!fs.existsSync(BANNER_IMAGE_DIR)) fs.mkdirSync(BANNER_IMAGE_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp' : 'png';
-
-  const filename = `banner_${req.params.bannerId}.${ext}`;
-  const filepath = path.join(BANNER_IMAGE_DIR, filename);
-
-  // 기존 파일 삭제
-  for (const old of ['png', 'jpg', 'webp']) {
-    const oldPath = path.join(BANNER_IMAGE_DIR, `banner_${req.params.bannerId}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const imageUrl = `/uploads/banners/${filename}`;
+  const imageUrl = saveImageFile(req.body, req.headers['content-type'] || 'image/png', BANNER_IMAGE_DIR, 'banner_', req.params.bannerId, '/uploads/banners');
   banner.image = imageUrl;
   saveBanners(data);
 
@@ -693,22 +664,7 @@ router.post('/skill-banners/:bannerId/image', express.raw({ type: ['image/*'], l
   const banner = data.banners.find(b => b.id === req.params.bannerId);
   if (!banner) return res.status(404).json({ error: '배너를 찾을 수 없습니다' });
 
-  if (!fs.existsSync(SKILL_BANNER_IMAGE_DIR)) fs.mkdirSync(SKILL_BANNER_IMAGE_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp' : 'png';
-
-  const filename = `sbanner_${req.params.bannerId}.${ext}`;
-  const filepath = path.join(SKILL_BANNER_IMAGE_DIR, filename);
-
-  for (const old of ['png', 'jpg', 'webp']) {
-    const oldPath = path.join(SKILL_BANNER_IMAGE_DIR, `sbanner_${req.params.bannerId}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const imageUrl = `/uploads/banners/${filename}`;
+  const imageUrl = saveImageFile(req.body, req.headers['content-type'] || 'image/png', SKILL_BANNER_IMAGE_DIR, 'sbanner_', req.params.bannerId, '/uploads/banners');
   banner.image = imageUrl;
   saveSkillBanners(data);
 
@@ -720,10 +676,7 @@ router.post('/skill-banners/:bannerId/image', express.raw({ type: ['image/*'], l
 const ITEM_FILE = path.join(__dirname, '..', '..', 'data', 'items.js');
 const ITEM_IMAGE_DIR = path.join(__dirname, '..', '..', 'data', 'images', 'items');
 
-function loadItems() {
-  delete require.cache[require.resolve('../../data/items')];
-  return require('../../data/items');
-}
+const loadItems = () => hotRequire('items');
 
 function writeItemsFile(items) {
   const header = `/**
@@ -749,7 +702,7 @@ router.get('/items', (req, res) => {
 
 router.post('/items', (req, res) => {
   const items = loadItems();
-  const { id, name, description, category, rarity, sellPrice, icon, effect } = req.body;
+  const { id, name, description, category, rarity, icon, effect, flavor } = req.body;
   if (!id || !name) return res.status(400).json({ error: 'id와 name은 필수입니다' });
   if (items[id]) return res.status(400).json({ error: '이미 존재하는 아이템 ID입니다' });
 
@@ -758,7 +711,7 @@ router.post('/items', (req, res) => {
     description: description || '',
     category: category || 'material',
     rarity: rarity || 'N',
-    sellPrice: sellPrice || 0,
+    flavor: flavor || '',
     image: `/uploads/items/${id}.png`,
     icon: icon || '',
     ...(effect ? { effect } : {}),
@@ -771,7 +724,7 @@ router.put('/items/:id', (req, res) => {
   const items = loadItems();
   if (!items[req.params.id]) return res.status(404).json({ error: '아이템을 찾을 수 없습니다' });
 
-  const allowed = ['name', 'description', 'category', 'rarity', 'sellPrice', 'icon', 'effect'];
+  const allowed = ['name', 'description', 'category', 'rarity', 'icon', 'effect', 'flavor'];
   for (const key of allowed) {
     if (req.body[key] !== undefined) items[req.params.id][key] = req.body[key];
   }
@@ -790,22 +743,7 @@ router.delete('/items/:id', (req, res) => {
 router.post('/items/:id/image', express.raw({ type: ['image/*'], limit: '5mb' }), (req, res) => {
   const items = loadItems();
   if (!items[req.params.id]) return res.status(404).json({ error: '아이템을 찾을 수 없습니다' });
-  if (!fs.existsSync(ITEM_IMAGE_DIR)) fs.mkdirSync(ITEM_IMAGE_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp' : 'png';
-
-  const filename = `${req.params.id}.${ext}`;
-  const filepath = path.join(ITEM_IMAGE_DIR, filename);
-
-  for (const old of ['png', 'jpg', 'webp']) {
-    const oldPath = path.join(ITEM_IMAGE_DIR, `${req.params.id}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const imageUrl = `/uploads/items/${filename}`;
+  const imageUrl = saveImageFile(req.body, req.headers['content-type'] || 'image/png', ITEM_IMAGE_DIR, '', req.params.id, '/uploads/items');
   items[req.params.id].image = imageUrl;
   writeItemsFile(items);
   res.json({ ok: true, image: imageUrl });
@@ -832,27 +770,38 @@ router.get('/monsters/:id', (req, res) => {
 });
 
 router.post('/monsters', (req, res) => {
-  const { id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops } = req.body;
+  const { id, name, element, origin, image_sd, is_boss, ai_type, hp, atk, def, spd, turn_notes, skills, drops, category } = req.body;
   if (!id || !name) return res.status(400).json({ error: 'id와 name은 필수입니다' });
   const exists = db.prepare('SELECT id FROM monsters WHERE id = ?').get(id);
   if (exists) return res.status(400).json({ error: '이미 존재하는 몬스터 ID입니다' });
 
-  db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, hp, atk, def, spd, turn_notes, skills, drops) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+  db.prepare('INSERT INTO monsters (id, name, element, origin, image_sd, is_boss, ai_type, hp, atk, def, spd, turn_notes, skills, drops, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     .run(id, name, element || 'neutral', origin || 'force', image_sd || null, is_boss ? 1 : 0,
-      hp || 100, atk || 10, def || 5, spd || 5, turn_notes || 3,
-      JSON.stringify(skills || []), JSON.stringify(drops || []));
+      ai_type || 'basic', hp || 100, atk || 10, def || 5, spd || 5, turn_notes || 3,
+      JSON.stringify(skills || []), JSON.stringify(drops || []), category || null);
 
   res.json({ ok: true, id });
 });
 
 router.put('/monsters/:id', (req, res) => {
-  const mon = db.prepare('SELECT id FROM monsters WHERE id = ?').get(req.params.id);
+  const oldId = req.params.id;
+  const mon = db.prepare('SELECT id FROM monsters WHERE id = ?').get(oldId);
   if (!mon) return res.status(404).json({ error: '몬스터를 찾을 수 없습니다' });
 
-  const fields = ['name', 'element', 'origin', 'image_sd', 'is_boss', 'hp', 'atk', 'def', 'spd', 'turn_notes'];
+  const newId = req.body.newId;
+  if (newId && newId !== oldId) {
+    const exists = db.prepare('SELECT id FROM monsters WHERE id = ?').get(newId);
+    if (exists) return res.status(409).json({ error: `ID "${newId}"는 이미 존재합니다` });
+  }
+
+  const fields = ['name', 'element', 'origin', 'image_sd', 'is_boss', 'ai_type', 'hp', 'atk', 'def', 'spd', 'turn_notes', 'category'];
   const jsonFields = ['skills', 'drops'];
   const updates = [];
   const values = [];
+  if (newId && newId !== oldId) {
+    updates.push('id = ?');
+    values.push(newId);
+  }
   for (const f of fields) {
     if (req.body[f] !== undefined) {
       updates.push(`${f} = ?`);
@@ -865,10 +814,65 @@ router.put('/monsters/:id', (req, res) => {
       values.push(JSON.stringify(req.body[f]));
     }
   }
-  if (updates.length === 0) return res.json({ ok: true });
-  values.push(req.params.id);
-  db.prepare(`UPDATE monsters SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  res.json({ ok: true });
+
+  const doUpdate = db.transaction(() => {
+    if (updates.length > 0) {
+      values.push(oldId);
+      db.prepare(`UPDATE monsters SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    }
+
+    if (newId && newId !== oldId) {
+      db.prepare('UPDATE monster_tags SET monster_id = ? WHERE monster_id = ?').run(newId, oldId);
+
+      const replaceMonsterIdInJson = (jsonStr) => {
+        if (!jsonStr) return jsonStr;
+        try {
+          const arr = JSON.parse(jsonStr);
+          let changed = false;
+          for (const entry of arr) {
+            if (entry.monsterId === oldId) { entry.monsterId = newId; changed = true; }
+            if (entry.id === oldId) { entry.id = newId; changed = true; }
+          }
+          return changed ? JSON.stringify(arr) : null;
+        } catch { return null; }
+      };
+
+      const stages = db.prepare('SELECT id, enemy_data FROM stages WHERE enemy_data LIKE ?').all(`%${oldId}%`);
+      for (const s of stages) {
+        const updated = replaceMonsterIdInJson(s.enemy_data);
+        if (updated) db.prepare('UPDATE stages SET enemy_data = ? WHERE id = ?').run(updated, s.id);
+      }
+
+      const allStories = loadStories();
+      let storiesChanged = false;
+      for (const n of allStories) {
+        if (n.enemy_data) {
+          const json = JSON.stringify(n.enemy_data);
+          if (json.includes(oldId)) {
+            const updated = JSON.parse(replaceMonsterIdInJson(json) || json);
+            n.enemy_data = updated;
+            storiesChanged = true;
+          }
+        }
+        if (n.story_script) {
+          for (const entry of n.story_script) {
+            if (entry.type === 'battle' && Array.isArray(entry.enemies)) {
+              for (const e of entry.enemies) {
+                if (e.monsterId === oldId) { e.monsterId = newId; storiesChanged = true; }
+              }
+            }
+          }
+        }
+      }
+      if (storiesChanged) saveStories(allStories);
+    }
+  });
+
+  doUpdate();
+  const affected = (newId && newId !== oldId) ? {
+    monster_tags: db.prepare('SELECT COUNT(*) as cnt FROM monster_tags WHERE monster_id = ?').get(newId).cnt,
+  } : null;
+  res.json({ ok: true, newId: newId || oldId, affected });
 });
 
 router.delete('/monsters/:id', (req, res) => {
@@ -879,22 +883,7 @@ router.delete('/monsters/:id', (req, res) => {
 router.post('/monsters/:id/image', express.raw({ type: ['image/*'], limit: '5mb' }), (req, res) => {
   const mon = db.prepare('SELECT id FROM monsters WHERE id = ?').get(req.params.id);
   if (!mon) return res.status(404).json({ error: '몬스터를 찾을 수 없습니다' });
-  if (!fs.existsSync(MONSTER_IMAGE_DIR)) fs.mkdirSync(MONSTER_IMAGE_DIR, { recursive: true });
-
-  const contentType = req.headers['content-type'] || 'image/png';
-  const ext = contentType.includes('jpeg') || contentType.includes('jpg') ? 'jpg'
-    : contentType.includes('webp') ? 'webp' : 'png';
-
-  const filename = `mon_${req.params.id}.${ext}`;
-  const filepath = path.join(MONSTER_IMAGE_DIR, filename);
-
-  for (const old of ['png', 'jpg', 'webp']) {
-    const oldPath = path.join(MONSTER_IMAGE_DIR, `mon_${req.params.id}.${old}`);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-
-  fs.writeFileSync(filepath, req.body);
-  const imageUrl = `/uploads/monsters/${filename}`;
+  const imageUrl = saveImageFile(req.body, req.headers['content-type'] || 'image/png', MONSTER_IMAGE_DIR, 'mon_', req.params.id, '/uploads/monsters');
   db.prepare('UPDATE monsters SET image_sd = ? WHERE id = ?').run(imageUrl, req.params.id);
   res.json({ ok: true, image_sd: imageUrl });
 });
@@ -1007,16 +996,9 @@ router.post('/mail/send', (req, res) => {
 // ============ 특기 관리 ============
 const TALENTS_PATH = path.join(__dirname, '../../data/talents.js');
 
-function loadTalents() {
-  delete require.cache[require.resolve('../../data/talents')];
-  return require('../../data/talents');
-}
+const loadTalents = () => hotRequire('talents');
 
-function saveTalents(data) {
-  const lines = ['const talents = ' + JSON.stringify(data, null, 2) + ';\n\nmodule.exports = talents;\n'];
-  fs.writeFileSync(TALENTS_PATH, lines.join(''), 'utf-8');
-  delete require.cache[require.resolve('../../data/talents')];
-}
+const saveTalents = data => saveJsModule(TALENTS_PATH, 'talents', data);
 
 router.get('/talents/:charId', (req, res) => {
   const charId = Number(req.params.charId);
@@ -1037,16 +1019,9 @@ router.put('/talents/:charId', (req, res) => {
 // ============ 승급 관리 ============
 const PROMOTIONS_PATH = path.join(__dirname, '../../data/promotions.js');
 
-function loadPromotions() {
-  delete require.cache[require.resolve('../../data/promotions')];
-  return require('../../data/promotions');
-}
+const loadPromotions = () => hotRequire('promotions');
 
-function savePromotions(data) {
-  const lines = ['const promotions = ' + JSON.stringify(data, null, 2) + ';\n\nmodule.exports = promotions;\n'];
-  fs.writeFileSync(PROMOTIONS_PATH, lines.join(''), 'utf-8');
-  delete require.cache[require.resolve('../../data/promotions')];
-}
+const savePromotions = data => saveJsModule(PROMOTIONS_PATH, 'promotions', data);
 
 router.get('/promotions/:charId', (req, res) => {
   const charId = Number(req.params.charId);
@@ -1095,16 +1070,9 @@ router.put('/gacha-config', (req, res) => {
 // ============ 대사 관리 ============
 const DIALOGUES_PATH = path.join(__dirname, '../../data/dialogues.js');
 
-function loadDialogues() {
-  delete require.cache[require.resolve('../../data/dialogues')];
-  return require('../../data/dialogues');
-}
+const loadDialogues = () => hotRequire('dialogues');
 
-function saveDialogues(data) {
-  const lines = ['const dialogues = ' + JSON.stringify(data, null, 2) + ';\n\nmodule.exports = dialogues;\n'];
-  fs.writeFileSync(DIALOGUES_PATH, lines.join(''), 'utf-8');
-  delete require.cache[require.resolve('../../data/dialogues')];
-}
+const saveDialogues = data => saveJsModule(DIALOGUES_PATH, 'dialogues', data);
 
 router.get('/dialogues/:charId', (req, res) => {
   const charId = Number(req.params.charId);
@@ -1118,6 +1086,31 @@ router.put('/dialogues/:charId', (req, res) => {
   all[charId] = req.body;
   saveDialogues(all);
   res.json({ ok: true });
+});
+
+// ============ 전체 재화 지급 ============
+router.post('/give-currency', (req, res) => {
+  const { amount } = req.body;
+  const qty = Math.max(0, Math.floor(Number(amount) || 500));
+  db.prepare('UPDATE users SET currency = currency + ?').run(qty);
+  res.json({ ok: true, message: `모든 유저에게 ${qty} 지급 완료` });
+});
+
+// ============ 유저 로그 ============
+router.get('/logs', (req, res) => {
+  const { userId, type, limit: lim } = req.query;
+  const maxRows = Math.min(parseInt(lim) || 100, 500);
+  let sql = 'SELECT l.*, u.display_name FROM user_logs l JOIN users u ON l.user_id = u.id';
+  const conditions = [];
+  const params = [];
+  if (userId) { conditions.push('l.user_id = ?'); params.push(userId); }
+  if (type) { conditions.push('l.type = ?'); params.push(type); }
+  if (conditions.length) sql += ' WHERE ' + conditions.join(' AND ');
+  sql += ' ORDER BY l.id DESC LIMIT ?';
+  params.push(maxRows);
+  const logs = db.prepare(sql).all(...params);
+  logs.forEach(l => { try { l.data = JSON.parse(l.data); } catch {} });
+  res.json({ logs });
 });
 
 module.exports = router;

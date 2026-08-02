@@ -1,0 +1,131 @@
+/* 공통 모달 */
+.info-modal-backdrop {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  animation: infoFadeIn 0.15s ease;
+}
+@keyframes infoFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.info-modal {
+  width: 720px; max-height: 950px; overflow-y: auto;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px;
+  padding: 30px 36px; display: flex; flex-direction: column; gap: 24px;
+  box-shadow: 0 12px 60px rgba(0,0,0,0.5);
+  animation: infoSlideIn 0.2s ease;
+}
+.info-modal-wide { width: 900px; }
+@keyframes infoSlideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.info-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.info-modal-header h3 { font-size: 1.6rem; font-weight: 800; margin: 0; }
+.info-modal-close {
+  background: none; color: var(--text-muted); font-size: 1.8rem;
+  width: 46px; height: 46px; border-radius: 50%; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: all 0.15s;
+}
+.info-modal-close:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ===== 속성 모달 ===== */
+.elem-sections {
+  display: flex; gap: 32px; align-items: flex-start;
+}
+.elem-section {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 18px;
+}
+.elem-divider {
+  width: 1px; align-self: stretch; background: var(--border);
+}
+
+.elem-circle {
+  width: 66px; height: 66px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.9rem; color: #fff;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.3);
+}
+.elem-node-label {
+  font-size: 1.25rem; font-weight: 700; margin-top: 6px;
+}
+
+/* 삼각형 배치 */
+.elem-triangle {
+  position: relative; width: 320px; height: 260px;
+}
+.elem-tri-node {
+  position: absolute; display: flex; flex-direction: column; align-items: center;
+}
+.elem-tri-top { top: 0; left: 50%; transform: translateX(-50%); }
+.elem-tri-bl { bottom: 0; left: 14px; }
+.elem-tri-br { bottom: 0; right: 14px; }
+
+.elem-tri-arrow {
+  position: absolute; font-size: 2rem; color: var(--text-muted); font-weight: 700;
+}
+.arrow-right { top: 58px; right: 26px; transform: rotate(-125deg); }
+.arrow-left { top: 58px; left: 26px; transform: rotate(-55deg); }
+.arrow-bottom { bottom: 26px; left: 50%; transform: translateX(-50%); }
+
+/* 광암 세로 배치 */
+.elem-dual {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.elem-dual-node {
+  display: flex; flex-direction: column; align-items: center;
+}
+.elem-dual-arrows {
+  display: flex; gap: 24px; font-size: 1.9rem; font-weight: 700; color: var(--text-muted);
+}
+
+.elem-desc-list {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.elem-desc-list p {
+  margin: 0; font-size: 1.15rem; color: var(--text-secondary); font-weight: 600;
+  text-align: center;
+}
+
+.elem-mult-info {
+  font-size: 1.1rem; color: var(--text-muted); text-align: center;
+  padding: 14px; background: var(--bg-card); border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.elem-mult-info strong { color: var(--text-primary); }
+
+/* ===== 근원 모달 ===== */
+.info-modal-origins { width: 1100px; }
+.origin-grid-wrap {
+  display: flex; gap: 20px;
+}
+.origin-col {
+  flex: 1; display: flex; flex-direction: column; gap: 14px;
+}
+.origin-cell {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+}
+.origin-icon-wrap {
+  width: 56px; height: 56px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.origin-modal-icon {
+  width: 48px; height: 48px; display: block;
+  -webkit-mask-size: contain; -webkit-mask-repeat: no-repeat; -webkit-mask-position: center;
+  mask-size: contain; mask-repeat: no-repeat; mask-position: center;
+}
+.origin-text {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.origin-name {
+  font-size: 1.35rem; font-weight: 800;
+}
+.origin-desc {
+  font-size: 1.0rem; color: var(--text-secondary); line-height: 1.4;
+  white-space: pre-line;
+}

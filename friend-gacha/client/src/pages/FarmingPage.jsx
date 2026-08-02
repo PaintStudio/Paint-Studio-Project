@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { bgm } from '../utils/bgm';
 import BattlePage from './BattlePage';
 import PartyPresetEditor from '../components/PartyPresetEditor';
 import CurrencyIcon from '../components/CurrencyIcon';
+import usePartyPresets from '../hooks/usePartyPresets';
 import './FarmingPage.css';
 
 const RARITY_ORDER = { N: 0, R: 1, SR: 2, SSR: 3, CR: 4 };
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+const DIFF_LABELS = ['하급', '중급', '상급', '최상급'];
+const DIFF_ORDER = { low: 0, mid: 1, high: 2, top: 3 };
 
 function formatOpenDays(stage) {
   if (stage.alwaysOpen) return '상시개방';
@@ -14,28 +18,60 @@ function formatOpenDays(stage) {
   return stage.openDays.map(d => DAY_NAMES[d]).join('/');
 }
 
+function subGroupStages(stages) {
+  const groups = {};
+  for (const s of stages) {
+    let baseName = s.name;
+    for (const dl of DIFF_LABELS) {
+      if (baseName.endsWith(' ' + dl)) {
+        baseName = baseName.slice(0, -(dl.length + 1));
+        break;
+      }
+      if (baseName.endsWith(' - ' + dl)) {
+        baseName = baseName.slice(0, -(dl.length + 3));
+        break;
+      }
+    }
+    if (!groups[baseName]) {
+      groups[baseName] = { baseName, icon: s.icon, stages: [] };
+    }
+    groups[baseName].stages.push(s);
+  }
+  for (const g of Object.values(groups)) {
+    g.stages.sort((a, b) => (DIFF_ORDER[a.difficulty] || 0) - (DIFF_ORDER[b.difficulty] || 0));
+  }
+  const list = Object.values(groups);
+  list.sort((a, b) => {
+    const aOpen = a.stages.some(s => s.open && s.unlocked) ? 0 : 1;
+    const bOpen = b.stages.some(s => s.open && s.unlocked) ? 0 : 1;
+    return aOpen - bOpen;
+  });
+  return list;
+}
+
 export default function FarmingPage({ user, onRefresh, addToast }) {
   const [dungeons, setDungeons] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [selectedStage, setSelectedStage] = useState(null);
-  const [presets, setPresets] = useState([]);
-  const [characters, setCharacters] = useState([]);
-  const [selectedPreset, setSelectedPreset] = useState(null);
-  const [editingSlot, setEditingSlot] = useState(null);
   const [battleSetup, setBattleSetup] = useState(null);
   const [loading, setLoading] = useState(false);
   const [lastRewards, setLastRewards] = useState(null);
+  const [diffIndices, setDiffIndices] = useState({});
+
+  const {
+    presets, characters, selectedPreset, setSelectedPreset,
+    editingSlot, setEditingSlot,
+    loadPresets, getCharByInvId, handlePresetSave,
+  } = usePartyPresets(addToast);
 
   useEffect(() => { loadData(); }, []);
 
   const loadData = async () => {
     try {
-      const [farmData, charData, presetData] = await Promise.all([
-        api.farmingList(), api.partyList(), api.partyPresets()
+      const [farmData] = await Promise.all([
+        api.farmingList(), loadPresets()
       ]);
-      setDungeons(farmData.dungeons || []);
-      setCharacters(charData.characters);
-      setPresets(presetData.presets);
+      setDungeons((farmData.dungeons || []).filter(d => d.type !== 'normal'));
     } catch (err) { addToast(err.message, 'error'); }
   };
 
@@ -68,34 +104,34 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
       addToast(err.message, 'error');
     }
     setBattleSetup(null);
+    bgm.play('battle_hub');
   };
-
-  const handlePresetSave = async (name, ids) => {
-    try {
-      await api.savePartyPreset(editingSlot, name, ids);
-      addToast('편성 저장 완료');
-      setEditingSlot(null);
-      const presetData = await api.partyPresets();
-      setPresets(presetData.presets);
-      const updated = presetData.presets.find(p => p.slot === editingSlot);
-      if (updated && updated.partyIds.length > 0) setSelectedPreset(updated);
-    } catch (err) { addToast(err.message, 'error'); }
-  };
-
-  const getCharByInvId = (invId) => characters.find(c => c.inventory_id === invId);
 
   if (battleSetup) {
     return <BattlePage setup={battleSetup} onBattleEnd={onBattleEnd} partyIds={battleSetup.partyIds} />;
   }
 
-  // 보상 화면
   if (lastRewards) {
     const sortedItems = [...(lastRewards.items || [])].sort((a, b) =>
       (RARITY_ORDER[b.rarity] || 0) - (RARITY_ORDER[a.rarity] || 0)
     );
+    const fc = lastRewards.firstClear;
     return (
       <div className="farming-rewards-screen">
         <h2 className="farming-rewards-title">던전 클리어!</h2>
+        {fc && (
+          <div className="farming-first-clear-banner">
+            <span className="fc-banner-label">&#10024; 첫 클리어 보상</span>
+            <div className="fc-banner-rewards">
+              {fc.prism > 0 && (
+                <span className="fc-banner-item"><CurrencyIcon type="prism" size={20} /> +{fc.prism}</span>
+              )}
+              {fc.items?.map((it, i) => (
+                <span key={i} className="fc-banner-item">{it.name} x{it.quantity}</span>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="farming-rewards-list">
           <div className="farming-reward-item gold">
             <CurrencyIcon type="gold" size={24} />
@@ -113,7 +149,7 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
           <button className="btn-primary" onClick={() => { setLastRewards(null); startBattle(); }}>
             재도전
           </button>
-          <button className="btn-secondary" onClick={() => { setLastRewards(null); setSelectedStage(null); }}>
+          <button className="btn-secondary" onClick={() => { setLastRewards(null); setSelectedStage(null); loadData(); }}>
             돌아가기
           </button>
         </div>
@@ -121,7 +157,6 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
     );
   }
 
-  // 스테이지 선택 후 → 파티 선택
   if (selectedStage) {
     const days = formatOpenDays(selectedStage);
     return (
@@ -170,24 +205,97 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
           {loading ? '준비 중...' : '출격'}
         </button>
 
-        {editingSlot !== null && (
-          <PartyPresetEditor
-            slot={editingSlot}
-            characters={characters}
-            currentPreset={presets.find(p => p.slot === editingSlot)}
-            onSave={handlePresetSave}
-            onClose={() => setEditingSlot(null)}
-            maxSize={3}
-          />
-        )}
+        {editingSlot !== null && (() => {
+          const preset = presets.find(p => p.slot === editingSlot);
+          return (
+            <PartyPresetEditor
+              characters={characters}
+              initialName={preset?.name || ''}
+              initialIds={preset?.partyIds || []}
+              onSave={(name, ids) => handlePresetSave(name, ids)}
+              onCancel={() => setEditingSlot(null)}
+            />
+          );
+        })()}
       </div>
     );
   }
 
-  // 그룹 내 스테이지 목록 (난이도별)
   if (selectedGroup) {
     const dungeon = dungeons.find(d => d.group === selectedGroup);
     if (!dungeon) return null;
+
+    const hasMultiDiff = dungeon.stages.length > 1 && dungeon.stages.some(s => s.difficulty);
+    const subs = hasMultiDiff ? subGroupStages(dungeon.stages) : null;
+
+    if (subs && subs.length > 1) {
+      return (
+        <div className="farming-diff-select">
+          <button className="btn-back" onClick={() => setSelectedGroup(null)}>
+            {'<'} 파밍 던전
+          </button>
+          <h2 className="farming-dungeon-title">
+            {dungeon.icon && <span dangerouslySetInnerHTML={{ __html: dungeon.icon }} />}
+            {' '}{dungeon.label}
+          </h2>
+          {dungeon.description && <p className="farming-dungeon-desc">{dungeon.description}</p>}
+
+          <div className="farming-sub-grid">
+            {subs.map(sub => {
+              const idx = diffIndices[sub.baseName] || 0;
+              const s = sub.stages[idx];
+              if (!s) return null;
+              const days = formatOpenDays(s);
+              const closed = !s.open;
+              const locked = !s.unlocked;
+              const canGo = !closed && !locked;
+              return (
+                <div key={sub.baseName}
+                  className={`farming-sub-card ${closed ? 'closed' : ''} ${locked ? 'locked' : ''}`}
+                  onClick={() => canGo && setSelectedStage(s)}>
+                  <div className="farming-sub-top">
+                    {sub.icon && <span className="farming-sub-icon" dangerouslySetInnerHTML={{ __html: sub.icon }} />}
+                    <span className="farming-sub-name">{sub.baseName}</span>
+                    {days && <span className="farming-sub-days">{days}</span>}
+                  </div>
+                  {sub.stages.length > 1 && (
+                    <div className="farming-sub-diff">
+                      <button className="btn-diff-arrow" disabled={idx <= 0}
+                        onClick={(e) => { e.stopPropagation(); setDiffIndices(p => ({ ...p, [sub.baseName]: idx - 1 })); }}>
+                        &#9664;
+                      </button>
+                      <span className={`farming-sub-diff-label diff-${s.difficulty}`}>
+                        {DIFF_LABELS[DIFF_ORDER[s.difficulty]] || s.difficulty}
+                      </span>
+                      <button className="btn-diff-arrow" disabled={idx >= sub.stages.length - 1}
+                        onClick={(e) => { e.stopPropagation(); setDiffIndices(p => ({ ...p, [sub.baseName]: idx + 1 })); }}>
+                        &#9654;
+                      </button>
+                    </div>
+                  )}
+                  <div className="farming-sub-info">
+                    <span>Lv.{s.recommendedLevel}</span>
+                    <span className="farming-sub-cost"><CurrencyIcon type="stamina" size={13} /> {s.staminaCost}</span>
+                    {s.rewards.gold > 0 && (
+                      <span className="farming-sub-gold"><CurrencyIcon type="gold" size={13} /> {s.rewards.gold}</span>
+                    )}
+                  </div>
+                  {!s.cleared && s.rewards.firstClear && (
+                    <div className="farming-first-clear-tag">
+                      <CurrencyIcon type="prism" size={13} /> {s.rewards.firstClear.prism}
+                    </div>
+                  )}
+                  {s.cleared && <span className="farming-cleared-check">&#10003;</span>}
+                  {closed && <span className="farming-sub-status closed-label">미개방</span>}
+                  {locked && !closed && <span className="farming-sub-status locked-label">&#128274; {s.unlockCondition?.type === 'story_clear' ? '스토리 클리어 필요' : '이전 난이도 클리어 필요'}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="farming-diff-select">
         <button className="btn-back" onClick={() => setSelectedGroup(null)}>
@@ -219,6 +327,12 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
                     <CurrencyIcon type="gold" size={14} /> {s.rewards.gold}
                   </span>
                 )}
+                {!s.cleared && s.rewards.firstClear && (
+                  <span className="farming-diff-fc">
+                    <CurrencyIcon type="prism" size={14} /> {s.rewards.firstClear.prism}
+                  </span>
+                )}
+                {s.cleared && <span className="farming-diff-cleared">&#10003;</span>}
                 {days && <span className="farming-diff-days">{days}</span>}
                 {closed && <span className="farming-closed-label">미개방</span>}
                 {locked && !closed && <span className="farming-locked-label">&#128274;</span>}
@@ -230,7 +344,6 @@ export default function FarmingPage({ user, onRefresh, addToast }) {
     );
   }
 
-  // 던전 그룹 선택
   return (
     <div className="farming-type-select">
       {dungeons.length === 0 && (

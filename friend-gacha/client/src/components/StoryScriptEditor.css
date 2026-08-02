@@ -1,0 +1,430 @@
+.sse {
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #151520;
+  overflow: hidden;
+}
+
+.sse-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #333;
+  flex-wrap: wrap;
+}
+
+.sse-btn {
+  padding: 4px 10px;
+  border: 1px solid #444;
+  border-radius: 5px;
+  background: #252540;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sse-btn:hover { background: #333355; }
+.sse-btn-add { border-style: dashed; }
+.sse-btn-json { margin-left: auto; }
+
+.sse-count {
+  font-size: 11px;
+  color: #666;
+}
+
+.sse-empty {
+  padding: 30px;
+  text-align: center;
+  color: #555;
+  font-size: 13px;
+}
+
+/* ===== Entry list ===== */
+.sse-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.sse-item {
+  border-bottom: 1px solid #222233;
+}
+.sse-item:last-child { border-bottom: none; }
+
+.sse-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+  min-height: 30px;
+}
+.sse-item-head:hover { background: #1c1c30; }
+.sse-item.open > .sse-item-head {
+  background: #1c1c30;
+  border-bottom: 1px solid #222233;
+}
+
+.sse-num {
+  font-size: 11px;
+  color: #555;
+  min-width: 20px;
+  text-align: right;
+}
+
+.sse-type-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.sse-preview {
+  flex: 1;
+  font-size: 12px;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sse-tag {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.06);
+  color: #777;
+  flex-shrink: 0;
+}
+
+.sse-item-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.sse-item-actions button {
+  width: 22px; height: 22px;
+  border: none; border-radius: 4px;
+  background: transparent;
+  color: #666; font-size: 11px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.sse-item-actions button:hover { background: #2a2a44; color: #ccc; }
+.sse-item-actions button:disabled { opacity: 0.25; cursor: default; }
+.sse-item-actions button:disabled:hover { background: transparent; }
+.sse-item-actions button.del:hover { background: #3a2222; color: #f87171; }
+
+/* ===== Entry body (edit form) ===== */
+.sse-item-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #13131f;
+}
+
+.sse-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sse-field > label {
+  font-size: 11px;
+  color: #777;
+  font-weight: 600;
+}
+.sse-field input,
+.sse-field textarea,
+.sse-field select {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #ddd;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+.sse-field textarea { resize: vertical; }
+
+.sse-row {
+  display: flex;
+  gap: 8px;
+}
+.sse-row > .sse-field { flex: 1; }
+
+/* ===== Toggles ===== */
+.sse-toggles {
+  display: flex;
+  gap: 6px;
+}
+.sse-toggle {
+  padding: 3px 10px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: transparent;
+  color: #666;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sse-toggle.on {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+}
+
+/* ===== Sub-sections (chars, choices) ===== */
+.sse-sub-section {
+  border: 1px solid #262638;
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sse-sub-label {
+  font-size: 11px;
+  color: #777;
+  font-weight: 600;
+}
+
+/* Character row */
+.sse-char-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sse-char-row select {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 4px 6px;
+  font-size: 12px;
+  width: 68px;
+}
+.sse-char-name {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 4px 6px;
+  font-size: 12px;
+  width: 90px;
+}
+.sse-char-img {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 4px 6px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.sse-char-active {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #777;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Choice row */
+.sse-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sse-choice-num {
+  font-size: 12px;
+  color: #555;
+  min-width: 16px;
+  text-align: center;
+}
+.sse-choice-text {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 4px 6px;
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.sse-choice-next {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 4px 6px;
+  font-size: 12px;
+  width: 120px;
+}
+
+/* Shared small buttons */
+.sse-del-sm {
+  width: 20px; height: 20px;
+  border: none; border-radius: 3px;
+  background: transparent;
+  color: #666; font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.sse-del-sm:hover { background: #3a2222; color: #f87171; }
+
+.sse-btn-sub-add {
+  padding: 4px 10px;
+  border: 1px dashed #3a3a4a;
+  border-radius: 4px;
+  background: transparent;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.sse-btn-sub-add:hover { border-color: #666; color: #aaa; }
+
+/* ===== Guide editor ===== */
+.sse-guide-step {
+  border: 1px solid #262638;
+  border-radius: 5px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sse-guide-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sse-guide-head select {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.sse-guide-speaker {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 12px;
+  width: 90px;
+}
+.sse-guide-text {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sse-guide-opts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sse-guide-opts select {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.sse-guide-skills {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 11px;
+  width: 140px;
+}
+
+/* ===== Party editor ===== */
+.sse-party-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sse-party-label {
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+}
+.sse-party-field {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 12px;
+  width: 60px;
+}
+.sse-party-field-sm {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #ddd;
+  padding: 3px 6px;
+  font-size: 12px;
+  width: 40px;
+}
+
+/* ===== JSON mode ===== */
+.sse-json-full {
+  width: 100%;
+  min-height: 400px;
+  background: #111118;
+  border: none;
+  border-top: 2px solid #333;
+  color: #ddd;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  padding: 12px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.sse-json-status {
+  font-size: 11px;
+  margin-left: auto;
+}
+.sse-json-status.valid { color: #4ade80; }
+.sse-json-status.invalid { color: #f87171; }
+
+.sse-valid { border-color: #4ade80 !important; }
+.sse-invalid { border-color: #f87171 !important; }
+
+.sse-textarea {
+  background: #1a1a2e;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #ddd;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}

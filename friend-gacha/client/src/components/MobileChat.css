@@ -1,0 +1,106 @@
+/* 채팅 패널 — 탭바 바로 위에 올라옴 */
+.mchat-panel {
+  position: fixed; z-index: 140;
+  left: 0; right: 0;
+  bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+  height: 50vh;
+  background: var(--bg-secondary, #12121e);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  display: flex; flex-direction: column;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+  animation: mchatSlideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.2s ease;
+}
+
+@keyframes mchatSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* 드래그 핸들 */
+.mchat-drag-handle {
+  display: flex; justify-content: center; align-items: center;
+  padding: 8px 0 2px; flex-shrink: 0;
+  cursor: grab; touch-action: none;
+}
+.mchat-drag-bar {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: rgba(255,255,255,0.25);
+}
+
+/* 헤더 */
+.mchat-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 16px 10px; border-bottom: 1px solid var(--border);
+  font-size: 0.82rem; font-weight: 700; flex-shrink: 0;
+}
+.mchat-online { font-size: 0.65rem; color: var(--text-muted); font-weight: 500; }
+
+/* 메시지 리스트 */
+.mchat-messages {
+  flex: 1; overflow-y: auto; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.mchat-messages::-webkit-scrollbar { width: 2px; }
+.mchat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 1px; }
+
+/* 메시지 */
+.mchat-msg { display: flex; gap: 8px; align-items: flex-start; }
+
+.mchat-avatar-wrap { flex-shrink: 0; }
+.mchat-avatar {
+  width: 32px; height: 32px; border-radius: 6px; object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.mchat-avatar-default {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-card); color: var(--text-muted);
+  font-size: 0.75rem; font-weight: 700;
+}
+
+.mchat-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mchat-meta { display: flex; align-items: baseline; gap: 5px; }
+.mchat-name { font-size: 0.72rem; color: var(--text-secondary); font-weight: 700; }
+.mchat-mine .mchat-name { color: var(--accent); }
+.mchat-time { font-size: 0.55rem; color: var(--text-muted); }
+.mchat-text {
+  font-size: 0.78rem; line-height: 1.4;
+  word-break: break-word; color: var(--text-primary);
+}
+
+.mchat-empty {
+  color: var(--text-muted); font-size: 0.75rem; text-align: center;
+  margin: auto; padding: 20px;
+}
+
+/* 입력 영역 */
+.mchat-input-area {
+  display: flex; gap: 6px; padding: 8px 10px;
+  border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.mchat-input {
+  flex: 1; padding: 8px 10px; font-size: 0.78rem;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text-primary); border-radius: 8px; outline: none;
+  -webkit-appearance: none;
+}
+.mchat-input:focus { border-color: var(--accent); }
+.mchat-send {
+  padding: 6px 14px; background: var(--accent); color: #fff;
+  border: none; border-radius: 8px; font-size: 0.75rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.mchat-send:disabled { opacity: 0.4; }
+
+/* 탭바 내 채팅 뱃지 */
+.mchat-tab-badge {
+  position: absolute; top: 2px; right: 50%; transform: translateX(calc(50% + 10px));
+  background: #e94560; color: #fff;
+  font-size: 0.48rem; font-weight: 800;
+  min-width: 16px; height: 16px;
+  border-radius: 8px; padding: 0 3px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}

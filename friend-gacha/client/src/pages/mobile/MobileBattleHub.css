@@ -1,0 +1,276 @@
+.mb-page {
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+}
+
+/* 모드 탭 */
+.mb-tabs {
+  display: flex; gap: 6px; padding: 10px 12px 8px;
+  flex-shrink: 0;
+}
+.mb-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 10px 8px; border-radius: 10px;
+  background: var(--bg-card); border: 1.5px solid var(--border);
+  color: var(--text-muted); font-size: 0.8rem; font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.mb-tab.active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--bg-card), rgba(233,69,96,0.08));
+  color: var(--accent);
+}
+
+/* 컨텐츠 */
+.mb-content {
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 0 12px 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 전투 진행 시 탭 숨기고 전체화면 */
+.mb-page:has(.battle-page) { overflow: hidden; }
+.mb-page:has(.battle-page) .mb-tabs { display: none; }
+.mb-page:has(.battle-page) .mb-content {
+  overflow: hidden; padding: 0; height: 100%;
+}
+
+/* ===== StagePage 모바일 오버라이드 ===== */
+.mb-page .stage-page { gap: 12px; }
+.mb-page .stage-page-header h2 { font-size: 1.05rem; }
+.mb-page .stamina-badge {
+  padding: 5px 12px; font-size: 0.75rem; border-radius: 14px;
+}
+.mb-page .stage-grid {
+  grid-template-columns: repeat(2, 1fr); gap: 10px;
+}
+.mb-page .stage-card { padding: 14px; border-radius: 10px; gap: 6px; }
+.mb-page .stage-number {
+  width: 30px; height: 30px; border-radius: 8px; font-size: 0.78rem;
+}
+.mb-page .stage-card-name { font-size: 0.82rem; }
+.mb-page .stage-card-meta { gap: 8px; font-size: 0.7rem; }
+.mb-page .stage-card-rewards { font-size: 0.68rem; }
+
+/* 스테이지 상세 */
+.mb-page .stage-detail-page { gap: 12px; }
+.mb-page .stage-detail-card {
+  padding: 18px 16px; border-radius: 12px;
+}
+.mb-page .stage-detail-card h2 { font-size: 1.1rem; }
+.mb-page .stage-detail-stamina {
+  position: static; display: inline-flex;
+  margin-bottom: 8px; font-size: 0.78rem;
+  padding: 4px 10px; border-radius: 8px;
+}
+.mb-page .stage-meta { justify-content: flex-start; gap: 12px; font-size: 0.78rem; }
+.mb-page .stage-rewards-detail { font-size: 0.78rem; justify-content: flex-start; gap: 12px; }
+
+/* ===== 프리셋 피커 공통 오버라이드 ===== */
+.mb-page .preset-picker-section { gap: 10px; }
+.mb-page .preset-picker-header h3 { font-size: 0.88rem; }
+.mb-page .preset-picker-grid {
+  grid-template-columns: 1fr; gap: 8px;
+}
+.mb-page .preset-pick-card {
+  flex-direction: row; align-items: center; gap: 10px;
+  padding: 10px 12px; min-height: auto; border-radius: 10px;
+}
+.mb-page .preset-pick-header {
+  flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 70px;
+}
+.mb-page .preset-pick-num {
+  width: 20px; height: 20px; border-radius: 5px; font-size: 0.68rem;
+}
+.mb-page .preset-pick-name { font-size: 0.78rem; }
+.mb-page .preset-pick-edit {
+  width: 22px; height: 22px; font-size: 0.68rem;
+}
+.mb-page .preset-pick-members {
+  flex-direction: row; gap: 6px; flex-wrap: wrap; flex: 1;
+  align-items: center;
+}
+.mb-page .preset-pick-member {
+  padding: 2px 6px; border-radius: 6px;
+}
+.mb-page .ppm-avatar { width: 24px; height: 24px; }
+.mb-page .ppm-name { font-size: 0.7rem; }
+.mb-page .ppm-lv { font-size: 0.6rem; }
+.mb-page .preset-pick-power {
+  font-size: 0.65rem; padding-top: 0; border-top: none;
+  white-space: nowrap;
+}
+.mb-page .preset-pick-empty { font-size: 0.72rem; padding: 8px; }
+
+.mb-page .battle-start-btn {
+  min-width: auto; width: 100%; font-size: 0.95rem; padding: 14px;
+  border-radius: 12px;
+}
+
+/* ===== 스태미나 팝업 오버라이드 ===== */
+.mb-page .stamina-popup-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  width: 100%; z-index: 200;
+}
+.mb-page .stamina-popup {
+  width: 90%; max-width: 340px; min-width: auto;
+  padding: 16px 18px;
+}
+.mb-page .stamina-popup h3 { font-size: 0.92rem; }
+.mb-page .stamina-popup-info { font-size: 0.78rem; }
+.mb-page .spi-icon { font-size: 1.1rem; }
+.mb-page .spi-name { font-size: 0.75rem; }
+.mb-page .spi-desc { font-size: 0.62rem; }
+.mb-page .spi-qty { font-size: 0.68rem; }
+.mb-page .spi-use-btn { font-size: 0.68rem; padding: 4px 10px; }
+.mb-page .stamina-popup-close { font-size: 0.75rem; }
+
+/* ===== FarmingPage 모바일 오버라이드 ===== */
+.mb-page .farming-type-grid {
+  flex-direction: column; gap: 10px;
+}
+.mb-page .farming-type-card {
+  min-width: auto; padding: 18px 16px; flex-direction: row; gap: 10px;
+  align-items: center;
+}
+.mb-page .farming-type-icon { font-size: 1.4rem; }
+.mb-page .farming-type-label { font-size: 0.92rem; }
+.mb-page .farming-type-desc { font-size: 0.72rem; text-align: left; }
+.mb-page .farming-type-count { font-size: 0.68rem; }
+
+.mb-page .farming-diff-select { gap: 12px; }
+.mb-page .farming-dungeon-title { font-size: 1.05rem; }
+.mb-page .farming-dungeon-desc { font-size: 0.78rem; }
+
+.mb-page .farming-diff-grid {
+  flex-direction: column; gap: 8px;
+}
+.mb-page .farming-diff-card {
+  min-width: auto; padding: 14px 12px; flex-direction: row;
+  align-items: center; gap: 10px;
+}
+.mb-page .farming-diff-label { font-size: 0.92rem; }
+.mb-page .farming-diff-lv { font-size: 0.72rem; }
+.mb-page .farming-diff-cost { font-size: 0.72rem; }
+
+.mb-page .farming-sub-grid {
+  grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+.mb-page .farming-sub-card { padding: 10px 12px; gap: 6px; border-radius: 10px; }
+.mb-page .farming-sub-name { font-size: 0.82rem; }
+.mb-page .farming-sub-days { font-size: 0.6rem; }
+.mb-page .farming-sub-info { font-size: 0.68rem; gap: 8px; }
+.mb-page .btn-diff-arrow { width: 22px; height: 22px; font-size: 0.6rem; }
+.mb-page .farming-sub-diff-label { font-size: 0.78rem; }
+
+/* 파밍 파티 선택 */
+.mb-page .farming-party-select { gap: 10px; }
+.mb-page .farming-diff-info { gap: 10px; font-size: 0.78rem; }
+.mb-page .farming-section-title { font-size: 0.88rem; }
+.mb-page .farming-preset { padding: 8px 10px; gap: 8px; border-radius: 8px; }
+.mb-page .farming-preset-name { font-size: 0.78rem; min-width: 50px; }
+.mb-page .farming-preset-char {
+  width: 30px; height: 30px;
+}
+.mb-page .farming-btn-start {
+  min-width: auto; width: 100%; font-size: 0.92rem;
+}
+
+/* 파밍 보상 화면 */
+.mb-page .farming-rewards-screen { padding: 24px 12px; gap: 14px; }
+.mb-page .farming-rewards-title { font-size: 1.15rem; }
+.mb-page .farming-rewards-list { padding: 14px; }
+.mb-page .farming-reward-value { font-size: 0.95rem; }
+.mb-page .farming-reward-name { font-size: 0.82rem; }
+.mb-page .farming-reward-qty { font-size: 0.82rem; }
+.mb-page .farming-rewards-actions { flex-direction: column; gap: 8px; width: 100%; }
+.mb-page .farming-rewards-actions .btn-primary,
+.mb-page .farming-rewards-actions .btn-secondary {
+  min-width: auto; width: 100%;
+}
+.mb-page .farming-first-clear-banner { padding: 10px 14px; }
+.mb-page .fc-banner-label { font-size: 0.78rem; }
+.mb-page .fc-banner-item { font-size: 0.82rem; }
+
+/* ===== RaidPage 모바일 오버라이드 ===== */
+.mb-page .raid-page { gap: 12px; }
+.mb-page .raid-timer { font-size: 0.75rem; padding: 5px 10px; }
+.mb-page .raid-boss-card { padding: 18px; border-radius: 12px; }
+.mb-page .boss-header { gap: 8px; margin-bottom: 12px; }
+.mb-page .boss-header h2 { font-size: 1.1rem; }
+.mb-page .boss-notes { font-size: 0.78rem; }
+.mb-page .boss-hp-bar { height: 16px; }
+.mb-page .boss-hp-text { font-size: 0.72rem; }
+.mb-page .boss-dead-label { font-size: 2rem; }
+
+.mb-page .raid-my-info {
+  grid-template-columns: repeat(2, 1fr); gap: 8px;
+}
+.mb-page .raid-info-item { padding: 10px 6px; border-radius: 10px; }
+.mb-page .raid-info-label { font-size: 0.65rem; }
+.mb-page .raid-info-value { font-size: 0.82rem; }
+
+.mb-page .raid-challenge-btn {
+  min-width: auto; width: 100%; font-size: 0.95rem; padding: 14px;
+  border-radius: 12px;
+}
+
+/* 레이드 랭킹 */
+.mb-page .raid-rankings h3 { font-size: 0.88rem; }
+.mb-page .raid-rank-item { padding: 8px 10px; gap: 8px; border-radius: 8px; }
+.mb-page .raid-rank-num { font-size: 0.78rem; min-width: 22px; }
+.mb-page .raid-rank-name { font-size: 0.78rem; }
+.mb-page .raid-rank-dmg { font-size: 0.78rem; }
+
+/* 레이드 프리셋 오버라이드 */
+.mb-page .raid-page .preset-picker-grid {
+  grid-template-columns: 1fr; gap: 8px;
+}
+.mb-page .raid-page .preset-pick-card {
+  flex-direction: row; align-items: center; gap: 10px;
+  padding: 10px 12px; min-height: auto;
+}
+.mb-page .raid-page .preset-pick-header {
+  flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 70px;
+}
+.mb-page .raid-page .preset-pick-num {
+  width: 20px; height: 20px; border-radius: 5px; font-size: 0.68rem;
+}
+.mb-page .raid-page .preset-pick-name { font-size: 0.78rem; }
+.mb-page .raid-page .preset-pick-members {
+  flex-direction: row; gap: 6px; flex-wrap: wrap; flex: 1;
+}
+.mb-page .raid-page .preset-pick-member { padding: 2px 6px; border-radius: 6px; }
+.mb-page .raid-page .ppm-avatar { width: 24px; height: 24px; }
+.mb-page .raid-page .ppm-name { font-size: 0.7rem; }
+.mb-page .raid-page .ppm-lv { font-size: 0.6rem; }
+.mb-page .raid-page .preset-pick-power {
+  font-size: 0.65rem; padding-top: 0; border-top: none;
+}
+.mb-page .raid-page .preset-pick-edit {
+  width: 22px; height: 22px; font-size: 0.68rem;
+}
+.mb-page .raid-page .battle-start-btn {
+  min-width: auto; width: 100%; font-size: 0.95rem; padding: 14px;
+}
+
+/* 레이드 결과 */
+.mb-page .raid-result-screen { min-height: auto; gap: 14px; padding: 24px 12px; }
+.mb-page .raid-result-title { font-size: 1.2rem; }
+.mb-page .raid-result-value { font-size: 1.8rem; }
+.mb-page .raid-result-reward { font-size: 0.92rem; padding: 8px 16px; }
+.mb-page .raid-result-btn { min-width: auto; width: 100%; padding: 14px; }
+
+/* ===== PartyPresetEditor 모바일 오버라이드 ===== */
+.mb-page .preset-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+}
+.mb-page .preset-modal {
+  width: 95%; max-width: none; max-height: 90%;
+}
+
+/* ===== 뒤로가기 버튼 ===== */
+.mb-page .btn-back { font-size: 0.82rem; }

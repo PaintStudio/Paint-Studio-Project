@@ -1,18 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../utils/api';
-import { getSocket } from '../utils/socket';
 import TradePage from './TradePage';
 import RankingPage from './RankingPage';
 import CurrencyIcon, { currencyImg } from '../components/CurrencyIcon';
+import { timeAgo } from '../utils/gameConstants';
 import './SocialPage.css';
-
-function timeAgo(dateStr) {
-  const diff = (Date.now() - new Date(dateStr + (dateStr.includes('Z') ? '' : 'Z')).getTime()) / 1000;
-  if (diff < 60) return '방금 전';
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  return `${Math.floor(diff / 86400)}일 전`;
-}
 
 // ========== 우편함 ==========
 function MailBox({ addToast, onRefreshUser }) {
@@ -134,89 +126,6 @@ function Feed() {
   );
 }
 
-// ========== 채팅 ==========
-function ChatPanel({ user }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [onlineCount, setOnlineCount] = useState(0);
-  const listRef = useRef(null);
-  const socket = getSocket();
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const onHistory = (history) => {
-      setMessages(prev => {
-        if (prev.length > 0) return prev;
-        return history;
-      });
-    };
-    const onMsg = (msg) => {
-      setMessages(prev => {
-        const next = [...prev, msg];
-        return next.length > 100 ? next.slice(-100) : next;
-      });
-    };
-    const onOnline = (users) => setOnlineCount(users.length);
-
-    socket.on('chat_history', onHistory);
-    socket.on('chat_message', onMsg);
-    socket.on('online_users', onOnline);
-
-    return () => {
-      socket.off('chat_history', onHistory);
-      socket.off('chat_message', onMsg);
-      socket.off('online_users', onOnline);
-    };
-  }, [socket]);
-
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const send = () => {
-    const text = input.trim();
-    if (!text || !socket) return;
-    socket.emit('chat_message', { text });
-    setInput('');
-  };
-
-  const handleKey = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
-  };
-
-  return (
-    <div className="chat-panel">
-      <div className="chat-header">
-        <span>채팅</span>
-        <span className="chat-online">{onlineCount}명 접속</span>
-      </div>
-      <div className="chat-messages" ref={listRef}>
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-msg ${m.userId === user?.id ? 'mine' : ''}`}>
-            <div className="chat-name-row">
-              {m.profileIcon && <img src={m.profileIcon} alt="" className="chat-avatar" />}
-              <span className="chat-name">{m.username}</span>
-            </div>
-            <span className="chat-text">{m.text}</span>
-          </div>
-        ))}
-        {messages.length === 0 && <p className="chat-empty">아직 대화가 없어요</p>}
-      </div>
-      <div className="chat-input-area">
-        <input className="chat-input" value={input} onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKey} placeholder="메시지 입력..." maxLength={200} />
-        <button className="chat-send" onClick={send} disabled={!input.trim()}>전송</button>
-      </div>
-    </div>
-  );
-}
-
 // ========== 메인 ==========
 const TABS = [
   { key: 'mail', label: '우편함', icon: '📬' },
@@ -235,27 +144,22 @@ export default function SocialPage({ user, addToast, onRefresh }) {
 
   return (
     <div className="social-page">
-      <div className="social-left">
-        <div className="social-tabs">
-          {TABS.map(t => (
-            <button key={t.key}
-              className={`social-tab ${tab === t.key ? 'active' : ''}`}
-              onClick={() => setTab(t.key)}>
-              <span className="social-tab-icon">{t.icon}</span>
-              <span>{t.label}</span>
-              {t.key === 'mail' && unread > 0 && <span className="tab-badge">{unread}</span>}
-            </button>
-          ))}
-        </div>
-        <div className="social-content">
-          {tab === 'mail' && <MailBox addToast={addToast} onRefreshUser={onRefresh} />}
-          {tab === 'trade' && <TradePage user={user} addToast={addToast} />}
-          {tab === 'feed' && <Feed />}
-          {tab === 'ranking' && <RankingPage currentUserId={user?.id} />}
-        </div>
+      <div className="social-tabs">
+        {TABS.map(t => (
+          <button key={t.key}
+            className={`social-tab ${tab === t.key ? 'active' : ''}`}
+            onClick={() => setTab(t.key)}>
+            <span className="social-tab-icon">{t.icon}</span>
+            <span>{t.label}</span>
+            {t.key === 'mail' && unread > 0 && <span className="tab-badge">{unread}</span>}
+          </button>
+        ))}
       </div>
-      <div className="social-right">
-        <ChatPanel user={user} />
+      <div className="social-content">
+        {tab === 'mail' && <MailBox addToast={addToast} onRefreshUser={onRefresh} />}
+        {tab === 'trade' && <TradePage user={user} addToast={addToast} />}
+        {tab === 'feed' && <Feed />}
+        {tab === 'ranking' && <RankingPage currentUserId={user?.id} />}
       </div>
     </div>
   );

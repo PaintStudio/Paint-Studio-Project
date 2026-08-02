@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import CurrencyIcon, { currencyImg } from '../components/CurrencyIcon';
 import gameConfig from '@gameConfig';
+import CurrencyIcon, { currencyImg } from '../components/CurrencyIcon';
+import LoadingOverlay from '../components/LoadingOverlay';
+import { RARITY_COLORS } from '../utils/gameConstants';
 import './InventoryPage.css';
-
-const RARITY_COLORS = { N: '#aaa', R: '#5dadec', SR: '#c77dff', SSR: '#ffd700', CR: 'rainbow' };
 const CATEGORY_LABELS = {
   material: '소재', awakening: '각성 재료', boss: '보스 소재', consumable: '소모품',
 };
@@ -81,7 +81,7 @@ export default function InventoryPage({ user, onRefresh, addToast }) {
       </div>
 
       {loading ? (
-        <p className="inv-empty">로딩 중...</p>
+        <LoadingOverlay />
       ) : items.length === 0 ? (
         <p className="inv-empty">보유한 아이템이 없습니다.</p>
       ) : (
@@ -128,11 +128,9 @@ export default function InventoryPage({ user, onRefresh, addToast }) {
               <span className="inv-modal-cat">{CATEGORY_LABELS[selected.category] || selected.category}</span>
             </div>
             {selected.description && <p className="inv-modal-desc">{selected.description}</p>}
+            {selected.flavor && <p className="inv-modal-flavor">{selected.flavor}</p>}
             <div className="inv-modal-footer">
               <span className="inv-modal-qty">보유: {selected.quantity}개</span>
-              {selected.sellPrice > 0 && (
-                <span className="inv-modal-sell" dangerouslySetInnerHTML={{ __html: `판매가: ${currencyImg('bit')} ${selected.sellPrice}` }} />
-              )}
             </div>
             {selected.effect?.type === 'stamina' && (
               (user.stamina || 0) >= gameConfig.stamina.max

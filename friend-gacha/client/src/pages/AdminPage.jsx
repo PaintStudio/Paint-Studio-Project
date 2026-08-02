@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { currencyImg } from '../components/CurrencyIcon';
+import gameConfig from '@gameConfig';
+import { RARITY_COLORS, ELEM_COLORS, ELEM_LABELS as ELEM_LABEL, ORIGIN_COLORS, ORIGIN_LABELS as ORIGIN_LABEL, getRarityStyle, SKILL_RARITY_LABELS as SKILL_RARITY_LABEL, SKILL_RARITY_COLORS as SKILL_RARITY_COLOR } from '../utils/gameConstants';
+import StoryScriptEditor from '../components/StoryScriptEditor';
 import './AdminPage.css';
 
 const API = '/api/admin';
@@ -17,40 +20,12 @@ async function req(path, opts = {}) {
   return data;
 }
 
-import gameConfig from '@gameConfig';
-
 const RARITIES = Object.keys(gameConfig.rarities);
 const ELEMENTS = Object.keys(gameConfig.elements);
 const ORIGINS = Object.keys(gameConfig.origins);
 const SKILL_TYPES = Object.keys(gameConfig.skillTypes);
 const SKILL_RARITIES = Object.keys(gameConfig.skillRarities);
-const SKILL_RARITY_LABEL = {};
-const SKILL_RARITY_COLOR = {};
-for (const [k, v] of Object.entries(gameConfig.skillRarities)) {
-  SKILL_RARITY_LABEL[k] = v.label;
-  SKILL_RARITY_COLOR[k] = v.color;
-}
 const TARGETS = Object.keys(gameConfig.targets);
-
-const RARITY_COLORS = {};
-for (const [k, v] of Object.entries(gameConfig.rarities)) RARITY_COLORS[k] = v.color;
-const ELEM_COLORS = {};
-const ELEM_LABEL = {};
-for (const [k, v] of Object.entries(gameConfig.elements)) {
-  ELEM_COLORS[k] = v.color;
-  ELEM_LABEL[k] = v.label;
-}
-const ORIGIN_COLORS = {};
-const ORIGIN_LABEL = {};
-for (const [k, v] of Object.entries(gameConfig.origins)) {
-  ORIGIN_COLORS[k] = v.color;
-  ORIGIN_LABEL[k] = v.label;
-}
-
-function getRarityStyle(rarity) {
-  if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 'bold' };
-  return { color: RARITY_COLORS[rarity] || '#888' };
-}
 function getRarityBgStyle(rarity) {
   if (rarity === 'CR') return { background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)' };
   return { background: RARITY_COLORS[rarity] || '#888' };
@@ -90,7 +65,7 @@ export default function AdminPage() {
   const [monsters, setMonsters] = useState([]);
   const [editingMonster, setEditingMonster] = useState(null);
   const [selectedMonster, setSelectedMonster] = useState(null);
-  const [monsterFilter, setMonsterFilter] = useState({ search: '', element: '', boss: '' });
+  const [monsterFilter, setMonsterFilter] = useState({ search: '', element: '', boss: '', category: '' });
   const [monSkillFilter, setMonSkillFilter] = useState({ search: '', type: '', element: '' });
   const [monTags, setMonTags] = useState([]);
   const [skillBanners, setSkillBanners] = useState([]);
@@ -225,12 +200,13 @@ export default function AdminPage() {
       if (data._isEdit) {
         await req('/stages/' + data.id, { method: 'PUT', body: data });
         showMsg('스테이지 수정 완료');
+        loadStages();
       } else {
         await req('/stages', { method: 'POST', body: data });
         showMsg('스테이지 생성 완료');
+        loadStages();
+        setEditingStage(null);
       }
-      loadStages();
-      setEditingStage(null);
     } catch (err) { showMsg(err.message); }
   };
 
@@ -249,8 +225,11 @@ export default function AdminPage() {
       const data = { ...raw };
       try { data.enemy_data = data._enemy_data_raw ? JSON.parse(data._enemy_data_raw) : []; } catch(e) { return showMsg('적 데이터 JSON 오류: ' + e.message); }
       try { data.rewards = data._rewards_raw ? JSON.parse(data._rewards_raw) : null; } catch(e) { return showMsg('보상 JSON 오류: ' + e.message); }
-      try { data.story_script = data._story_script_raw ? JSON.parse(data._story_script_raw) : null; } catch(e) { return showMsg('스토리 스크립트 JSON 오류: ' + e.message); }
-      delete data._enemy_data_raw; delete data._rewards_raw; delete data._story_script_raw;
+      data.story_script = data._story_script_arr?.length > 0 ? data._story_script_arr : null;
+      try { data.fixed_party = data._fixed_party_raw ? JSON.parse(data._fixed_party_raw) : null; } catch(e) { return showMsg('고정 파티 JSON 오류: ' + e.message); }
+      try { data.required_guests = data._required_guests_raw ? JSON.parse(data._required_guests_raw) : null; } catch(e) { return showMsg('게스트 캐릭터 JSON 오류: ' + e.message); }
+      delete data._enemy_data_raw; delete data._rewards_raw; delete data._story_script_arr;
+      delete data._fixed_party_raw; delete data._required_guests_raw;
       if (data._isEdit) {
         await req('/story-nodes/' + data.id, { method: 'PUT', body: data });
         showMsg('스토리 노드 수정 완료');
@@ -307,6 +286,9 @@ export default function AdminPage() {
           <label>ATK<input type="number" value={form.base_atk} onChange={e => set('base_atk', +e.target.value)} /></label>
           <label>DEF<input type="number" value={form.base_def} onChange={e => set('base_def', +e.target.value)} /></label>
           <label>SPD<input type="number" value={form.base_spd} onChange={e => set('base_spd', +e.target.value)} /></label>
+          <label className="form-checkbox">출시
+            <input type="checkbox" checked={form.is_released !== 0} onChange={e => set('is_released', e.target.checked ? 1 : 0)} />
+          </label>
         </div>
         <label className="form-wide">설명<textarea value={form.description || ''} onChange={e => set('description', e.target.value)} rows={2} /></label>
         <div className="form-actions">
@@ -829,8 +811,8 @@ export default function AdminPage() {
       description: initial?.description || '',
       category: initial?.category || 'material',
       rarity: initial?.rarity || 'N',
-      sellPrice: initial?.sellPrice || 0,
       icon: initial?.icon || '',
+      flavor: initial?.flavor || '',
     });
     const set = (k, v) => setForm({ ...form, [k]: v });
 
@@ -849,10 +831,10 @@ export default function AdminPage() {
           <label>등급<select value={form.rarity} onChange={e => set('rarity', e.target.value)}>
             {RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
           </select></label>
-          <label>판매가<input type="number" value={form.sellPrice} onChange={e => set('sellPrice', +e.target.value)} /></label>
           <label>아이콘<input value={form.icon} onChange={e => set('icon', e.target.value)} placeholder="HTML entity" /></label>
         </div>
         <label className="form-wide">설명<input value={form.description} onChange={e => set('description', e.target.value)} /></label>
+        <label className="form-wide">플레이버 텍스트<input value={form.flavor} onChange={e => set('flavor', e.target.value)} placeholder="분위기용 짧은 문구" /></label>
         <div className="form-actions">
           <button className="btn-save" onClick={() => onSave(form)}>저장</button>
           <button className="btn-cancel" onClick={onCancel}>취소</button>
@@ -880,24 +862,31 @@ export default function AdminPage() {
   };
 
   const saveMonster = async (form) => {
-    const payload = {
-      ...form,
-      drops: typeof form.drops === 'string' ? JSON.parse(form.drops || '[]') : form.drops,
-    };
-    if (editingMonster && editingMonster !== 'new' && editingMonster.id) {
-      await req('/monsters/' + editingMonster.id, { method: 'PUT', body: payload });
-      showMsg('몬스터 수정 완료');
-    } else {
-      await req('/monsters', { method: 'POST', body: payload });
-      showMsg('몬스터 생성 완료');
-    }
-    setEditingMonster(null);
-    const d = await req('/monsters');
-    const list = d.monsters || [];
-    setMonsters(list);
-    if (selectedMonster) {
-      const fresh = list.find(m => m.id === (editingMonster?.id || selectedMonster.id));
+    try {
+      const payload = {
+        ...form,
+        drops: form.drops,
+      };
+      if (editingMonster && editingMonster !== 'new' && editingMonster.id) {
+        const origId = editingMonster.id;
+        if (form.id !== origId) payload.newId = form.id;
+        const result = await req('/monsters/' + origId, { method: 'PUT', body: payload });
+        if (result.error) { showMsg('수정 실패: ' + result.error); return; }
+        showMsg(payload.newId ? `몬스터 ID 변경: ${origId} → ${payload.newId}` : '몬스터 수정 완료');
+      } else {
+        const result = await req('/monsters', { method: 'POST', body: payload });
+        if (result.error) { showMsg('생성 실패: ' + result.error); return; }
+        showMsg('몬스터 생성 완료');
+      }
+      setEditingMonster(null);
+      const d = await req('/monsters');
+      const list = d.monsters || [];
+      setMonsters(list);
+      const newId = payload.newId || editingMonster?.id || selectedMonster?.id;
+      const fresh = list.find(m => m.id === newId);
       if (fresh) setSelectedMonster(fresh);
+    } catch (e) {
+      showMsg('저장 실패: ' + e.message);
     }
   };
 
@@ -957,7 +946,7 @@ export default function AdminPage() {
     setSelectedMonster(list.find(m => m.id === selectedMonster.id));
   };
 
-  const MonsterForm = ({ initial, onSave, onCancel }) => {
+  const MonsterForm = ({ initial, onSave, onCancel, categories }) => {
     const isEdit = initial && initial._isEdit;
     const [form, setForm] = useState({
       id: initial?.id || '',
@@ -965,23 +954,29 @@ export default function AdminPage() {
       element: initial?.element || 'neutral',
       origin: initial?.origin || 'force',
       is_boss: initial?.is_boss || false,
+      ai_type: initial?.ai_type || 'basic',
+      category: initial?.category || '',
       hp: initial?.hp || 100,
       atk: initial?.atk || 10,
       def: initial?.def || 5,
       spd: initial?.spd || 5,
       turn_notes: initial?.turn_notes || 3,
-      drops: JSON.stringify(initial?.drops || [], null, 2),
+      drops: (initial?.drops || []).map(d => ({ itemId: d.itemId || '', chance: d.chance ?? 1, min: d.min || 1, max: d.max || 1 })),
     });
     const set = (k, v) => setForm({ ...form, [k]: v });
+    const setDrop = (idx, field, val) => {
+      const next = [...form.drops];
+      next[idx] = { ...next[idx], [field]: val };
+      set('drops', next);
+    };
+    const addDrop = () => set('drops', [...form.drops, { itemId: itemList[0]?.id || '', chance: 1, min: 1, max: 1 }]);
+    const removeDrop = (idx) => set('drops', form.drops.filter((_, i) => i !== idx));
 
     return (
       <div className="admin-form">
         <h3>{isEdit ? '몬스터 수정' : '새 몬스터'}</h3>
         <div className="form-grid">
-          <label>ID{!isEdit
-            ? <input value={form.id} onChange={e => set('id', e.target.value)} placeholder="영문_snake_case" />
-            : <input value={form.id} disabled />}
-          </label>
+          <label>ID<input value={form.id} onChange={e => set('id', e.target.value)} placeholder="영문_snake_case" /></label>
           <label>이름<input value={form.name} onChange={e => set('name', e.target.value)} /></label>
           <label>속성<select value={form.element} onChange={e => set('element', e.target.value)}>
             {ELEMENTS.map(el => <option key={el} value={el}>{ELEM_LABEL[el]} ({el})</option>)}
@@ -997,8 +992,29 @@ export default function AdminPage() {
           <label className="form-check-label">보스
             <input type="checkbox" checked={form.is_boss} onChange={e => set('is_boss', e.target.checked)} />
           </label>
+          <label>AI 타입<input value={form.ai_type} onChange={e => set('ai_type', e.target.value)} placeholder="basic / aggressive / special_001" /></label>
+          <label>분류<input value={form.category} onChange={e => set('category', e.target.value)} placeholder="속성파밍 / 근원파밍 / 스토리 등" list="monster-categories" />
+            <datalist id="monster-categories">{(categories||[]).map(c => <option key={c} value={c} />)}</datalist>
+          </label>
         </div>
-        <label className="form-wide">드랍 (JSON)<textarea value={form.drops} onChange={e => set('drops', e.target.value)} rows={3} /></label>
+        <div className="form-wide monster-drops-editor">
+          <div className="drops-editor-header">
+            <span>드랍 ({form.drops.length})</span>
+            <button type="button" className="drops-add-btn" onClick={addDrop}>+ 추가</button>
+          </div>
+          {form.drops.map((d, i) => (
+            <div key={i} className="drops-editor-row">
+              <select value={d.itemId} onChange={e => setDrop(i, 'itemId', e.target.value)}>
+                <option value="">-- 선택 --</option>
+                {itemList.map(it => <option key={it.id} value={it.id}>{it.name} ({it.id})</option>)}
+              </select>
+              <label>확률<input type="number" min="0" max="1" step="0.01" value={d.chance} onChange={e => setDrop(i, 'chance', +e.target.value)} /></label>
+              <label>최소<input type="number" min="1" value={d.min} onChange={e => setDrop(i, 'min', +e.target.value)} /></label>
+              <label>최대<input type="number" min="1" value={d.max} onChange={e => setDrop(i, 'max', +e.target.value)} /></label>
+              <button type="button" className="drops-remove-btn" onClick={() => removeDrop(i)} dangerouslySetInnerHTML={{ __html: '&#10005;' }} />
+            </div>
+          ))}
+        </div>
         <div className="form-actions">
           <button className="btn-save" onClick={() => onSave(form)}>저장</button>
           <button className="btn-cancel" onClick={onCancel}>취소</button>
@@ -1179,6 +1195,63 @@ export default function AdminPage() {
   };
 
   // ====== 밸런스 계산기 ======
+  const LOG_TYPE_LABELS = { pull: '단일 뽑기', pull10: '10연차', stage_enter: '스테이지 입장', stage_clear: '스테이지 클리어', stage_fail: '스테이지 실패', raid_enter: '레이드 입장', raid_end: '레이드 종료' };
+  const LOG_TYPE_COLORS = { pull: '#a855f7', pull10: '#a855f7', stage_enter: '#3b82f6', stage_clear: '#22c55e', stage_fail: '#ef4444', raid_enter: '#f59e0b', raid_end: '#f59e0b' };
+
+  const LogViewer = () => {
+    const [logs, setLogs] = useState([]);
+    const [logFilter, setLogFilter] = useState({ userId: '', type: '' });
+    const [loaded, setLoaded] = useState(false);
+
+    const loadLogs = async () => {
+      const params = new URLSearchParams();
+      if (logFilter.userId) params.set('userId', logFilter.userId);
+      if (logFilter.type) params.set('type', logFilter.type);
+      params.set('limit', '200');
+      try {
+        const data = await req('/logs?' + params.toString());
+        setLogs(data.logs || []);
+        setLoaded(true);
+      } catch {}
+    };
+
+    const formatData = (type, data) => {
+      if (type === 'pull') return `[${data.rarity}] ${data.characterName} (${data.banner})`;
+      if (type === 'pull10') return (data.results || []).map(r => `[${r.rarity}] ${r.characterName}`).join(', ');
+      if (type === 'stage_enter') return `${data.stageName} (Ch.${data.chapter}) -${data.staminaCost}SP`;
+      if (type === 'stage_clear') return `${data.stageName} ${data.stars}★ ${data.turns}턴`;
+      if (type === 'stage_fail') return `${data.stageName} ${data.turns}턴`;
+      if (type === 'raid_enter') return data.raidName;
+      if (type === 'raid_end') return `${data.raidName} ${data.damage}dmg${data.bossKilled ? ' (처치!)' : ''}`;
+      return JSON.stringify(data);
+    };
+
+    return (
+      <div className="admin-log-panel">
+        <div className="log-filter-row">
+          <input placeholder="유저 ID" value={logFilter.userId} onChange={e => setLogFilter({ ...logFilter, userId: e.target.value })} style={{ width: 80 }} />
+          <select value={logFilter.type} onChange={e => setLogFilter({ ...logFilter, type: e.target.value })}>
+            <option value="">전체</option>
+            {Object.entries(LOG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+          <button className="btn-save" onClick={loadLogs}>조회</button>
+          <span style={{ fontSize: 12, color: '#888' }}>{loaded ? `${logs.length}건` : ''}</span>
+        </div>
+        <div className="log-list">
+          {logs.map(l => (
+            <div key={l.id} className="log-item">
+              <span className="log-time">{new Date(l.created_at + 'Z').toLocaleString('ko-KR', { hour12: false })}</span>
+              <span className="log-user">{l.display_name} (#{l.user_id})</span>
+              <span className="log-type" style={{ color: LOG_TYPE_COLORS[l.type] || '#888' }}>{LOG_TYPE_LABELS[l.type] || l.type}</span>
+              <span className="log-data">{formatData(l.type, l.data)}</span>
+            </div>
+          ))}
+          {loaded && logs.length === 0 && <p style={{ color: '#666', textAlign: 'center', padding: 20 }}>로그가 없습니다</p>}
+        </div>
+      </div>
+    );
+  };
+
   const BalanceCalculator = ({ characters }) => {
     const growth = gameConfig.growth;
     const battle = gameConfig.battle;
@@ -1426,6 +1499,7 @@ export default function AdminPage() {
           <button className={tab === 'stages' ? 'active' : ''} onClick={() => setTab('stages')}>던전</button>
           <button className={tab === 'story' ? 'active' : ''} onClick={() => setTab('story')}>스토리</button>
           <button className={tab === 'mail' ? 'active' : ''} onClick={() => setTab('mail')}>우편</button>
+          <button className={tab === 'logs' ? 'active' : ''} onClick={() => setTab('logs')}>로그</button>
           <button className={tab === 'manage' ? 'active' : ''} onClick={() => setTab('manage')}>관리</button>
         </div>
         {msg && <span className="admin-msg">{msg}</span>}
@@ -1472,7 +1546,10 @@ export default function AdminPage() {
                   {c.image_url ? <img src={c.image_url} alt="" /> : <span className="no-img">?</span>}
                 </div>
                 <div className="item-info">
-                  <span className="item-name" style={getRarityStyle(c.rarity)}><span className="char-id-badge">#{c.id}</span>{c.name}</span>
+                  <span className="item-name" style={getRarityStyle(c.rarity)}>
+                    <span className="char-id-badge">#{c.id}</span>{c.name}
+                    {!c.is_released && <span className="unreleased-badge">미출시</span>}
+                  </span>
                   <span className="item-meta">
                     <span className="rarity-badge" style={getRarityBgStyle(c.rarity)}>{c.rarity}</span>
                     <span className="elem-badge" style={{ background: ELEM_COLORS[c.element] }}>{ELEM_LABEL[c.element]}</span>
@@ -2353,7 +2430,6 @@ export default function AdminPage() {
                           <span className="item-card-name" style={getRarityStyle(item.rarity)}>{item.name}</span>
                           <span className="item-card-meta">
                             <span className="rarity-badge" style={getRarityBgStyle(item.rarity)}>{item.rarity}</span>
-                            <span className="item-sell-price" dangerouslySetInnerHTML={{ __html: `${currencyImg('bit')}${item.sellPrice}` }} />
                           </span>
                           <span className="item-card-desc">{item.description}</span>
                         </div>
@@ -2377,11 +2453,14 @@ export default function AdminPage() {
       )}
 
       {tab === 'monsters' && (() => {
+        const monsterCategories = [...new Set(monsters.map(m => m.category).filter(Boolean))].sort();
         let filtered = monsters;
         if (monsterFilter.search) filtered = filtered.filter(m => m.name.includes(monsterFilter.search) || m.id.includes(monsterFilter.search));
         if (monsterFilter.element) filtered = filtered.filter(m => m.element === monsterFilter.element);
         if (monsterFilter.boss === '1') filtered = filtered.filter(m => m.is_boss);
         if (monsterFilter.boss === '0') filtered = filtered.filter(m => !m.is_boss);
+        if (monsterFilter.category === '_none') filtered = filtered.filter(m => !m.category);
+        else if (monsterFilter.category) filtered = filtered.filter(m => m.category === monsterFilter.category);
 
         const monSkills = selectedMonster?.skills || [];
 
@@ -2396,6 +2475,11 @@ export default function AdminPage() {
               <div className="admin-filter-bar">
                 <input className="admin-filter-search" placeholder="이름/ID 검색" value={monsterFilter.search}
                   onChange={e => setMonsterFilter(f => ({ ...f, search: e.target.value }))} />
+                <select value={monsterFilter.category || ''} onChange={e => setMonsterFilter(f => ({ ...f, category: e.target.value }))}>
+                  <option value="">분류</option>
+                  {monsterCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                  <option value="_none">미분류</option>
+                </select>
                 <select value={monsterFilter.element} onChange={e => setMonsterFilter(f => ({ ...f, element: e.target.value }))}>
                   <option value="">속성</option>
                   {ELEMENTS.map(el => <option key={el} value={el}>{ELEM_LABEL[el]}</option>)}
@@ -2405,8 +2489,8 @@ export default function AdminPage() {
                   <option value="1">보스</option>
                   <option value="0">일반</option>
                 </select>
-                {(monsterFilter.search || monsterFilter.element || monsterFilter.boss) && (
-                  <button className="admin-filter-clear" onClick={() => setMonsterFilter({ search: '', element: '', boss: '' })}>&#10005;</button>
+                {(monsterFilter.search || monsterFilter.element || monsterFilter.boss || monsterFilter.category) && (
+                  <button className="admin-filter-clear" onClick={() => setMonsterFilter({ search: '', element: '', boss: '', category: '' })}>&#10005;</button>
                 )}
               </div>
               {filtered.map(m => (
@@ -2426,7 +2510,7 @@ export default function AdminPage() {
                       <span className="elem-badge" style={{ background: ELEM_COLORS[m.element] }}>{ELEM_LABEL[m.element]}</span>
                       <span className="origin-badge" style={{ background: ORIGIN_COLORS[m.origin] }}>{ORIGIN_LABEL[m.origin] || '?'}</span>
                       <span className="notes-badge">N:{m.turn_notes}</span>
-                      <span style={{ fontSize: 11, color: '#777' }}>스킬:{(m.skills||[]).length}</span>
+                      {m.category && <span className="category-badge">{m.category}</span>}
                     </span>
                   </div>
                 </div>
@@ -2440,6 +2524,7 @@ export default function AdminPage() {
                   initial={editingMonster === 'new' ? null : { ...editingMonster, _isEdit: true }}
                   onSave={saveMonster}
                   onCancel={() => setEditingMonster(null)}
+                  categories={monsterCategories}
                 />
               ) : selectedMonster ? (
                 <div className="char-detail">
@@ -2570,7 +2655,7 @@ export default function AdminPage() {
                       <h4>드랍 ({selectedMonster.drops.length})</h4>
                       <div className="monster-drops-list">
                         {selectedMonster.drops.map((d, i) => (
-                          <span key={i} className="monster-drop-item">{d.itemId} x{d.min || 1}~{d.max || 1} ({Math.round((d.chance || 1) * 100)}%)</span>
+                          <span key={i} className="monster-drop-item">{itemList.find(it => it.id === d.itemId)?.name || d.itemId} x{d.min || 1}~{d.max || 1} ({Math.round((d.chance || 1) * 100)}%)</span>
                         ))}
                       </div>
                     </div>
@@ -2599,7 +2684,7 @@ export default function AdminPage() {
           const [f, setF] = useState(initial ? { ...initial, _isEdit: true } : {
             chapter: 1, stage_number: 1, name: '', difficulty: 'normal', stamina_cost: 6,
             recommended_level: 1, enemy_data: [], rewards: { gold: 100, exp: 50, first_clear_diamond: 0 }, type: 'story',
-            open_days: null, always_open: false, dungeon_group: '', description: '', icon: '', unlock_condition: null,
+            open_days: null, always_open: false, dungeon_group: '', description: '', icon: '', unlock_condition: null, bg_image: '', bgm: '',
           });
           const updateField = (k, v) => setF(prev => ({ ...prev, [k]: v }));
           const addEnemy = () => updateField('enemy_data', [...(f.enemy_data || []), { monsterId: '', level_scale: 1.0, name: '' }]);
@@ -2610,6 +2695,8 @@ export default function AdminPage() {
             updateField('enemy_data', arr);
           };
           const isStory = (f.type || 'story') === 'story';
+          const isNormal = f.type === 'normal';
+          const unlockCond = f.unlock_condition || {};
           const openDays = f.open_days || [];
           const toggleDay = (day) => {
             const next = openDays.includes(day) ? openDays.filter(d => d !== day) : [...openDays, day].sort();
@@ -2623,6 +2710,7 @@ export default function AdminPage() {
                 <label>타입
                   <select value={f.type || 'story'} onChange={e => updateField('type', e.target.value)}>
                     <option value="story">스토리</option>
+                    <option value="normal">일반 던전</option>
                     <option value="farming">파밍</option>
                     <option value="event">이벤트</option>
                   </select>
@@ -2671,6 +2759,22 @@ export default function AdminPage() {
                 </>
               )}
 
+              {isNormal && (
+                <div className="form-grid">
+                  <label className="form-wide">개방 조건 (스토리 노드)
+                    <select value={unlockCond.nodeId || ''} onChange={e => {
+                      const v = e.target.value;
+                      updateField('unlock_condition', v ? { type: 'story_clear', nodeId: +v } : null);
+                    }}>
+                      <option value="">없음 (항상 개방)</option>
+                      {storyNodes.filter(n => n.node_type === 'battle').map(n => (
+                        <option key={n.id} value={n.id}>{n.category} {n.chapter}-{n.node_number} {n.title}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
               <div className="form-grid">
                 <label>난이도
                   <select value={f.difficulty} onChange={e => updateField('difficulty', e.target.value)}>
@@ -2681,6 +2785,12 @@ export default function AdminPage() {
                 </label>
                 <label>스태미나 <input type="number" value={f.stamina_cost} onChange={e => updateField('stamina_cost', +e.target.value)} /></label>
                 <label>권장 Lv <input type="number" value={f.recommended_level} onChange={e => updateField('recommended_level', +e.target.value)} /></label>
+                <label>배경 이미지
+                  <input value={f.bg_image || ''} onChange={e => updateField('bg_image', e.target.value)} placeholder="파일명 (예: forest.png)" />
+                </label>
+                <label>BGM
+                  <input value={f.bgm || ''} onChange={e => updateField('bgm', e.target.value)} placeholder="BGM 키 (예: battle_boss)" />
+                </label>
               </div>
 
               <h4 style={{ margin: '12px 0 4px' }}>보상</h4>
@@ -2822,7 +2932,7 @@ export default function AdminPage() {
       })()}
 
       {tab === 'story' && (() => {
-        const CATEGORY_LABELS = { main: '메인', character: '캐릭터', event: '이벤트' };
+        const CATEGORY_LABELS = { main: '메인', character: '캐릭터', event: '이벤트', tutorial: '튜토리얼' };
         const NODE_TYPE_LABELS = { story: '스토리', battle: '전투' };
 
         const jsonValid = (s) => { if (!s) return true; try { JSON.parse(s); return true; } catch { return false; } };
@@ -2840,6 +2950,7 @@ export default function AdminPage() {
                   <option value="main">메인 스토리</option>
                   <option value="character">캐릭터 스토리</option>
                   <option value="event">이벤트 스토리</option>
+                  <option value="tutorial">튜토리얼</option>
                 </select>
               </div>
               <div className="form-row">
@@ -2891,6 +3002,20 @@ export default function AdminPage() {
                       value={snForm._rewards_raw ?? '{}'}
                       onChange={e => setSnForm({ ...snForm, _rewards_raw: e.target.value })} />
                   </div>
+                  <div className="form-row">
+                    <label>고정 파티 (JSON, 선택)</label>
+                    <textarea rows={3} style={jsonStyle(snForm._fixed_party_raw)}
+                      value={snForm._fixed_party_raw ?? ''}
+                      onChange={e => setSnForm({ ...snForm, _fixed_party_raw: e.target.value })}
+                      placeholder='[{"charId":22,"level":50,"awakening":3,"promotion":2}]' />
+                  </div>
+                  <div className="form-row">
+                    <label>게스트 캐릭터 (JSON, 선택)</label>
+                    <textarea rows={3} style={jsonStyle(snForm._required_guests_raw)}
+                      value={snForm._required_guests_raw ?? ''}
+                      onChange={e => setSnForm({ ...snForm, _required_guests_raw: e.target.value })}
+                      placeholder='[{"charId":22,"level":50,"awakening":3,"promotion":2}]' />
+                  </div>
                 </>
               )}
               {snForm.node_type === 'story' && (
@@ -2903,11 +3028,17 @@ export default function AdminPage() {
                 </div>
               )}
               <div className="form-row">
-                <label>스토리 스크립트 (JSON)</label>
-                <textarea rows={6} style={jsonStyle(snForm._story_script_raw)}
-                  value={snForm._story_script_raw ?? ''}
-                  onChange={e => setSnForm({ ...snForm, _story_script_raw: e.target.value })}
-                  placeholder='[{"speaker":"유카리","text":"안녕"}]' />
+                <label>스토리 스크립트</label>
+                <StoryScriptEditor
+                  value={snForm._story_script_arr || []}
+                  onChange={arr => setSnForm({ ...snForm, _story_script_arr: arr })}
+                  characters={characters}
+                />
+              </div>
+              <div className="form-row">
+                <label>BGM</label>
+                <input value={snForm.bgm || ''} onChange={e => setSnForm({ ...snForm, bgm: e.target.value })}
+                  placeholder="BGM 키 (예: story_tense)" />
               </div>
               {snForm.category === 'character' && (
                 <div className="form-row">
@@ -2943,7 +3074,7 @@ export default function AdminPage() {
                 <button className="btn-add-sm" onClick={() => setEditingStoryNode({
                   category: 'main', chapter: 1, node_number: 1, title: '', node_type: 'story',
                   stamina_cost: 0, recommended_level: 1, difficulty: 'normal',
-                  _enemy_data_raw: '[]', _rewards_raw: '{}', _story_script_raw: '',
+                  _enemy_data_raw: '[]', _rewards_raw: '{}', _story_script_arr: [],
                 })}>+ 추가</button>
               </div>
               <div className="admin-filters" style={{ gap: 6, marginBottom: 8 }}>
@@ -2953,6 +3084,7 @@ export default function AdminPage() {
                   <option value="main">메인</option>
                   <option value="character">캐릭터</option>
                   <option value="event">이벤트</option>
+                  <option value="tutorial">튜토리얼</option>
                 </select>
               </div>
               {filtered.map(n => (
@@ -3019,7 +3151,9 @@ export default function AdminPage() {
                         ...sn, _isEdit: true,
                         _enemy_data_raw: sn.enemy_data ? JSON.stringify(sn.enemy_data, null, 2) : '[]',
                         _rewards_raw: sn.rewards ? JSON.stringify(sn.rewards, null, 2) : '{}',
-                        _story_script_raw: sn.story_script ? JSON.stringify(sn.story_script, null, 2) : '',
+                        _story_script_arr: sn.story_script || [],
+                        _fixed_party_raw: sn.fixed_party ? JSON.stringify(sn.fixed_party, null, 2) : '',
+                        _required_guests_raw: sn.required_guests ? JSON.stringify(sn.required_guests, null, 2) : '',
                       })}>편집</button>
                       <button className="btn-delete" onClick={() => deleteStoryNode(sn.id)}>삭제</button>
                     </div>
@@ -3034,6 +3168,8 @@ export default function AdminPage() {
       })()}
 
       {tab === 'mail' && <MailForm />}
+
+      {tab === 'logs' && <LogViewer />}
 
       {tab === 'manage' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

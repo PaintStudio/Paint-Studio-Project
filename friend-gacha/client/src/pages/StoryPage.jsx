@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../utils/api';
+import { bgm } from '../utils/bgm';
 import BattlePage from './BattlePage';
 import DialogueBox from '../components/DialogueBox';
 import PartyPresetEditor from '../components/PartyPresetEditor';
+import PresetPicker from '../components/PresetPicker';
 import CurrencyIcon from '../components/CurrencyIcon';
+import usePartyPresets from '../hooks/usePartyPresets';
 import './StoryPage.css';
 
 const CATEGORIES = [
@@ -17,25 +20,29 @@ export default function StoryPage({ user, onRefresh, addToast }) {
   const [chapters, setChapters] = useState({});
   const [activeChapter, setActiveChapter] = useState(1);
   const [selectedNode, setSelectedNode] = useState(null);
-  const [presets, setPresets] = useState([]);
-  const [characters, setCharacters] = useState([]);
-  const [selectedPreset, setSelectedPreset] = useState(null);
-  const [editingSlot, setEditingSlot] = useState(null);
   const [battleSetup, setBattleSetup] = useState(null);
   const [storyScript, setStoryScript] = useState(null);
+  const [scriptMode, setScriptMode] = useState(null);
+  const [savedPartyIds, setSavedPartyIds] = useState(null);
   const [loading, setLoading] = useState(false);
   const [staminaPopup, setStaminaPopup] = useState(null);
+  const [storyPreview, setStoryPreview] = useState(null);
+  const dialogueRef = useRef(null);
+
+  const {
+    presets, characters, selectedPreset, setSelectedPreset,
+    editingSlot, setEditingSlot,
+    loadPresets, getCharByInvId, handlePresetSave,
+  } = usePartyPresets(addToast);
 
   useEffect(() => { loadData(); }, [category]);
 
   const loadData = async () => {
     try {
-      const [storyData, charData, presetData] = await Promise.all([
-        api.storyList(category), api.partyList(), api.partyPresets()
+      const [storyData] = await Promise.all([
+        api.storyList(category), loadPresets()
       ]);
       setChapters(storyData.chapters);
-      setCharacters(charData.characters);
-      setPresets(presetData.presets);
       const keys = Object.keys(storyData.chapters).sort((a, b) => a - b);
       if (keys.length > 0 && !storyData.chapters[activeChapter]) {
         setActiveChapter(Number(keys[0]));
@@ -43,31 +50,76 @@ export default function StoryPage({ user, onRefresh, addToast }) {
     } catch (err) { addToast(err.message, 'error'); }
   };
 
-  const getCharByInvId = (invId) => characters.find(c => c.inventory_id === invId);
-
   const handleNodeClick = async (node) => {
     if (!node.unlocked) return;
 
     if (node.nodeType === 'story') {
+      setStoryPreview(node);
+    } else if (node.cleared) {
+      setSelectedNode(node);
       setLoading(true);
       try {
         const detail = await api.storyNode(node.id);
-        if (detail.storyScript) {
-          setSelectedNode(node);
-          setStoryScript(detail.storyScript);
-        } else {
-          const result = await api.storyRead(node.id);
-          if (result.firstClear) {
-            addToast('스토리 읽기 완료!', 'sr');
+        if (detail.storyScript && detail.storyScript.length > 0) {
+          const scriptWithoutBattle = detail.storyScript.filter(e => e.type !== 'battle');
+          if (scriptWithoutBattle.length > 0) {
+            setSavedPartyIds([]);
+            setStoryScript(scriptWithoutBattle);
+            setScriptMode('dialogue');
+            if (detail.bgm) bgm.play(detail.bgm);
+          } else {
+            addToast('이미 클리어한 전투입니다', 'info');
+            setSelectedNode(null);
           }
-          onRefresh();
-          loadData();
+        } else {
+          addToast('이미 클리어한 전투입니다', 'info');
+          setSelectedNode(null);
         }
-      } catch (err) { addToast(err.message, 'error'); }
+      } catch (err) { addToast(err.message, 'error'); setSelectedNode(null); }
+      setLoading(false);
+    } else if (node.fixedParty && node.fixedParty.length > 0) {
+      setSelectedNode(node);
+      setLoading(true);
+      try {
+        const detail = await api.storyNode(node.id);
+        if (!detail.storyScript || detail.storyScript.length === 0) {
+          addToast('스토리 스크립트가 없습니다', 'error');
+          setSelectedNode(null);
+          setLoading(false);
+          return;
+        }
+        setSavedPartyIds([]);
+        setStoryScript(detail.storyScript);
+        setScriptMode('dialogue');
+        if (detail.bgm) bgm.play(detail.bgm);
+      } catch (err) { addToast(err.message, 'error'); setSelectedNode(null); }
       setLoading(false);
     } else {
       setSelectedNode(node);
     }
+  };
+
+  const handleStoryStart = async () => {
+    if (!storyPreview) return;
+    const node = storyPreview;
+    setStoryPreview(null);
+    setLoading(true);
+    try {
+      const detail = await api.storyNode(node.id);
+      if (detail.storyScript) {
+        setSelectedNode(node);
+        setStoryScript(detail.storyScript);
+        if (detail.bgm) bgm.play(detail.bgm);
+      } else {
+        const result = await api.storyRead(node.id);
+        if (result.firstClear) {
+          addToast('스토리 읽기 완료!', 'sr');
+        }
+        onRefresh();
+        loadData();
+      }
+    } catch (err) { addToast(err.message, 'error'); }
+    setLoading(false);
   };
 
   const handleStoryEnd = async () => {
@@ -81,29 +133,32 @@ export default function StoryPage({ user, onRefresh, addToast }) {
     setSelectedNode(null);
     onRefresh();
     loadData();
+    bgm.play('story');
   };
 
   const startBattle = async () => {
     if (!selectedPreset) return addToast('프리셋을 선택하세요', 'error');
-    const partyIds = selectedPreset.partyIds;
+    const guestCount = selectedNode?.requiredGuests?.length || 0;
+    const maxSlots = 3 - guestCount;
+    let partyIds = selectedPreset.partyIds;
+    if (guestCount > 0) {
+      partyIds = partyIds.slice(0, maxSlots);
+    }
     if (partyIds.length === 0) return addToast('빈 프리셋입니다. 편성 탭에서 먼저 편성하세요', 'error');
     setLoading(true);
     try {
-      const result = await api.storyBattleStart(selectedNode.id, partyIds);
-      const setup = { ...result.setup, partyIds, nodeId: selectedNode.id };
-      if (result.setup.storyScript) {
-        setStoryScript(result.setup.storyScript);
-        setBattleSetup(setup);
-      } else {
-        setBattleSetup(setup);
+      const detail = await api.storyNode(selectedNode.id);
+      if (!detail.storyScript || detail.storyScript.length === 0) {
+        addToast('스토리 스크립트가 없습니다', 'error');
+        setLoading(false);
+        return;
       }
-      onRefresh();
+      setSavedPartyIds(partyIds);
+      setStoryScript(detail.storyScript);
+      setScriptMode('dialogue');
+      if (detail.bgm) bgm.play(detail.bgm);
     } catch (err) {
-      if (err.message?.includes('스태미나')) {
-        showStaminaPopup();
-      } else {
-        addToast(err.message, 'error');
-      }
+      addToast(err.message, 'error');
     }
     setLoading(false);
   };
@@ -126,51 +181,78 @@ export default function StoryPage({ user, onRefresh, addToast }) {
     } catch (err) { addToast(err.message, 'error'); }
   };
 
-  const onBattleEnd = async (battleLog) => {
+  const handleScriptBattle = useCallback(async (entry) => {
     try {
-      const result = await api.storyBattleEnd(selectedNode.id, battleLog);
-      if (result.rewards) {
-        addToast(`승리! +${result.rewards.gold}B${result.rewards.diamond ? ` +${result.rewards.diamond} 프리즘` : ''}`, 'sr');
-      } else {
+      const result = await api.storyBattleStart(selectedNode.id, savedPartyIds, entry.enemies);
+      const setup = { ...result.setup, partyIds: savedPartyIds, guide: entry.guide || null };
+      if (entry.stageName) setup.stageName = entry.stageName;
+      setBattleSetup(setup);
+      setScriptMode('battle');
+    } catch (err) {
+      addToast(err.message, 'error');
+      dialogueRef.current?.advance();
+    }
+  }, [selectedNode, savedPartyIds, addToast]);
+
+  const handleScriptBattleEnd = useCallback(async (battleLog) => {
+    try {
+      const result = await api.storyBattleEnd(battleLog);
+      if (!result.victory) {
         addToast('패배...', 'error');
+        setBattleSetup(null);
+        setStoryScript(null);
+        setScriptMode(null);
+        setSelectedNode(null);
+        setSelectedPreset(null);
+        setSavedPartyIds(null);
+        return;
+      }
+    } catch (err) {
+      addToast(err.message, 'error');
+    }
+    setBattleSetup(null);
+    setScriptMode('dialogue');
+    setTimeout(() => dialogueRef.current?.advance(), 100);
+  }, [addToast]);
+
+  const handleScriptEnd = useCallback(async () => {
+    try {
+      const result = await api.storyRead(selectedNode.id);
+      if (result.firstClear) {
+        addToast('클리어!', 'sr');
       }
       onRefresh();
     } catch (err) {
       addToast(err.message, 'error');
     }
-    setBattleSetup(null);
+    setStoryScript(null);
+    setScriptMode(null);
     setSelectedNode(null);
     setSelectedPreset(null);
+    setSavedPartyIds(null);
+    setBattleSetup(null);
     loadData();
-  };
-
-  const handlePresetSave = async (name, ids) => {
-    try {
-      await api.savePartyPreset(editingSlot, name, ids);
-      addToast('편성 저장 완료');
-      setEditingSlot(null);
-      const presetData = await api.partyPresets();
-      setPresets(presetData.presets);
-      const updated = presetData.presets.find(p => p.slot === editingSlot);
-      if (updated && updated.partyIds.length > 0) setSelectedPreset(updated);
-    } catch (err) { addToast(err.message, 'error'); }
-  };
+    bgm.play('story');
+  }, [selectedNode, addToast, onRefresh]);
 
   // --- Render states ---
 
-  if (battleSetup && storyScript) {
+  if (scriptMode && storyScript) {
     return (
       <div className="story-page">
-        <DialogueBox
-          script={storyScript}
-          onEnd={() => setStoryScript(null)}
-        />
+        <div style={{ display: scriptMode === 'dialogue' ? 'contents' : 'none' }}>
+          <DialogueBox
+            ref={dialogueRef}
+            script={storyScript}
+            onEnd={handleScriptEnd}
+            onBattle={handleScriptBattle}
+          />
+        </div>
+        {scriptMode === 'battle' && battleSetup && (
+          <BattlePage setup={battleSetup} onBattleEnd={handleScriptBattleEnd} partyIds={savedPartyIds} />
+        )}
       </div>
     );
-  }
-
-  if (battleSetup) {
-    return <BattlePage setup={battleSetup} onBattleEnd={onBattleEnd} partyIds={battleSetup.partyIds} />;
   }
 
   if (storyScript && selectedNode) {
@@ -200,6 +282,9 @@ export default function StoryPage({ user, onRefresh, addToast }) {
   }
 
   if (selectedNode && selectedNode.nodeType === 'battle') {
+    const guests = selectedNode.requiredGuests || [];
+    const maxUserSlots = 3 - guests.length;
+
     return (
       <div className="story-page story-detail-page">
         <button className="btn-back" onClick={() => { setSelectedNode(null); setSelectedPreset(null); }}>&larr; 돌아가기</button>
@@ -227,52 +312,32 @@ export default function StoryPage({ user, onRefresh, addToast }) {
           )}
         </div>
 
-        <div className="preset-picker-section">
-          <div className="preset-picker-header">
-            <h3>&#9876;&#65039; 프리셋 선택</h3>
-          </div>
-          <div className="preset-picker-grid">
-            {presets.map(p => {
-              const members = p.partyIds.map(id => getCharByInvId(id)).filter(Boolean);
-              const isSelected = selectedPreset?.slot === p.slot;
-              return (
-                <div key={p.slot}
-                  className={`preset-pick-card ${isSelected ? 'selected' : ''} ${members.length === 0 ? 'empty' : ''}`}
-                  onClick={() => members.length > 0 && setSelectedPreset(p)}>
-                  <div className="preset-pick-header">
-                    <span className="preset-pick-num">{p.slot + 1}</span>
-                    <span className="preset-pick-name">{p.name}</span>
-                    <button className="preset-pick-edit" onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSlot(p.slot);
-                    }} dangerouslySetInnerHTML={{ __html: '&#9998;' }} />
-                  </div>
-                  {members.length > 0 ? (
-                    <div className="preset-pick-members">
-                      {members.map(c => (
-                        <div key={c.inventory_id} className="preset-pick-member">
-                          <div className="ppm-avatar">
-                            {c.image_url ? <img src={c.image_url} alt={c.name} /> : c.name?.[0]}
-                          </div>
-                          <div className="ppm-info">
-                            <span className="ppm-name">{c.name}</span>
-                            <span className="ppm-lv">Lv.{c.level}</span>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="preset-pick-power">ATK {members.reduce((s, c) => s + c.stats.atk, 0)}</div>
-                    </div>
-                  ) : (
-                    <div className="preset-pick-empty" onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingSlot(p.slot);
-                    }}>+ 편성하기</div>
-                  )}
+        {guests.length > 0 && (
+          <div className="story-guest-section">
+            <h3>&#127775; 게스트 캐릭터</h3>
+            <div className="story-guest-list">
+              {guests.map((g, i) => (
+                <div key={i} className="story-guest-card">
+                  <span className="story-guest-badge">GUEST</span>
+                  <span className="story-guest-name">#{g.charId}</span>
+                  <span className="story-guest-lv">Lv.{g.level || 1}</span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+            {maxUserSlots > 0 && (
+              <p className="story-guest-hint">{'나머지 '}{maxUserSlots}{'명은 직접 편성하세요'}</p>
+            )}
           </div>
-        </div>
+        )}
+
+        <PresetPicker
+          presets={presets}
+          selectedPreset={selectedPreset}
+          onSelect={setSelectedPreset}
+          onEdit={setEditingSlot}
+          getCharByInvId={getCharByInvId}
+          maxSlots={guests.length > 0 ? maxUserSlots : undefined}
+        />
 
         <button className="btn-primary battle-start-btn" onClick={startBattle} disabled={loading || !selectedPreset}>
           {loading ? '준비 중...' : '전투 시작!'}
@@ -365,6 +430,30 @@ export default function StoryPage({ user, onRefresh, addToast }) {
             ))}
           </div>
         </>
+      )}
+
+      {storyPreview && (
+        <div className="story-preview-overlay" onClick={() => setStoryPreview(null)}>
+          <div className="story-preview-modal" onClick={e => e.stopPropagation()}>
+            <button className="story-preview-close" onClick={() => setStoryPreview(null)}>&times;</button>
+            <div className="story-preview-header">
+              <span className="story-preview-chapter">{storyPreview.chapter}-{storyPreview.nodeNumber}</span>
+              <h3 className="story-preview-title">{storyPreview.title}{storyPreview.cleared && <span className="story-preview-check">&#10003;</span>}</h3>
+            </div>
+            <div className="story-preview-body">
+              {storyPreview.description ? (
+                <p className="story-preview-desc">{storyPreview.description}</p>
+              ) : (
+                <p className="story-preview-desc muted">...</p>
+              )}
+            </div>
+            <div className="story-preview-actions">
+              <button className="story-preview-start" onClick={handleStoryStart} disabled={loading}>
+                {loading ? '로딩...' : '시작하기'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {staminaPopup && (
