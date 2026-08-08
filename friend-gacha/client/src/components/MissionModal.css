@@ -1,0 +1,112 @@
+.mission-backdrop {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  animation: msnFadeIn 0.2s ease;
+}
+@keyframes msnFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.mission-modal {
+  width: 520px; max-height: 700px;
+  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px;
+  padding: 24px 28px; display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 12px 60px rgba(0,0,0,0.5);
+  animation: msnSlideIn 0.25s ease;
+}
+@keyframes msnSlideIn {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.mission-header {
+  display: flex; align-items: center; gap: 12px;
+}
+.mission-header h3 {
+  font-size: 1.4rem; font-weight: 800; margin: 0; flex: 1;
+}
+.mission-close {
+  background: none; color: var(--text-muted); font-size: 1.8rem;
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.15s;
+}
+.mission-close:hover { background: var(--bg-tertiary); }
+
+.mission-loading, .mission-empty {
+  text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 1rem;
+}
+
+.mission-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.mission-item {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px;
+  transition: border-color 0.2s, opacity 0.2s;
+}
+.mission-item.completed {
+  border-color: var(--accent);
+}
+.mission-item.claimed {
+  opacity: 0.5;
+}
+
+.mission-info {
+  flex: 1; display: flex; flex-direction: column; gap: 6px;
+}
+.mission-label {
+  font-size: 0.95rem; font-weight: 700;
+}
+
+.mission-progress-bar {
+  position: relative; height: 18px;
+  background: rgba(255,255,255,0.06); border-radius: 9px; overflow: hidden;
+}
+.mission-progress-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  background: var(--accent); border-radius: 9px;
+  transition: width 0.3s ease;
+}
+.mission-item.completed .mission-progress-fill {
+  background: var(--green);
+}
+.mission-progress-text {
+  position: relative; z-index: 1;
+  font-size: 0.72rem; font-weight: 600; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  height: 100%;
+}
+
+.mission-reward {
+  display: flex; align-items: center; gap: 4px;
+  min-width: 70px; justify-content: center;
+}
+.mission-reward-amount {
+  font-size: 0.95rem; font-weight: 700;
+}
+
+.mission-action {
+  min-width: 72px; text-align: center;
+}
+.mission-claim-btn {
+  background: var(--accent); color: #fff; font-weight: 700;
+  padding: 6px 16px; border-radius: 8px; border: none; cursor: pointer;
+  font-size: 0.85rem;
+  transition: transform 0.1s;
+}
+.mission-claim-btn:hover { transform: scale(1.05); }
+.mission-claim-btn:active { transform: scale(0.95); }
+
+.mission-done {
+  font-size: 0.8rem; color: var(--text-muted); font-weight: 600;
+}
+.mission-pending {
+  font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;
+}
+
+.mission-all-done {
+  text-align: center; font-size: 1rem; font-weight: 700;
+  color: var(--green); padding: 8px 0;
+}

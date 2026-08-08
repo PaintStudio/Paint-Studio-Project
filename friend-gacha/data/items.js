@@ -213,7 +213,8 @@ const items = {
           "type": "exp",
           "value": 2500,
           "origin": "life"
-      }
+      },
+      "flavor": ""
   },
 
   frag_life_high: {

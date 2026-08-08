@@ -222,24 +222,31 @@
 .app:has(.battle-page) .sub-tabs { display: none; }
 .main-content:has(.battle-page) { padding: 0; padding-bottom: 0; }
 
-/* 토스트 */
-.toast-container {
-  position: absolute; top: 16px; right: 16px; z-index: 1000;
-  display: flex; flex-direction: column; gap: 8px;
+/* 게임식 중앙 알림 */
+.gnotify {
+  position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 1000; pointer-events: none;
+  padding: 12px 32px; border-radius: 12px;
+  font-size: 1rem; font-weight: 700; text-align: center;
+  white-space: nowrap; line-height: 1.4;
+  background: rgba(10, 10, 20, 0.85); border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  opacity: 0; transition: opacity 0.25s ease;
 }
-.toast {
-  padding: 10px 16px; border-radius: 8px; font-size: 0.85rem;
-  background: var(--bg-card); border: 1px solid var(--border);
-  animation: slideIn 0.3s ease, fadeOut 0.5s ease 3.5s forwards;
-  max-width: 300px;
-}
-.toast.ssr { border-color: var(--gold); background: linear-gradient(135deg, #1a1a2e, #3d2e00); }
-.toast.sr { border-color: var(--purple); background: linear-gradient(135deg, #1a1a2e, #2e1a3d); }
-.toast.trade { border-color: var(--green); }
-.toast .currency-icon { width: 16px; height: 16px; vertical-align: middle; margin: 0 2px; }
+.gnotify-show { opacity: 1; }
+.gnotify-out { animation: gnotifyOut 0.6s ease forwards; }
 
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes fadeOut { to { opacity: 0; transform: translateY(-10px); } }
+.gnotify-ssr { border-color: var(--gold); color: var(--gold); text-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
+.gnotify-sr { border-color: var(--purple); color: #c9a0ff; text-shadow: 0 0 12px rgba(180, 130, 255, 0.3); }
+.gnotify-trade { border-color: var(--green); color: #7deba0; }
+.gnotify-error { border-color: #e74c3c; color: #ff8a80; }
+.gnotify .currency-icon { width: 18px; height: 18px; vertical-align: middle; margin: 0 3px; }
+
+@keyframes gnotifyOut {
+  to { opacity: 0; transform: translate(-50%, -80%); }
+}
 
 /* 공통 버튼 */
 .btn-primary {

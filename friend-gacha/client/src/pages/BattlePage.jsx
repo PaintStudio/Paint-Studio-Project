@@ -1256,7 +1256,7 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
       }
 
       for (const target of targets) {
-        let healAmt = Math.round(target.maxHp * skill.power) + bonusHeal;
+        let healAmt = Math.round(getEffStat(unit, 'atk') * skill.power) + bonusHeal;
         // 풍류를 아는 교수: 저HP 대상 힐 부스트
         const lowHpEff = unit.talent?.effects?.find(e => e.id === 156);
         if (lowHpEff && target.hp / target.maxHp <= (lowHpEff.args?.[0] || 0.2)) {

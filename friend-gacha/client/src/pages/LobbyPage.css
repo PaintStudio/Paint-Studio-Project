@@ -131,12 +131,12 @@
   text-align: center; display: block;
 }
 
-.lobby-mail-btn {
+.lobby-icon-btn {
   position: relative; background: rgba(0,0,0,0.5); font-size: 1.1rem; padding: 8px;
   border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
   backdrop-filter: blur(8px); cursor: pointer;
 }
-.lobby-mail-btn:hover { border-color: var(--accent); }
+.lobby-icon-btn:hover { border-color: var(--accent); }
 .lobby-mail-badge {
   position: absolute; top: -5px; right: -5px;
   min-width: 16px; height: 16px; border-radius: 8px;
@@ -144,12 +144,6 @@
   display: flex; align-items: center; justify-content: center;
   padding: 0 3px; line-height: 1;
 }
-.lobby-settings-btn {
-  background: rgba(0,0,0,0.5); font-size: 1.1rem; padding: 8px;
-  border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
-  backdrop-filter: blur(8px); cursor: pointer;
-}
-.lobby-settings-btn:hover { border-color: var(--accent); }
 
 /* 설정 드롭다운 */
 .lobby-settings-menu {

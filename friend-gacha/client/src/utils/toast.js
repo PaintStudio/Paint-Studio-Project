@@ -1,29 +1,20 @@
-import { useState, useEffect } from 'react';
-
-let listeners = [];
-let toasts = [];
 let nextId = 0;
 
 export function addToast(message, type = 'info') {
-  const id = ++nextId;
-  toasts = [...toasts, { id, message, type }];
-  notify();
+  const root = document.getElementById('game-root');
+  if (!root) return;
+
+  const el = document.createElement('div');
+  el.className = `gnotify gnotify-${type}`;
+  el.innerHTML = message;
+  el.id = `gnotify-${++nextId}`;
+
+  root.appendChild(el);
+
+  requestAnimationFrame(() => el.classList.add('gnotify-show'));
+
   setTimeout(() => {
-    toasts = toasts.filter(t => t.id !== id);
-    notify();
-  }, 4000);
-}
-
-function notify() {
-  const snapshot = [...toasts];
-  listeners.forEach(fn => fn(snapshot));
-}
-
-export function useToasts() {
-  const [state, setState] = useState(toasts);
-  useEffect(() => {
-    listeners.push(setState);
-    return () => { listeners = listeners.filter(fn => fn !== setState); };
-  }, []);
-  return state;
+    el.classList.add('gnotify-out');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }, 2200);
 }

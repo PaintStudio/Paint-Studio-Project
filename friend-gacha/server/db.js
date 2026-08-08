@@ -428,6 +428,18 @@ async function initDb() {
     );
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS attendance_stamps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      stamp_date TEXT NOT NULL,
+      month_key TEXT NOT NULL,
+      stamp_index INTEGER NOT NULL,
+      UNIQUE(user_id, stamp_date),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
   // ============ 마이그레이션 ============
   // origin 컬럼이 없으면 추가
   try {
@@ -849,74 +861,6 @@ async function initDb() {
     PRIMARY KEY (user_id, item_id),
     FOREIGN KEY (user_id) REFERENCES users(id)
   )`);
-
-  // 스킬 extra 데이터 패치
-  const skillExtraPatches = {
-    125: { hpLostCostReduce: { trackerKey: 'skill_125', hpPercentPerStack: 0.05, reductionPerStack: 1 } },
-    160: { effects: [{ type: 'applyStatus', statusKey: 'submerge', displayName: '수몰', turns: 2, scope: 'enemies' }] },
-  };
-  for (const [skillId, extraData] of Object.entries(skillExtraPatches)) {
-    try {
-      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(Number(skillId));
-      if (row && (!row.extra || row.extra === '{}')) {
-        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(extraData), Number(skillId));
-        console.log(`[DB] 스킬 ${skillId} extra 패치 완료`);
-      }
-    } catch {}
-  }
-
-  // 메타포 스킬 extra + target 패치
-  const metaphorPatches = [
-    { id: 124, extra: { effects: [{ type: 'applyStatus', statusKey: 'light_vulnerability', displayName: '광 속성 취약', turns: 1, scope: 'target' }] } },
-    { id: 155, extra: { stat: 'spd', turns: 3, taunt_gain: 3 }, power: 0.2 },
-    { id: 156, extra: { illusion_gain: 1, ally_heal_ratio: 0.5 }, target: 'any_single' },
-    { id: 157, extra: { consume_illusion: true, power_per_stack: 0.25 } },
-    { id: 158, extra: { effects: [{ type: 'applyStatus', statusKey: 'dark_vulnerability', displayName: '암 속성 취약', turns: 1, scope: 'target' }] } },
-    { id: 159, extra: { next_cycle_spd_buff: { amount: 0.15, turns: 1 } } },
-  ];
-  for (const patch of metaphorPatches) {
-    try {
-      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(patch.id);
-      if (row) {
-        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(patch.extra), patch.id);
-        if (patch.target) db.prepare('UPDATE skills SET target = ? WHERE id = ?').run(patch.target, patch.id);
-        if (patch.power !== undefined) db.prepare('UPDATE skills SET power = ? WHERE id = ?').run(patch.power, patch.id);
-        console.log(`[DB] 스킬 ${patch.id} 메타포 패치 완료`);
-      }
-    } catch {}
-  }
-
-  // 시스투스/베르트랑/아우라 스킬 extra 패치
-  const charSkillPatches = [
-    { id: 4, extra: { noteRestore: 3 } },
-    { id: 123, extra: { effects: [{ type: 'applyStatus', statusKey: 'color_extract', displayName: '색 추출', turns: 99, scope: 'target' }], color_extract: { atkRatio: 3.0 } } },
-    { id: 127, extra: { hpCost: 0.1, taunt_gain: 5 } },
-    { id: 131, extra: { selfHeal: 0.5 } },
-    { id: 132, extra: { deflect: { hpThreshold: 0.1 } } },
-    { id: 133, extra: { encore_grant: 1 } },
-    { id: 135, extra: { noteRestoreIfZero: 5 } },
-    { id: 136, extra: { grantExtraTurn: true } },
-    { id: 162, extra: { taunt_gain: 1, bonus_taunt_on_prior_defense: 2 } },
-    { id: 163, extra: { shield: { atkRatio: 4.0, scope: 'party' } } },
-    { id: 164, extra: { taunt_gain: 4, cleanse_def_debuff: 1 } },
-    { id: 165, extra: { shield: { atkRatio: 1.5 } } },
-    { id: 7, extra: { stat: 'def', turns: 3 } },
-    { id: 161, extra: { attackCountCostReduce: 1 } },
-    { id: 166, extra: { prepare: { damageMult: 2, costMult: 2 }, ignore_overload: true } },
-    { id: 167, extra: { storm_stacks: 2 } },
-    { id: 160, extra: { party_ignore_def: { amount: 0.5, turns: 2 }, cd_reduce_on_buff: true } },
-    { id: 168, extra: { cycle_taunt_grant: { stacks: 2, turns: 3 } } },
-    { id: 169, extra: { light_damage_boost: { amount: 0.5, turns: 3 } } },
-  ];
-  for (const patch of charSkillPatches) {
-    try {
-      const row = db.prepare('SELECT extra FROM skills WHERE id = ?').get(patch.id);
-      if (row) {
-        db.prepare('UPDATE skills SET extra = ? WHERE id = ?').run(JSON.stringify(patch.extra), patch.id);
-        console.log(`[DB] 스킬 ${patch.id} extra 패치 완료`);
-      }
-    } catch {}
-  }
 
   // ============ 게임 데이터 시드 (JSON 우선, 없으면 하드코딩 폴백) ============
   const charCount = db.prepare('SELECT COUNT(*) as cnt FROM characters').get();

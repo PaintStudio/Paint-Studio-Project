@@ -2,7 +2,50 @@ const express = require('express');
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
+const hotRequire = require('../hotRequire');
+
 const router = express.Router();
+
+// 28칸 출석 스탬프 보상 정의
+const STAMP_REWARDS = [
+	//1주차
+  { currency: 50, items: [{itemId: 'frag_life_low', count: 3}] },
+  { currency: 50, gold: 1000},
+  { currency: 100, items: [{itemId: 'windcodesmall', count: 3}] },
+  { currency: 100, gold: 1000 },
+  { currency: 150, items: [{itemId: 'lifestonelow', count: 3}] },
+  { currency: 150, gold: 3000 },
+  { currency: 400, items: [{itemId: 'stamina_drink_l', count: 2}] },
+	//2주차
+  { currency: 50, items: [{itemId: 'frag_life_mid', count: 3}] },
+  { currency: 50, gold: 1000},
+  { currency: 100, items: [{itemId: 'windcodemedium', count: 3}] },
+  { currency: 100, gold: 1000 },
+  { currency: 150, items: [{itemId: 'lifestonemedium', count: 3}] },
+  { currency: 150, gold: 3000 },
+  { currency: 400, items: [{itemId: 'stamina_drink_l', count: 2}] },
+	//3주차
+  { currency: 50, items: [{itemId: 'frag_life_high', count: 3}] },
+  { currency: 50, gold: 1000},
+  { currency: 100, items: [{itemId: 'windcodebig', count: 3}] },
+  { currency: 100, gold: 1000 },
+  { currency: 150, items: [{itemId: 'lifestonebig', count: 3}] },
+  { currency: 150, gold: 3000 },
+  { currency: 400, items: [{itemId: 'stamina_drink_l', count: 2}] },
+	//4주차
+  { currency: 50, items: [{itemId: 'frag_life_top', count: 3}] },
+  { currency: 50, gold: 1000},
+  { currency: 100, items: [{itemId: 'windcodemax', count: 3}] },
+  { currency: 100, gold: 1000 },
+  { currency: 150, items: [{itemId: 'lifestonemax', count: 3}] },
+  { currency: 150, gold: 3000 },
+  { currency: 400, items: [{itemId: 'stamina_drink_l', count: 2}] },
+];
+
+function getMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
 
 // 출석 체크 + 데일리 미션 생성
 router.post('/checkin', authMiddleware, (req, res) => {
@@ -10,29 +53,20 @@ router.post('/checkin', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
   let streak = user.login_streak;
-  let rewards = { gold: 500, diamond: 0, stamina: 30 };
   let alreadyCheckedIn = false;
 
   if (user.last_login_date === today) {
     alreadyCheckedIn = true;
   } else {
-    // 연속 출석 계산
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-
     streak = user.last_login_date === yesterdayStr ? user.login_streak + 1 : 1;
 
-    // 연속 출석 보너스
-    if (streak >= 7) rewards.diamond = 50;
-    else if (streak >= 3) rewards.diamond = 20;
-    else rewards.diamond = 10;
+    db.prepare('UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?')
+      .run(today, streak, req.user.id);
 
-    // 보상 지급
-    db.prepare('UPDATE users SET gold = gold + ?, currency = currency + ?, stamina = MIN(120, stamina + ?), last_login_date = ?, login_streak = ? WHERE id = ?')
-      .run(rewards.gold, rewards.diamond, rewards.stamina, today, streak, req.user.id);
-
-    // 데일리 미션 생성 (오늘 꺼 없으면)
+    // 데일리 미션 생성
     const existingMissions = db.prepare('SELECT COUNT(*) as cnt FROM daily_missions WHERE user_id = ? AND date = ?').get(req.user.id, today);
     if (existingMissions.cnt === 0) {
       const missions = [
@@ -47,7 +81,74 @@ router.post('/checkin', authMiddleware, (req, res) => {
     }
   }
 
-  res.json({ alreadyCheckedIn, streak, rewards: alreadyCheckedIn ? null : rewards });
+  res.json({ alreadyCheckedIn, streak });
+});
+
+// 출석 스탬프 조회
+router.get('/attendance', authMiddleware, (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const monthKey = getMonthKey();
+
+  const stamps = db.prepare('SELECT stamp_date, stamp_index FROM attendance_stamps WHERE user_id = ? AND month_key = ? ORDER BY stamp_index')
+    .all(req.user.id, monthKey);
+
+  const todayStamped = stamps.some(s => s.stamp_date === today);
+
+  const itemDefs = hotRequire('items');
+  const rewards = STAMP_REWARDS.map(r => {
+    if (!r.items) return r;
+    return { ...r, items: r.items.map(it => ({ ...it, name: itemDefs[it.itemId]?.name || it.itemId })) };
+  });
+
+  res.json({
+    monthKey,
+    stamps: stamps.map(s => ({ date: s.stamp_date, index: s.stamp_index })),
+    todayStamped,
+    rewards,
+  });
+});
+
+// 출석 스탬프 찍기
+router.post('/attendance/stamp', authMiddleware, (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+  const monthKey = getMonthKey();
+
+  const existing = db.prepare('SELECT id FROM attendance_stamps WHERE user_id = ? AND stamp_date = ?')
+    .get(req.user.id, today);
+  if (existing) return res.json({ alreadyStamped: true });
+
+  const count = db.prepare('SELECT COUNT(*) as cnt FROM attendance_stamps WHERE user_id = ? AND month_key = ?')
+    .get(req.user.id, monthKey).cnt;
+
+  if (count >= 28) return res.json({ alreadyStamped: true, maxReached: true });
+
+  const stampIndex = count;
+  db.prepare('INSERT INTO attendance_stamps (user_id, stamp_date, month_key, stamp_index) VALUES (?, ?, ?, ?)')
+    .run(req.user.id, today, monthKey, stampIndex);
+
+  const reward = STAMP_REWARDS[stampIndex] || { gold: 500 };
+
+  const rewardParts = [];
+  if (reward.currency) rewardParts.push(`다이아 ${reward.currency}개`);
+  if (reward.gold) rewardParts.push(`골드 ${reward.gold.toLocaleString()}`);
+  if (reward.items) {
+    const itemDefs = hotRequire('items');
+    reward.items.forEach(i => {
+      const def = itemDefs[i.itemId];
+      rewardParts.push(`${def ? def.name : i.itemId} x${i.count}`);
+    });
+  }
+  const rewardText = rewardParts.join(', ');
+
+  db.prepare(`INSERT INTO mail (sender_id, recipient_id, title, body, rewards, expires_at) VALUES (NULL, ?, ?, ?, ?, ?)`)
+    .run(req.user.id, `출석 ${stampIndex + 1}일차 보상`, rewardText, JSON.stringify(reward), null);
+
+  res.json({
+    alreadyStamped: false,
+    stampIndex,
+    reward,
+    rewardText,
+  });
 });
 
 // 데일리 미션 목록

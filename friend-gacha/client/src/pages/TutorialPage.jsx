@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '../utils/api';
 import DialogueBox from '../components/DialogueBox';
 import BattlePage from './BattlePage';
-import tutorialScriptFallback from '../data/tutorialScript';
 import './TutorialPage.css';
 
 export default function TutorialPage({ onComplete }) {
@@ -16,8 +15,8 @@ export default function TutorialPage({ onComplete }) {
     api.tutorialScript().then(data => {
       setScript(data.storyScript);
       setNodeId(data.nodeId);
-    }).catch(() => {
-      setScript(tutorialScriptFallback);
+    }).catch((err) => {
+      console.error('튜토리얼 스크립트 로드 실패:', err);
     });
   }, []);
 

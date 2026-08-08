@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import { bgm } from '../utils/bgm';
 import gameConfig from '@gameConfig';
 import ProfileModal from '../components/ProfileModal';
+import MissionModal from '../components/MissionModal';
 import CurrencyIcon from '../components/CurrencyIcon';
 import DialogueBubble from '../components/DialogueBubble';
 import { loadDialogues, getLobbyLine } from '../utils/dialogues';
@@ -18,10 +19,11 @@ function getAccountLevelInfo(profile) {
   return { level, exp, need, progress: need > 0 ? exp / need : 0 };
 }
 
-export default function LobbyPage({ user, navigate, addToast, onLogout, missions, onClaimMission, onRefresh }) {
+export default function LobbyPage({ user, navigate, addToast, onLogout, missions, onClaimMission, onRefresh, onShowAttendance }) {
   const [lobbyData, setLobbyData] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showMissions, setShowMissions] = useState(false);
   const [profile, setProfile] = useState(null);
   const [bgmState, setBgmState] = useState(bgm.getState);
 
@@ -166,11 +168,17 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
             <span className="lobby-res-value">{(user.currency || 0).toLocaleString()}</span>
           </div>
         </div>
-        <button className="lobby-mail-btn" onClick={() => navigate('social', 'mail')}>
+        <button className="lobby-icon-btn" onClick={onShowAttendance} title="출석부">
+          &#128197;
+        </button>
+        <button className="lobby-icon-btn" onClick={() => setShowMissions(true)} title="미션">
+          &#128203;
+        </button>
+        <button className="lobby-icon-btn" onClick={() => navigate('social', 'mail')} title="우편함">
           &#128236;
           {unreadMail > 0 && <span className="lobby-mail-badge">{unreadMail}</span>}
         </button>
-        <button className="lobby-settings-btn" onClick={() => setShowSettings(!showSettings)}>&#9881;&#65039;</button>
+        <button className="lobby-icon-btn" onClick={() => setShowSettings(!showSettings)}>&#9881;&#65039;</button>
       </div>
 
       {showSettings && (
@@ -227,7 +235,10 @@ export default function LobbyPage({ user, navigate, addToast, onLogout, missions
 
       </div>
 
-      {/* 프로필 모달 */}
+      {showMissions && (
+        <MissionModal onClose={() => setShowMissions(false)} onRefresh={onRefresh} />
+      )}
+
       {showProfile && (
         <ProfileModal
           user={user}

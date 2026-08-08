@@ -3,6 +3,7 @@ import { api } from '../../utils/api';
 import { bgm } from '../../utils/bgm';
 import gameConfig from '@gameConfig';
 import ProfileModal from '../../components/ProfileModal';
+import MissionModal from '../../components/MissionModal';
 import CurrencyIcon from '../../components/CurrencyIcon';
 import DialogueBubble from '../../components/DialogueBubble';
 import { loadDialogues, getLobbyLine } from '../../utils/dialogues';
@@ -18,10 +19,11 @@ function getAccountLevelInfo(profile) {
   return { level, exp, need, progress: need > 0 ? exp / need : 0 };
 }
 
-export default function MobileLobbyPage({ user, navigate, addToast, onLogout, onRefresh }) {
+export default function MobileLobbyPage({ user, navigate, addToast, onLogout, onRefresh, onShowAttendance }) {
   const [lobbyData, setLobbyData] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showMissions, setShowMissions] = useState(false);
   const [profile, setProfile] = useState(null);
   const [unreadMail, setUnreadMail] = useState(0);
   const [bgmState, setBgmState] = useState(bgm.getState);
@@ -102,6 +104,12 @@ export default function MobileLobbyPage({ user, navigate, addToast, onLogout, on
 
       {/* 우측 액션 버튼 */}
       <div className="m-lobby-actions">
+        <button className="m-lobby-action-btn" onClick={onShowAttendance}>
+          &#128197;
+        </button>
+        <button className="m-lobby-action-btn" onClick={() => setShowMissions(true)}>
+          &#128203;
+        </button>
         <button className="m-lobby-action-btn" onClick={() => navigate('social', 'mail')}>
           &#128236;
           {unreadMail > 0 && <span className="m-lobby-action-badge">{unreadMail}</span>}
@@ -161,6 +169,10 @@ export default function MobileLobbyPage({ user, navigate, addToast, onLogout, on
           variant="mobile-lobby"
           onDone={() => setBubbleText(null)}
         />
+      )}
+
+      {showMissions && (
+        <MissionModal onClose={() => setShowMissions(false)} onRefresh={onRefresh} />
       )}
 
       {showProfile && (

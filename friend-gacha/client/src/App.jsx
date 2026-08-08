@@ -17,8 +17,8 @@ import InventoryPage from './pages/InventoryPage';
 import AdminPage from './pages/AdminPage';
 import TutorialPage from './pages/TutorialPage';
 import TutorialGuide from './components/TutorialGuide';
-import ToastContainer from './components/Toast';
 import GlobalChat from './components/GlobalChat';
+import AttendanceModal from './components/AttendanceModal';
 import LoadingOverlay, { setLoadingSdImages } from './components/LoadingOverlay';
 import MobileLobbyPage from './pages/mobile/MobileLobbyPage';
 import MobileGrowthPage from './pages/mobile/MobileGrowthPage';
@@ -79,6 +79,7 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [missions, setMissions] = useState([]);
   const [titleReady, setTitleReady] = useState(false);
+  const [showAttendance, setShowAttendance] = useState(false);
   const tutorialRef = useRef(null);
   const mobileChatRef = useRef(null);
   const [chatUnread, setChatUnread] = useState(0);
@@ -121,9 +122,7 @@ export default function App() {
         setupSocket(token);
         try {
           const checkin = await api.checkin();
-          if (!checkin.alreadyCheckedIn) {
-            addToast('출석 완료! ' + checkin.streak + '일 연속', 'sr');
-          }
+          if (!checkin.alreadyCheckedIn) setShowAttendance(true);
         } catch {}
         await refreshUser();
         loadMissions();
@@ -169,10 +168,8 @@ export default function App() {
     setLoadingProgress(0);
     setupSocket(token);
     try {
-      const checkin = await api.checkin();
-      if (!checkin.alreadyCheckedIn) {
-        addToast('출석 완료! ' + checkin.streak + '일 연속', 'sr');
-      }
+      await api.checkin();
+      setShowAttendance(true);
     } catch {}
     await refreshUser();
     loadMissions();
@@ -298,6 +295,7 @@ export default function App() {
               onLogout={goToTitle}
               missions={missions}
               onClaimMission={claimMission}
+              onShowAttendance={() => setShowAttendance(true)}
               onRefresh={() => { refreshUser(); loadMissions(); }}
             />
           )}
@@ -311,7 +309,7 @@ export default function App() {
           {page === 'gacha' && <MobileGachaPage user={user} onPull={() => { refreshUser(); loadMissions(); tutorialRef.current?.completeAction('gacha_pull'); }} addToast={addToast} />}
           {page === 'story' && <MobileStoryPage user={user} onRefresh={refreshUser} addToast={addToast} />}
           {page === 'battle' && <MobileBattleHub user={user} onRefresh={refreshUser} addToast={addToast} />}
-          {page === 'social' && <MobileSocialPage user={user} addToast={addToast} onRefresh={refreshUser} navigate={navigate} initialTab={subPage || 'mail'} />}
+          {page === 'social' && <MobileSocialPage user={user} addToast={addToast} onRefresh={refreshUser} navigate={navigate} />}
         </main>
         <MobileChat ref={mobileChatRef} user={user} onUnreadChange={setChatUnread} />
         <nav className="mobile-tab-bar">
@@ -333,7 +331,7 @@ export default function App() {
             <span className="mobile-tab-label">{'채팅'}</span>
           </button>
         </nav>
-        <ToastContainer />
+        {showAttendance && <AttendanceModal onClose={() => setShowAttendance(false)} />}
       </div>
     );
   }
@@ -358,6 +356,7 @@ export default function App() {
               missions={missions}
               onClaimMission={claimMission}
               onRefresh={() => { refreshUser(); loadMissions(); }}
+              onShowAttendance={() => setShowAttendance(true)}
             />
           )}
           {page === 'character' && (
@@ -405,7 +404,7 @@ export default function App() {
         onUserUpdate={setUser}
       />
 
-      <ToastContainer />
+      {showAttendance && <AttendanceModal onClose={() => setShowAttendance(false)} />}
     </div>
   );
 }

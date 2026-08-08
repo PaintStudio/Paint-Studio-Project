@@ -82,6 +82,8 @@ export const api = {
     request('/raid/battle-end', { method: 'POST', body: { raidId, battleLog } }),
   // 데일리
   checkin: () => request('/daily/checkin', { method: 'POST' }),
+  attendance: () => request('/daily/attendance'),
+  attendanceStamp: () => request('/daily/attendance/stamp', { method: 'POST' }),
   missions: () => request('/daily/missions'),
   claimMission: (id) => request('/daily/missions/' + id + '/claim', { method: 'POST' }),
   userStatus: () => request('/daily/status'),
