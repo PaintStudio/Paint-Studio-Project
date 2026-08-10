@@ -258,6 +258,7 @@ router.post('/battle-end', authMiddleware, (req, res) => {
     user: updatedUser,
   });
 
+  try { require('./stage').progressMission(req.user.id, 'raid', 1); } catch {}
   userLog(req.user.id, 'raid_end', { raidId, raidName: raid.name, damage, bossKilled });
   } catch (err) {
     console.error('[레이드] battle-end 오류:', err.message);

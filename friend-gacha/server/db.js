@@ -409,6 +409,8 @@ async function initDb() {
       is_completed INTEGER DEFAULT 0,
       is_claimed INTEGER DEFAULT 0,
       date TEXT NOT NULL,
+      period TEXT DEFAULT 'daily',
+      description TEXT DEFAULT '',
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
 
@@ -441,6 +443,14 @@ async function initDb() {
   `);
 
   // ============ 마이그레이션 ============
+  // daily_missions.period, description 컬럼
+  try {
+    db.prepare("SELECT period FROM daily_missions LIMIT 1").get();
+  } catch (e) {
+    db.exec("ALTER TABLE daily_missions ADD COLUMN period TEXT DEFAULT 'daily'");
+    db.exec("ALTER TABLE daily_missions ADD COLUMN description TEXT DEFAULT ''");
+    console.log('[DB] daily_missions period/description 컬럼 추가 완료');
+  }
   // origin 컬럼이 없으면 추가
   try {
     db.prepare("SELECT origin FROM characters LIMIT 1").get();

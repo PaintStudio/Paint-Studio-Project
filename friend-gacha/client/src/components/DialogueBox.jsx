@@ -7,6 +7,7 @@ const DialogueBox = forwardRef(function DialogueBox({ script, onEnd, onChoice, o
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
+  const [currentBg, setCurrentBg] = useState(null);
   const timerRef = useRef(null);
   const fullTextRef = useRef('');
   const battleFiredRef = useRef(-1);
@@ -32,6 +33,7 @@ const DialogueBox = forwardRef(function DialogueBox({ script, onEnd, onChoice, o
   useEffect(() => {
     if (!entry) return;
     if (entry.bgm) bgm.play(entry.bgm);
+    if ('bg' in entry) setCurrentBg(entry.bg || null);
     if (entry.type === 'battle') {
       if (battleFiredRef.current !== index) {
         battleFiredRef.current = index;
@@ -101,7 +103,7 @@ const DialogueBox = forwardRef(function DialogueBox({ script, onEnd, onChoice, o
 
   return (
     <div className="dialogue-overlay" onClick={advance}>
-      {entry.bg && <div className="dialogue-bg" style={{ backgroundImage: `url(${entry.bg})` }} />}
+      {currentBg && <div className="dialogue-bg" style={{ backgroundImage: `url(${currentBg})` }} />}
 
       <div className="dialogue-stage">
         {leftChar && (

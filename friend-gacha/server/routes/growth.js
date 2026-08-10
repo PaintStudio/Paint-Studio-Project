@@ -397,6 +397,7 @@ router.post('/levelup', authMiddleware, (req, res) => {
   });
 
   const result = doLevelUp();
+  try { require('./stage').progressMission(req.user.id, 'level_char', 1); } catch {}
   res.json({
     level: result.level, exp: result.exp, nextLevelExp: result.level * result.level * 10 + result.level * 50,
     levelsGained: result.level - inv.level, expGained: totalExp

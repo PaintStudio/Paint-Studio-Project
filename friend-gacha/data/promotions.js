@@ -1,136 +1,2256 @@
-const CHARACTER_DATA = {
-  1:  { element: 'fire',  origin: 'life',      rarity: 'SSR' },
-  2:  { element: 'light', origin: 'memory',     rarity: 'SSR' },
-  3:  { element: 'dark',  origin: 'memory',     rarity: 'SR' },
-  4:  { element: 'dark',  origin: 'life',       rarity: 'SR' },
-  5:  { element: 'light', origin: 'sound',      rarity: 'SR' },
-  6:  { element: 'water', origin: 'force',      rarity: 'SR' },
-  7:  { element: 'light', origin: 'time',       rarity: 'R' },
-  8:  { element: 'water', origin: 'space',      rarity: 'R' },
-  9:  { element: 'wind',  origin: 'memory',     rarity: 'R' },
-  10: { element: 'dark',  origin: 'intellect',  rarity: 'R' },
-  11: { element: 'wind',  origin: 'life',       rarity: 'R' },
-  12: { element: 'water', origin: 'heart',      rarity: 'R' },
-  13: { element: 'light', origin: 'sound',      rarity: 'N' },
-  14: { element: 'fire',  origin: 'time',       rarity: 'N' },
-  15: { element: 'wind',  origin: 'life',       rarity: 'N' },
-  16: { element: 'dark',  origin: 'intellect',  rarity: 'N' },
-  17: { element: 'wind',  origin: 'force',      rarity: 'N' },
-  18: { element: 'fire',  origin: 'memory',     rarity: 'N' },
-  19: { element: 'fire',  origin: 'season',     rarity: 'N' },
-  20: { element: 'light', origin: 'space',      rarity: 'N' },
-  21: { element: 'water', origin: 'heart',      rarity: 'N' },
-  22: { element: 'wind',  origin: 'space',      rarity: 'SR' },
-  23: { element: 'dark',  origin: 'intellect',  rarity: 'SSR' },
-  24: { element: 'wind',  origin: 'force',      rarity: 'SSR' },
-  25: { element: 'wind',  origin: 'season',     rarity: 'SSR' },
-  26: { element: 'light', origin: 'heart',      rarity: 'SSR' },
-  27: { element: 'fire',  origin: 'sound',      rarity: 'SSR' },
-  28: { element: 'water', origin: 'space',      rarity: 'SSR' },
-  29: { element: 'dark',  origin: 'time',       rarity: 'SSR' },
-  30: { element: 'water', origin: 'season',     rarity: 'SR' },
-  31: { element: 'wind',  origin: 'heart',      rarity: 'SR' },
-  32: { element: 'fire',  origin: 'time',       rarity: 'SR' },
+const promotions = {
+  "1": {
+    "tiers": [
+      {
+        "gold": 3000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 8000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 15000,
+        "items": [
+          {
+            "itemId": "firecodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "firecodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "lifestonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "2": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "memorystonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "lightcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "memorystonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "3": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "memorystonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "darkcodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "memorystonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "4": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "lifestonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "darkcodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "lifestonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "5": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "soundstonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "soundstonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "soundstonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "lightcodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "soundstonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "soundstonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "soundstonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "6": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "forcestonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "forcestonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "forcestonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "watercodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "forcestonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "forcestonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "forcestonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "7": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "timestonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "lightcodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "timestonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "8": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "spacestonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "watercodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "spacestonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "9": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "memorystonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "memorystonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "10": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "intellectstonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "intellectstonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "intellectstonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "darkcodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "intellectstonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "intellectstonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "intellectstonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "11": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "lifestonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "lifestonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "12": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 5
+          },
+          {
+            "itemId": "heartstonelow",
+            "quantity": 8
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 8
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 5
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 10
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodemax",
+            "quantity": 3
+          },
+          {
+            "itemId": "watercodebig",
+            "quantity": 13
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 20
+          },
+          {
+            "itemId": "heartstonemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 20
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 30
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "13": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "soundstonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "soundstonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "soundstonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "14": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "timestonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "15": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "lifestonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "16": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "intellectstonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "intellectstonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "intellectstonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "17": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "forcestonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "forcestonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "forcestonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "18": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "memorystonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "memorystonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "memorystonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "19": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "seasonstonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "seasonstonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "seasonstonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "20": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "spacestonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "21": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 2
+          },
+          {
+            "itemId": "heartstonelow",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 1
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 3
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 4
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 1
+      }
+    ]
+  },
+  "22": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "spacestonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "spacestonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "23": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "intellectstonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "intellectstonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "intellectstonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "darkcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "intellectstonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "intellectstonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "intellectstonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "24": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "forcestonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "forcestonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "forcestonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "forcestonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "forcestonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "forcestonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "25": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "seasonstonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "seasonstonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "seasonstonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "seasonstonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "seasonstonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "seasonstonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "26": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "heartstonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "lightcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "lightcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "lightcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "heartstonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "27": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "soundstonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "soundstonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "soundstonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "firecodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "soundstonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "soundstonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "soundstonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "28": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "spacestonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "watercodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "spacestonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "spacestonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "spacestonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "29": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "timestonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "darkcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "darkcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "darkcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "timestonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 60
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "30": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "seasonstonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "seasonstonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "seasonstonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "watercodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "watercodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "watercodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "seasonstonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "seasonstonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "seasonstonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "31": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "heartstonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "heartstonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "heartstonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "heartstonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "32": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodesmall",
+            "quantity": 7
+          },
+          {
+            "itemId": "timestonelow",
+            "quantity": 12
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodebig",
+            "quantity": 2
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 10
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 7
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 14
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "firecodemax",
+            "quantity": 4
+          },
+          {
+            "itemId": "firecodebig",
+            "quantity": 18
+          },
+          {
+            "itemId": "firecodemedium",
+            "quantity": 28
+          },
+          {
+            "itemId": "timestonemax",
+            "quantity": 7
+          },
+          {
+            "itemId": "timestonebig",
+            "quantity": 28
+          },
+          {
+            "itemId": "timestonemedium",
+            "quantity": 42
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  },
+  "35": {
+    "tiers": [
+      {
+        "gold": 5000,
+        "items": [
+          {
+            "itemId": "windcodesmall",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonelow",
+            "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      }
+    ]
+  }
 };
-
-function makeCode(element, tier) { return `${element}code${tier}`; }
-function makeStone(origin, tier) { return `${origin}stone${tier}`; }
-
-function getTier1Items(element, origin, rarity) {
-  const costs = { SSR: [10, 15], SR: [7, 12], R: [5, 8], N: [2, 4] };
-  const [codeQty, stoneQty] = costs[rarity];
-  return [
-    { itemId: makeCode(element, 'small'), quantity: codeQty },
-    { itemId: makeStone(origin, 'low'), quantity: stoneQty },
-  ];
-}
-
-function getTier2Items(element, origin, rarity) {
-  const costs = {
-    SSR: { codeBig: 3, codeMed: 15, stoneBig: 10, stoneMed: 20 },
-    SR:  { codeBig: 2, codeMed: 10, stoneBig: 7,  stoneMed: 14 },
-    R:   { codeBig: 2, codeMed: 8,  stoneBig: 5,  stoneMed: 10 },
-    N:   { codeBig: 1, codeMed: 3,  stoneBig: 2,  stoneMed: 4 },
-  };
-  const c = costs[rarity];
-  return [
-    { itemId: makeCode(element, 'big'), quantity: c.codeBig },
-    { itemId: makeCode(element, 'medium'), quantity: c.codeMed },
-    { itemId: makeStone(origin, 'big'), quantity: c.stoneBig },
-    { itemId: makeStone(origin, 'medium'), quantity: c.stoneMed },
-  ];
-}
-
-function getTier3Items(element, origin, rarity) {
-  const costs = {
-    SSR: { codeMax: 5, codeBig: 25, codeMed: 40, stoneMax: 10, stoneBig: 40, stoneMed: 60 },
-    SR:  { codeMax: 4, codeBig: 18, codeMed: 28, stoneMax: 7,  stoneBig: 28, stoneMed: 42 },
-    R:   { codeMax: 3, codeBig: 13, codeMed: 20, stoneMax: 5,  stoneBig: 20, stoneMed: 30 },
-  };
-  const c = costs[rarity];
-  if (!c) return [];
-  return [
-    { itemId: makeCode(element, 'max'), quantity: c.codeMax },
-    { itemId: makeCode(element, 'big'), quantity: c.codeBig },
-    { itemId: makeCode(element, 'medium'), quantity: c.codeMed },
-    { itemId: makeStone(origin, 'max'), quantity: c.stoneMax },
-    { itemId: makeStone(origin, 'big'), quantity: c.stoneBig },
-    { itemId: makeStone(origin, 'medium'), quantity: c.stoneMed },
-  ];
-}
-
-const TIER_META = {
-  1:  [{ gold: 3000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 8000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 15000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  2:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  3:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  4:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  5:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  6:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  7:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  8:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  9:  [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  10: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  11: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  12: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  13: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  14: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  15: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  16: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  17: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  18: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  19: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  20: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  21: [{ gold: 5000, atkS: 0, defS: 1, talent: true, notes: 1 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 1 }],
-  22: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  23: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  24: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  25: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  26: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  27: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  28: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  29: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  30: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  31: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-  32: [{ gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }, { gold: 5000, atkS: 0, defS: 1, talent: true, notes: 2 }, { gold: 5000, atkS: 1, defS: 0, talent: true, notes: 2 }],
-};
-
-const ITEM_GETTERS = [getTier1Items, getTier2Items, getTier3Items];
-
-const promotions = {};
-for (const [id, charData] of Object.entries(CHARACTER_DATA)) {
-  const meta = TIER_META[id];
-  if (!meta) continue;
-  const { element, origin, rarity } = charData;
-  promotions[id] = {
-    tiers: meta.map((m, i) => ({
-      gold: m.gold,
-      items: ITEM_GETTERS[i](element, origin, rarity),
-      attackSlots: m.atkS,
-      defenseSlots: m.defS,
-      unlockTalent: m.talent,
-      bonusNotes: m.notes,
-    })),
-  };
-}
 
 module.exports = promotions;

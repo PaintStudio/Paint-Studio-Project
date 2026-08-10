@@ -32,12 +32,34 @@
 }
 .mission-close:hover { background: var(--bg-tertiary); }
 
+.mission-tabs {
+  display: flex; gap: 6px;
+}
+.mission-tab {
+  flex: 1; padding: 8px 0; border-radius: 8px;
+  background: var(--bg-tertiary); border: 1px solid var(--border);
+  color: var(--text-muted); font-weight: 700; font-size: 0.9rem;
+  cursor: pointer; transition: all 0.15s; position: relative;
+}
+.mission-tab.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.mission-tab:not(.active):hover { border-color: var(--accent); color: var(--text-primary); }
+.mission-tab-badge {
+  position: absolute; top: -4px; right: -4px;
+  min-width: 16px; height: 16px; border-radius: 8px;
+  background: #e74c3c; color: #fff; font-size: 0.55rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px; line-height: 1;
+}
+
 .mission-loading, .mission-empty {
   text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 1rem;
 }
 
 .mission-list {
   display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; max-height: 480px;
 }
 
 .mission-item {
@@ -106,7 +128,3 @@
   font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;
 }
 
-.mission-all-done {
-  text-align: center; font-size: 1rem; font-weight: 700;
-  color: var(--green); padding: 8px 0;
-}

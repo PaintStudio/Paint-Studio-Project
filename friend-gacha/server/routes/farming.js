@@ -3,7 +3,7 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { createUnit, createBattleSetup, validateBattleResult } = require('../battle');
 const { buildPartyUnits, collectTagCounts, buildEnemyFromMonster, giveItem, processDrops } = require('../battleUtils');
-const { deductStamina, addAccountExp } = require('./stage');
+const { deductStamina, addAccountExp, progressMission, progressKillMissions } = require('./stage');
 const itemDefs = require('../../data/items');
 
 const router = express.Router();
@@ -179,6 +179,8 @@ router.post('/battle-end', authMiddleware, (req, res) => {
     }
 
     const enemyData = JSON.parse(stage.enemy_data || '[]');
+    progressMission(req.user.id, 'battle', 1);
+    progressKillMissions(req.user.id, enemyData);
     earnedRewards.items = processDrops(req.user.id, enemyData);
 
     const accExp = rewards.exp || 15;

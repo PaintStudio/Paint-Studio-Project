@@ -47,6 +47,63 @@ function getMonthKey() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function getWeekKey() {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7));
+  return monday.toISOString().split('T')[0];
+}
+
+const DAILY_MISSIONS = [
+  { type: 'battle', target: 5, reward_type: 'gold', reward_amount: 1000, desc: '전투 5회 클리어' },
+  { type: 'kill:slime', target: 3, reward_type: 'gold', reward_amount: 500, desc: '슬라임 3마리 처치' },
+  { type: 'raid', target: 1, reward_type: 'gold', reward_amount: 2000, desc: '레이드 1회 도전' },
+];
+
+const WEEKLY_MISSIONS = [
+  { type: 'battle', target: 30, reward_type: 'diamond', reward_amount: 100, desc: '전투 30회 클리어' },
+  { type: 'kill_any', target: 50, reward_type: 'diamond', reward_amount: 150, desc: '적 50마리 처치' },
+  { type: 'raid', target: 5, reward_type: 'diamond', reward_amount: 200, desc: '레이드 5회 도전' },
+];
+
+const ONETIME_MISSIONS = [
+  { type: 'battle', target: 1, reward_type: 'diamond', reward_amount: 50, desc: '첫 전투 클리어' },
+  { type: 'kill_any', target: 10, reward_type: 'diamond', reward_amount: 50, desc: '적 10마리 처치' },
+  { type: 'stage_clear_10', target: 10, reward_type: 'diamond', reward_amount: 200, desc: '스테이지 10개 클리어' },
+  { type: 'level_char', target: 1, reward_type: 'gold', reward_amount: 5000, desc: '캐릭터 레벨업 1회' },
+];
+
+function ensureMissions(userId) {
+  const today = new Date().toISOString().split('T')[0];
+  const weekKey = getWeekKey();
+
+  const insert = db.prepare(
+    'INSERT INTO daily_missions (user_id, mission_type, target_count, reward_type, reward_amount, date, period, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  );
+
+  const dailyCount = db.prepare("SELECT COUNT(*) as cnt FROM daily_missions WHERE user_id = ? AND period = 'daily' AND date = ?").get(userId, today).cnt;
+  if (dailyCount === 0) {
+    for (const m of DAILY_MISSIONS) {
+      insert.run(userId, m.type, m.target, m.reward_type, m.reward_amount, today, 'daily', m.desc);
+    }
+  }
+
+  const weeklyCount = db.prepare("SELECT COUNT(*) as cnt FROM daily_missions WHERE user_id = ? AND period = 'weekly' AND date = ?").get(userId, weekKey).cnt;
+  if (weeklyCount === 0) {
+    for (const m of WEEKLY_MISSIONS) {
+      insert.run(userId, m.type, m.target, m.reward_type, m.reward_amount, weekKey, 'weekly', m.desc);
+    }
+  }
+
+  const onetimeCount = db.prepare("SELECT COUNT(*) as cnt FROM daily_missions WHERE user_id = ? AND period = 'onetime'").get(userId).cnt;
+  if (onetimeCount === 0) {
+    for (const m of ONETIME_MISSIONS) {
+      insert.run(userId, m.type, m.target, m.reward_type, m.reward_amount, 'onetime', 'onetime', m.desc);
+    }
+  }
+}
+
 // 출석 체크 + 데일리 미션 생성
 router.post('/checkin', authMiddleware, (req, res) => {
   const today = new Date().toISOString().split('T')[0];
@@ -66,19 +123,7 @@ router.post('/checkin', authMiddleware, (req, res) => {
     db.prepare('UPDATE users SET last_login_date = ?, login_streak = ? WHERE id = ?')
       .run(today, streak, req.user.id);
 
-    // 데일리 미션 생성
-    const existingMissions = db.prepare('SELECT COUNT(*) as cnt FROM daily_missions WHERE user_id = ? AND date = ?').get(req.user.id, today);
-    if (existingMissions.cnt === 0) {
-      const missions = [
-        { type: 'battle', target: 5, reward_type: 'gold', reward_amount: 1000, desc: '전투 5회 클리어' },
-        { type: 'gacha', target: 1, reward_type: 'diamond', reward_amount: 30, desc: '가챠 1회' },
-        { type: 'raid', target: 1, reward_type: 'gold', reward_amount: 2000, desc: '레이드 1회 도전' },
-      ];
-      const insertMission = db.prepare('INSERT INTO daily_missions (user_id, mission_type, target_count, reward_type, reward_amount, date) VALUES (?, ?, ?, ?, ?, ?)');
-      for (const m of missions) {
-        insertMission.run(req.user.id, m.type, m.target, m.reward_type, m.reward_amount, today);
-      }
-    }
+    ensureMissions(req.user.id);
   }
 
   res.json({ alreadyCheckedIn, streak });
@@ -151,25 +196,46 @@ router.post('/attendance/stamp', authMiddleware, (req, res) => {
   });
 });
 
-// 데일리 미션 목록
+// 미션 목록 (데일리 + 위클리 + 1회성)
 router.get('/missions', authMiddleware, (req, res) => {
+  ensureMissions(req.user.id);
+
   const today = new Date().toISOString().split('T')[0];
-  const missions = db.prepare('SELECT * FROM daily_missions WHERE user_id = ? AND date = ?').all(req.user.id, today);
+  const weekKey = getWeekKey();
 
-  const missionLabels = { battle: '전투 클리어', gacha: '가챠 뽑기', raid: '레이드 도전' };
+  const daily = db.prepare("SELECT * FROM daily_missions WHERE user_id = ? AND period = 'daily' AND date = ?").all(req.user.id, today);
+  const weekly = db.prepare("SELECT * FROM daily_missions WHERE user_id = ? AND period = 'weekly' AND date = ?").all(req.user.id, weekKey);
+  const onetime = db.prepare("SELECT * FROM daily_missions WHERE user_id = ? AND period = 'onetime'").all(req.user.id);
 
-  res.json({
-    missions: missions.map(m => ({
+  const LABEL_FALLBACK = {
+    battle: '전투 클리어', raid: '레이드 도전', gacha: '가챠 뽑기',
+    kill_any: '적 처치', level_char: '캐릭터 레벨업',
+  };
+
+  const fmt = (m) => {
+    let label = m.description;
+    if (!label) {
+      label = LABEL_FALLBACK[m.mission_type] || m.mission_type;
+      if (m.target_count > 1) label += ` ${m.target_count}회`;
+    }
+    return {
       id: m.id,
       type: m.mission_type,
-      label: `${missionLabels[m.mission_type] || m.mission_type} ${m.target_count}회`,
+      label,
       current: m.current_count,
       target: m.target_count,
       completed: !!m.is_completed,
       claimed: !!m.is_claimed,
       rewardType: m.reward_type,
       rewardAmount: m.reward_amount,
-    }))
+      period: m.period || 'daily',
+    };
+  };
+
+  res.json({
+    missions: daily.map(fmt),
+    weekly: weekly.map(fmt),
+    onetime: onetime.map(fmt),
   });
 });
 

@@ -3,3 +3,11 @@ dist/
 data/gacha.db
 .env
 *.log
+
+# 시나리오/대사/로어 데이터
+data/stories.js
+data/dialogues.js
+data/lore.js
+
+# 업로드 이미지
+data/images/

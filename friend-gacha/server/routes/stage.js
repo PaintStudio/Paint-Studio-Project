@@ -123,12 +123,14 @@ router.post('/battle-end', authMiddleware, (req, res) => {
     db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
 
     progressMission(req.user.id, 'battle', 1);
+    if (!existing) progressMission(req.user.id, 'stage_clear_10', 1);
 
     const accExp = rewards.exp || 20;
     addAccountExp(req.user.id, accExp);
     earnedRewards.accountExp = accExp;
 
     const enemies = JSON.parse(stage.enemy_data);
+    progressKillMissions(req.user.id, enemies);
     earnedRewards.items = processDrops(req.user.id, enemies);
   }
 
@@ -183,13 +185,23 @@ function addExp(inventoryId, amount) {
 }
 
 function progressMission(userId, type, count) {
-  const today = new Date().toISOString().split('T')[0];
-  const mission = db.prepare('SELECT * FROM daily_missions WHERE user_id = ? AND mission_type = ? AND date = ? AND is_completed = 0')
-    .get(userId, type, today);
-  if (mission) {
+  const missions = db.prepare('SELECT * FROM daily_missions WHERE user_id = ? AND mission_type = ? AND is_completed = 0')
+    .all(userId, type);
+  for (const mission of missions) {
     const newCount = Math.min(mission.current_count + count, mission.target_count);
     const completed = newCount >= mission.target_count ? 1 : 0;
     db.prepare('UPDATE daily_missions SET current_count = ?, is_completed = ? WHERE id = ?').run(newCount, completed, mission.id);
+  }
+}
+
+function progressKillMissions(userId, enemies) {
+  const killCount = enemies.length;
+  if (killCount <= 0) return;
+  progressMission(userId, 'kill_any', killCount);
+  for (const e of enemies) {
+    if (e.monsterId) {
+      progressMission(userId, `kill:${e.monsterId}`, 1);
+    }
   }
 }
 
@@ -217,6 +229,7 @@ module.exports = router;
 module.exports.refreshStamina = refreshStamina;
 module.exports.deductStamina = deductStamina;
 module.exports.progressMission = progressMission;
+module.exports.progressKillMissions = progressKillMissions;
 module.exports.addExp = addExp;
 module.exports.addAccountExp = addAccountExp;
 module.exports.calcLevelUp = calcLevelUp;

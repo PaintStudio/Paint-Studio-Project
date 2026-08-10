@@ -3,7 +3,7 @@ const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { createUnit, createBattleSetup, validateBattleResult } = require('../battle');
 const { buildPartyUnits, collectTagCounts, buildEnemyFromMonster } = require('../battleUtils');
-const { addAccountExp, progressMission } = require('./stage');
+const { addAccountExp, progressMission, progressKillMissions } = require('./stage');
 const hotRequire = require('../hotRequire');
 
 const router = express.Router();
@@ -122,6 +122,10 @@ router.post('/read', authMiddleware, (req, res) => {
 
   if (node.node_type === 'battle') {
     progressMission(req.user.id, 'battle', 1);
+    if (node.enemy_data) {
+      const enemies = typeof node.enemy_data === 'string' ? JSON.parse(node.enemy_data) : node.enemy_data;
+      progressKillMissions(req.user.id, enemies);
+    }
   }
 
   const updatedUser = db.prepare('SELECT stamina, gold, currency, account_level, account_exp FROM users WHERE id = ?').get(req.user.id);
