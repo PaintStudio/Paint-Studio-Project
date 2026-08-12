@@ -29,20 +29,19 @@ function compareByKey(a, b, key) {
   }
 }
 
-function sortCharacters(chars, sortStack) {
+function sortCharacters(chars, sort) {
   return [...chars].sort((a, b) => {
-    for (const { key, dir } of sortStack) {
-      const cmp = compareByKey(a, b, key);
-      if (cmp !== 0) return cmp * (dir === 'asc' ? 1 : -1);
-    }
+    const cmp = compareByKey(a, b, sort.key);
+    if (cmp !== 0) return cmp * (sort.dir === 'asc' ? 1 : -1);
+    if (sort.key !== 'name') return a.name.localeCompare(b.name, 'ko');
     return 0;
   });
 }
 
 export default function CharacterGrid({ characters, onSelect, onBatchLock, selectedIds, title }) {
-  const [sortStack, setSortStack] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem('charSortStack')); if (Array.isArray(s) && s.length) return s; } catch {}
-    return [{ key: 'rarity', dir: 'desc' }];
+  const [sort, setSort] = useState(() => {
+    try { const s = JSON.parse(localStorage.getItem('charSort')); if (s?.key) return s; } catch {}
+    return { key: 'rarity', dir: 'desc' };
   });
   const [filterRarity, setFilterRarity] = useState(null);
   const [filterElem, setFilterElem] = useState(null);
@@ -52,16 +51,11 @@ export default function CharacterGrid({ characters, onSelect, onBatchLock, selec
   const [lockSelection, setLockSelection] = useState(new Set());
 
   const handleSort = (key) => {
-    setSortStack(prev => {
-      const idx = prev.findIndex(s => s.key === key);
-      let next;
-      if (idx === 0) {
-        next = [{ key, dir: prev[0].dir === 'desc' ? 'asc' : 'desc' }, ...prev.slice(1)];
-      } else {
-        const rest = prev.filter(s => s.key !== key);
-        next = [{ key, dir: 'desc' }, ...rest];
-      }
-      localStorage.setItem('charSortStack', JSON.stringify(next));
+    setSort(prev => {
+      const next = prev.key === key
+        ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
+        : { key, dir: 'desc' };
+      localStorage.setItem('charSort', JSON.stringify(next));
       return next;
     });
   };
@@ -70,7 +64,7 @@ export default function CharacterGrid({ characters, onSelect, onBatchLock, selec
   if (filterRarity) filtered = filtered.filter(c => c.rarity === filterRarity);
   if (filterElem) filtered = filtered.filter(c => c.element === filterElem);
   if (filterOrigin) filtered = filtered.filter(c => c.origin === filterOrigin);
-  const sorted = sortCharacters(filtered, sortStack);
+  const sorted = sortCharacters(filtered, sort);
 
   const activeFilterCount = [filterRarity, filterElem, filterOrigin].filter(Boolean).length;
 
@@ -91,19 +85,14 @@ export default function CharacterGrid({ characters, onSelect, onBatchLock, selec
             &#9776; 필터{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
           <div className="sort-bar">
-            {SORT_OPTIONS.map(opt => {
-              const idx = sortStack.findIndex(s => s.key === opt.key);
-              const entry = idx >= 0 ? sortStack[idx] : null;
-              return (
-                <button key={opt.key}
-                  className={`sort-btn ${idx === 0 ? 'active' : idx > 0 ? 'sub' : ''}`}
-                  onClick={() => handleSort(opt.key)}>
-                  {idx >= 0 && <span className="sort-rank">{idx + 1}</span>}
-                  {opt.label}
-                  {entry && <span className="sort-arrow">{entry.dir === 'desc' ? '▼' : '▲'}</span>}
-                </button>
-              );
-            })}
+            {SORT_OPTIONS.map(opt => (
+              <button key={opt.key}
+                className={`sort-btn ${sort.key === opt.key ? 'active' : ''}`}
+                onClick={() => handleSort(opt.key)}>
+                {opt.label}
+                {sort.key === opt.key && <span className="sort-arrow">{sort.dir === 'desc' ? '▼' : '▲'}</span>}
+              </button>
+            ))}
           </div>
         </div>
       </div>

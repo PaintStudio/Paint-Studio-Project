@@ -120,7 +120,8 @@ function executePull(userId, banner, free = false) {
   const doPull = db.transaction(() => {
     db.prepare('UPDATE users SET currency = currency - ?, total_pulls = total_pulls + 1, pity_counter = ? WHERE id = ?')
       .run(costDeduct, newPity, userId);
-    const inv = db.prepare('INSERT INTO inventory (user_id, character_id) VALUES (?, ?)').run(userId, character.id);
+    const autoLock = (rarity === 'SSR' || rarity === 'CR') ? 1 : 0;
+    const inv = db.prepare('INSERT INTO inventory (user_id, character_id, is_locked) VALUES (?, ?, ?)').run(userId, character.id, autoLock);
     db.prepare('INSERT INTO pull_log (user_id, character_id, rarity) VALUES (?, ?, ?)').run(userId, character.id, rarity);
     return inv;
   });

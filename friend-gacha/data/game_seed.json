@@ -825,8 +825,8 @@
       "description": "",
       "image_url": "/uploads/characters/char_35.png",
       "image_bust": "/uploads/characters/char_bust_35.png",
-      "image_sd": "",
-      "image_ld": "",
+      "image_sd": "/uploads/characters/char_sd_35.png",
+      "image_ld": "/uploads/characters/char_ld_35.png",
       "quote": "",
       "base_hp": 136,
       "base_atk": 15,
@@ -838,7 +838,7 @@
       "created_at": "2026-07-28 12:07:23",
       "attack_slots": 3,
       "defense_slots": 2,
-      "is_released": 0
+      "is_released": 1
     }
   ],
   "skills": [
@@ -12014,6 +12014,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-1",
+          "subtitle": "성소에서"
+        },
+        {
           "label": "story1_chapter1_start",
           "text": "숲을 빠져나오는 데는 그리 오래 걸리지 않았다.",
           "bg": "/uploads/bg/forest.png"
@@ -12405,6 +12410,11 @@
       "title": "계획",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-2",
+          "subtitle": "계획"
+        },
         {
           "label": "story1_chapter2_start",
           "text": "다음 날 아침.",
@@ -12831,6 +12841,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-3",
+          "subtitle": "첫 번째 레이어"
+        },
+        {
           "label": "story1_chapter3_start",
           "text": "성소의 가장 끝. 광장에서 한참을 걸어야 나오는 곳이었다.",
           "bg": "/uploads/bg/sanctum_firstlayer.png"
@@ -13166,6 +13181,11 @@
       "node_type": "battle",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-4",
+          "subtitle": "인터럽트"
+        },
+        {
           "label": "story1_chapter4_start",
           "text": "금은 순식간에 퍼졌다.",
           "bg": "/uploads/bg/sanctum_firstlayer.png"
@@ -13464,6 +13484,11 @@
       "title": "침범?",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-5",
+          "subtitle": "침범?"
+        },
         {
           "label": "story1_chapter5_start",
           "text": "성소의 끝까지 가는 데는 반나절이 걸렸다.",
@@ -13783,6 +13808,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-6",
+          "subtitle": "너머에서의 손님"
+        },
+        {
           "label": "story1_chapter6_start",
           "text": "자국은 안쪽으로, 안쪽으로 이어졌다.",
           "bg": "/uploads/bg/sanctum_void.png"
@@ -13971,7 +14001,7 @@
         },
         {
           "speaker": "칸나",
-          "text": "그리고 아마── 저기 벽에 구멍 내신 분도 저일 거예요. 그건 정말로 죄송하게 생각하고 있어요.",
+          "text": "그리고 아마── 저기 벽에 구멍낸 사람도 저일 거예요. 그건 정말로 죄송하게 생각하고 있어요.",
           "characters": [
             {
               "name": "프림",
@@ -14431,6 +14461,11 @@
       "title": "길찾기",
       "node_type": "battle",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-7",
+          "subtitle": "길찾기"
+        },
         {
           "label": "story1_chapter7_start",
           "text": "돌아가는 길은 왔던 길보다 훨씬 오래 걸렸다.",
@@ -14994,6 +15029,11 @@
       "title": "마법",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-8",
+          "subtitle": "마법"
+        },
         {
           "label": "story1_chapter8_start",
           "text": "작업 공간에 돌아왔을 때는 이미 밤이었다.",
@@ -16471,6 +16511,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-9",
+          "subtitle": "잔상"
+        },
+        {
           "label": "story1_chapter9_start",
           "text": "다음 날, 우리는 다시 첫 번째 레이어로 갔다.",
           "bg": "/uploads/bg/sanctum_firstlayer.png"
@@ -17059,6 +17104,11 @@
       "title": "이름",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-10",
+          "subtitle": "이름"
+        },
         {
           "label": "story1_chapter10_start",
           "text": "칸나가 확인하고 돌아온 건 다음 날 오후였다.",
@@ -17654,6 +17704,11 @@
       "node_type": "battle",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-11",
+          "subtitle": "진원"
+        },
+        {
           "label": "story1_chapter11_start",
           "text": "프림은 그날 밤을 꼬박 새웠다.",
           "bg": "/uploads/bg/prim_workshop.png"
@@ -18139,6 +18194,11 @@
       "title": "문 앞",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-12",
+          "subtitle": "문 앞"
+        },
         {
           "label": "story1_chapter12_start",
           "text": "프림이 먼저 문을 두드렸다.",
@@ -18795,6 +18855,11 @@
       "title": "공백",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-13",
+          "subtitle": "공백"
+        },
         {
           "label": "story1_chapter13_start",
           "text": "다음 날 아침, 프림은 기록을 뒤지고 있었다.",
@@ -19558,6 +19623,11 @@
       "title": "무한",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-14",
+          "subtitle": "무한"
+        },
         {
           "label": "story1_chapter14_start",
           "text": "문이 열려 있었다.",
@@ -20563,6 +20633,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-15",
+          "subtitle": "원인"
+        },
+        {
           "label": "story1_chapter15_start",
           "text": "칸나는 아직 자고 있었다.",
           "bg": "/uploads/bg/prim_workshop.png"
@@ -21260,6 +21335,11 @@
       "node_type": "battle",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-16",
+          "subtitle": "유예"
+        },
+        {
           "label": "story1_chapter16_start",
           "text": "새벽에 바닥이 흔들려서 깼다.",
           "bg": "/uploads/bg/sanctum_plaza.png"
@@ -21817,6 +21897,11 @@
       "node_type": "story",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-17",
+          "subtitle": "면죄부"
+        },
+        {
           "label": "story1_chapter17_start",
           "text": "그날 밤, 나는 프림의 작업 공간에 혼자 있었다.",
           "bg": "/uploads/bg/prim_workshop.png"
@@ -22201,6 +22286,11 @@
       "title": "밤산책",
       "node_type": "story",
       "story_script": [
+        {
+          "type": "title",
+          "title": "1-18",
+          "subtitle": "밤산책"
+        },
         {
           "label": "story1_chapter18_start",
           "text": "칸나가 프림에게 부탁을 한 것도 그날 아침이었다.",
@@ -23353,6 +23443,11 @@
       "node_type": "battle",
       "story_script": [
         {
+          "type": "title",
+          "title": "1-19",
+          "subtitle": "되감기"
+        },
+        {
           "label": "story1_chapter19_start",
           "text": "아침에 눈을 떴을 때, 하늘이 이상한 색이었다.",
           "bg": "/uploads/bg/sanctum_plaza.png"
@@ -24204,7 +24299,7 @@
       "required_guests": [
         {
           "charId": 35,
-          "level": 1,
+          "level": 15,
           "promotion": 0,
           "awakening": 0
         }
@@ -24570,7 +24665,7 @@
         },
         {
           "speaker": "칸나",
-          "text": "제가 왜 백마법을 찾았게요.",
+          "text": "저 백마법 왜 만들었게요.",
           "characters": [
             {
               "name": "칸나",
@@ -24587,7 +24682,30 @@
         },
         {
           "speaker": "칸나",
-          "text": "생명 태워서 뭘 한다는 게 싫어서요. 그거 하나 때문에 평생을 썼어요.",
+          "text": "살려고요. 죽기 싫어서요. 그거 하나였어요.",
+          "characters": [
+            {
+              "name": "칸나",
+              "image": "/uploads/standings/kanna.png",
+              "position": "left"
+            },
+            {
+              "name": "페리도트",
+              "image": "/uploads/standings/peridot.png",
+              "position": "right",
+              "active": false
+            }
+          ]
+        },
+        {
+          "text": "그건 처음 듣는 얘기였다."
+        },
+        {
+          "text": "그 사람은 그동안 그걸 한 번도 자기 얘기로 말한 적이 없었다."
+        },
+        {
+          "speaker": "칸나",
+          "text": "그런데요. 살려고만 하면 훨씬 쉬운 길이 있었어요.",
           "characters": [
             {
               "name": "칸나",
@@ -24604,7 +24722,58 @@
         },
         {
           "speaker": "칸나",
-          "text": "그런데 제가 그걸로 살면, 저는 뭐가 되는데요.",
+          "text": "남의 생명을 태우면 되거든요. 흑마법으로요. 그건 배우는 데 며칠이면 돼요.",
+          "characters": [
+            {
+              "name": "칸나",
+              "image": "/uploads/standings/kanna.png",
+              "position": "left"
+            },
+            {
+              "name": "페리도트",
+              "image": "/uploads/standings/peridot.png",
+              "position": "right",
+              "active": false
+            }
+          ]
+        },
+        {
+          "speaker": "칸나",
+          "text": "저는 그거 안 하려고 몇 년을 썼어요.",
+          "characters": [
+            {
+              "name": "칸나",
+              "image": "/uploads/standings/kanna.png",
+              "position": "left"
+            },
+            {
+              "name": "페리도트",
+              "image": "/uploads/standings/peridot.png",
+              "position": "right",
+              "active": false
+            }
+          ]
+        },
+        {
+          "speaker": "칸나",
+          "text": "그런데 제가 지금 당신 목숨으로 살면요.",
+          "characters": [
+            {
+              "name": "칸나",
+              "image": "/uploads/standings/kanna.png",
+              "position": "left"
+            },
+            {
+              "name": "페리도트",
+              "image": "/uploads/standings/peridot.png",
+              "position": "right",
+              "active": false
+            }
+          ]
+        },
+        {
+          "speaker": "칸나",
+          "text": "그 몇 년은 뭐가 되는데요.",
           "characters": [
             {
               "name": "칸나",

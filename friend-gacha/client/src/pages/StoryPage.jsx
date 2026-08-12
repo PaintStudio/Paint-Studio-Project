@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../utils/api';
 import { bgm } from '../utils/bgm';
+import { RARITY_COLORS } from '../utils/gameConstants';
 import BattlePage from './BattlePage';
 import DialogueBox from '../components/DialogueBox';
 import PartyPresetEditor from '../components/PartyPresetEditor';
@@ -183,7 +184,7 @@ export default function StoryPage({ user, onRefresh, addToast }) {
 
   const handleScriptBattle = useCallback(async (entry) => {
     try {
-      const result = await api.storyBattleStart(selectedNode.id, savedPartyIds, entry.enemies);
+      const result = await api.storyBattleStart(selectedNode.id, savedPartyIds, entry.enemies, entry.party, { initialBuffs: entry.initialBuffs, initialStacks: entry.initialStacks });
       const setup = { ...result.setup, partyIds: savedPartyIds, guide: entry.guide || null };
       if (entry.stageName) setup.stageName = entry.stageName;
       setBattleSetup(setup);
@@ -318,9 +319,21 @@ export default function StoryPage({ user, onRefresh, addToast }) {
             <div className="story-guest-list">
               {guests.map((g, i) => (
                 <div key={i} className="story-guest-card">
-                  <span className="story-guest-badge">GUEST</span>
-                  <span className="story-guest-name">#{g.charId}</span>
-                  <span className="story-guest-lv">Lv.{g.level || 1}</span>
+                  <div className="story-guest-portrait">
+                    {(g.image_bust || g.image_url)
+                      ? <img src={g.image_bust || g.image_url} alt={g.name || ''} />
+                      : <span className="story-guest-initial">{(g.name || '?')[0]}</span>}
+                    <span className="story-guest-badge">GUEST</span>
+                  </div>
+                  <div className="story-guest-info">
+                    <span className="story-guest-name">{g.name || `#${g.charId}`}</span>
+                    <span className="story-guest-meta">
+                      <span className="story-guest-rarity" style={{ color: RARITY_COLORS[g.rarity] === 'rainbow' ? '#ff6b6b' : RARITY_COLORS[g.rarity] }}>{g.rarity}</span>
+                      <span className="story-guest-lv">Lv.{g.level || 1}</span>
+                      {g.awakening > 0 && <span className="story-guest-awaken">{'★'.repeat(g.awakening)}</span>}
+                      {g.promotion > 0 && <span className="story-guest-promo">{'▲'.repeat(g.promotion)}</span>}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -351,27 +364,23 @@ export default function StoryPage({ user, onRefresh, addToast }) {
 
   return (
     <div className="story-page">
-      <div className="story-page-header">
-        <h2>&#128214; 스토리</h2>
-        <span className="stamina-badge"><CurrencyIcon type="stamina" />{user.stamina || 0}</span>
-      </div>
-
-      <div className="story-category-tabs">
-        {CATEGORIES.map(c => (
-          <button key={c.key}
-            className={`story-cat-tab ${category === c.key ? 'active' : ''}`}
-            onClick={() => { setCategory(c.key); setActiveChapter(1); setSelectedNode(null); }}>
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {chapterKeys.length === 0 ? (
-        <div className="story-empty">
-          <p>아직 등록된 스토리가 없습니다.</p>
+      <div className="story-sticky-header">
+        <div className="story-page-header">
+          <h2>&#128214; 스토리</h2>
+          <span className="stamina-badge"><CurrencyIcon type="stamina" />{user.stamina || 0}</span>
         </div>
-      ) : (
-        <>
+
+        <div className="story-category-tabs">
+          {CATEGORIES.map(c => (
+            <button key={c.key}
+              className={`story-cat-tab ${category === c.key ? 'active' : ''}`}
+              onClick={() => { setCategory(c.key); setActiveChapter(1); setSelectedNode(null); }}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        {chapterKeys.length > 0 && (
           <div className="story-chapter-tabs">
             {chapterKeys.map(ch => {
               const chNum = Number(ch);
@@ -386,50 +395,54 @@ export default function StoryPage({ user, onRefresh, addToast }) {
               );
             })}
           </div>
+        )}
+      </div>
 
-          <div className="story-node-list">
-            {(chapters[activeChapter] || []).map(n => (
-              <div key={n.id}
-                className={`story-node-card ${!n.unlocked ? 'locked' : ''} ${n.cleared ? 'cleared' : ''} ${n.nodeType}`}
-                onClick={() => n.unlocked && !loading && handleNodeClick(n)}>
-                <div className="story-node-number">
-                  {activeChapter}-{n.nodeNumber}
-                </div>
-                <div className="story-node-info">
-                  <span className="story-node-title">{n.title}</span>
-                  <div className="story-node-meta">
-                    {n.nodeType === 'battle' ? (
-                      <>
-                        <span className="story-type-badge battle">&#9876; 전투</span>
-                        <span className="meta-lv">Lv.{n.recommendedLevel}</span>
-                        {n.staminaCost > 0 && (
-                          <span className="meta-stamina"><CurrencyIcon type="stamina" />{n.staminaCost}</span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="story-type-badge story">&#128214; 스토리</span>
-                    )}
-                  </div>
-                </div>
-                <div className="story-node-status">
-                  {!n.unlocked ? (
-                    <span className="story-lock-icon">&#128274;</span>
-                  ) : n.cleared ? (
-                    n.nodeType === 'battle' ? (
-                      <span className="story-stars">
-                        {[1,2,3].map(i => (
-                          <span key={i} className={i <= n.stars ? 'star-filled' : 'star-empty'}>&#9733;</span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="story-check">&#10003;</span>
-                    )
-                  ) : null}
+      {chapterKeys.length === 0 ? (
+        <div className="story-empty">
+          <p>아직 등록된 스토리가 없습니다.</p>
+        </div>
+      ) : (
+        <div className="story-node-list">
+          {(chapters[activeChapter] || []).filter(n => n.unlocked).map(n => (
+            <div key={n.id}
+              className={`story-node-card ${n.cleared ? 'cleared' : ''} ${n.nodeType}`}
+              onClick={() => !loading && handleNodeClick(n)}>
+              <div className="story-node-number">
+                {activeChapter}-{n.nodeNumber}
+              </div>
+              <div className="story-node-info">
+                <span className="story-node-title">{n.title}</span>
+                <div className="story-node-meta">
+                  {n.nodeType === 'battle' ? (
+                    <>
+                      <span className="story-type-badge battle">&#9876; 전투</span>
+                      <span className="meta-lv">Lv.{n.recommendedLevel}</span>
+                      {n.staminaCost > 0 && (
+                        <span className="meta-stamina"><CurrencyIcon type="stamina" />{n.staminaCost}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="story-type-badge story">&#128214; 스토리</span>
+                  )}
                 </div>
               </div>
-            ))}
-          </div>
-        </>
+              <div className="story-node-status">
+                {n.cleared ? (
+                  n.nodeType === 'battle' ? (
+                    <span className="story-stars">
+                      {[1,2,3].map(i => (
+                        <span key={i} className={i <= n.stars ? 'star-filled' : 'star-empty'}>&#9733;</span>
+                      ))}
+                    </span>
+                  ) : (
+                    <span className="story-check">&#10003;</span>
+                  )
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       {storyPreview && (

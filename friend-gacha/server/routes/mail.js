@@ -51,10 +51,11 @@ router.post('/claim/:id', authMiddleware, (req, res) => {
       db.prepare('UPDATE users SET gold = gold + ? WHERE id = ?').run(rewards.gold, req.user.id);
     }
     if (rewards.characterId) {
-      const char = db.prepare('SELECT id FROM characters WHERE id = ?').get(rewards.characterId);
+      const char = db.prepare('SELECT id, rarity FROM characters WHERE id = ?').get(rewards.characterId);
       if (char) {
-        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)')
-          .run(req.user.id, rewards.characterId);
+        const autoLock = (char.rarity === 'SSR' || char.rarity === 'CR') ? 1 : 0;
+        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening, is_locked) VALUES (?, ?, 1, 0, 0, ?)')
+          .run(req.user.id, rewards.characterId, autoLock);
         initCharacterSkills(req.user.id, inv.lastInsertRowid, rewards.characterId);
       }
     }
@@ -93,10 +94,11 @@ router.post('/claim-all', authMiddleware, (req, res) => {
     if (rewards.currency) totalCurrency += rewards.currency;
     if (rewards.gold) totalGold += rewards.gold;
     if (rewards.characterId) {
-      const char = db.prepare('SELECT id FROM characters WHERE id = ?').get(rewards.characterId);
+      const char = db.prepare('SELECT id, rarity FROM characters WHERE id = ?').get(rewards.characterId);
       if (char) {
-        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)')
-          .run(req.user.id, rewards.characterId);
+        const autoLock = (char.rarity === 'SSR' || char.rarity === 'CR') ? 1 : 0;
+        const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening, is_locked) VALUES (?, ?, 1, 0, 0, ?)')
+          .run(req.user.id, rewards.characterId, autoLock);
         initCharacterSkills(req.user.id, inv.lastInsertRowid, rewards.characterId);
       }
     }

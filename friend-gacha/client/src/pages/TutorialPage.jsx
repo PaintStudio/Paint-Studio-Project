@@ -23,7 +23,7 @@ export default function TutorialPage({ onComplete }) {
   const handleBattle = useCallback(async (entry) => {
     try {
       if (nodeId) {
-        const { setup } = await api.storyBattleStart(nodeId, [], entry.enemies, entry.party);
+        const { setup } = await api.storyBattleStart(nodeId, [], entry.enemies, entry.party, { initialBuffs: entry.initialBuffs, initialStacks: entry.initialStacks });
         setBattleSetup({ ...setup, guide: entry.guide || null });
       } else {
         const { setup } = await api.tutorialBattle({

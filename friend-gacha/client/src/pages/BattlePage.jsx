@@ -312,7 +312,10 @@ function enemyDefenseAI(enemy, partyUnits) {
 export default function BattlePage({ setup, onBattleEnd, partyIds }) {
   const [party, setParty] = useState(() => {
     clearAllState();
-    const units = setup.party.map(u => ({ ...u, buffs: [], debuffs: [], shield: 0, alive: true, hpLostTrackers: {}, combatStacks: {}, skillCooldowns: new Array(u.skills?.length || 0).fill(0) }));
+    const units = setup.party.map((u, i) => {
+      const stacks = setup.initialStacks?.find(s => s.side === 'party' && s.index === i)?.stacks || {};
+      return { ...u, buffs: [], debuffs: [], shield: 0, alive: true, hpLostTrackers: {}, combatStacks: { ...stacks }, skillCooldowns: new Array(u.skills?.length || 0).fill(0) };
+    });
     for (const u of units) {
       const effMaxHp = getEffStat(u, 'maxHp');
       if (effMaxHp !== u.maxHp) { u.maxHp = effMaxHp; u.hp = effMaxHp; }
@@ -328,13 +331,42 @@ export default function BattlePage({ setup, onBattleEnd, partyIds }) {
         u.combatStacks._windPartyCount = windCount;
       }
     }
+    if (setup.initialBuffs) {
+      for (const b of setup.initialBuffs) {
+        if (b.side !== 'party') continue;
+        const u = units[b.index];
+        if (!u) continue;
+        const fn = b.type === 'debuff' ? attachDebuff : attachBuff;
+        fn(u.id, b);
+      }
+      for (const u of units) {
+        u.buffs = getBuffs(u.id);
+        u.debuffs = getDebuffs(u.id);
+      }
+    }
     return units;
   });
   const [enemies, setEnemies] = useState(() => {
-    const units = setup.enemies.map(u => ({ ...u, buffs: [], debuffs: [], shield: 0, alive: true, hpLostTrackers: {}, combatStacks: {}, skillCooldowns: new Array(u.skills?.length || 0).fill(0) }));
+    const units = setup.enemies.map((u, i) => {
+      const stacks = setup.initialStacks?.find(s => s.side === 'enemy' && s.index === i)?.stacks || {};
+      return { ...u, buffs: [], debuffs: [], shield: 0, alive: true, hpLostTrackers: {}, combatStacks: { ...stacks }, skillCooldowns: new Array(u.skills?.length || 0).fill(0) };
+    });
     for (const u of units) {
       const effMaxHp = getEffStat(u, 'maxHp');
       if (effMaxHp !== u.maxHp) { u.maxHp = effMaxHp; u.hp = effMaxHp; }
+    }
+    if (setup.initialBuffs) {
+      for (const b of setup.initialBuffs) {
+        if (b.side !== 'enemy') continue;
+        const u = units[b.index];
+        if (!u) continue;
+        const fn = b.type === 'debuff' ? attachDebuff : attachBuff;
+        fn(u.id, b);
+      }
+      for (const u of units) {
+        u.buffs = getBuffs(u.id);
+        u.debuffs = getDebuffs(u.id);
+      }
     }
     return units;
   });

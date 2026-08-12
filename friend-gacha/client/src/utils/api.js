@@ -134,8 +134,8 @@ export const api = {
   storyList: (category) => request('/story/list?category=' + (category || 'main')),
   storyNode: (id) => request('/story/node/' + id),
   storyRead: (nodeId) => request('/story/read', { method: 'POST', body: { nodeId } }),
-  storyBattleStart: (nodeId, partyIds, enemies, party) =>
-    request('/story/battle-start', { method: 'POST', body: { nodeId, partyIds, enemies, party } }),
+  storyBattleStart: (nodeId, partyIds, enemies, party, { initialBuffs, initialStacks } = {}) =>
+    request('/story/battle-start', { method: 'POST', body: { nodeId, partyIds, enemies, party, initialBuffs, initialStacks } }),
   tutorialScript: () => request('/story/tutorial'),
   storyBattleEnd: (battleLog) =>
     request('/story/battle-end', { method: 'POST', body: { battleLog } }),

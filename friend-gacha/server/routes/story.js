@@ -9,6 +9,14 @@ const hotRequire = require('../hotRequire');
 const router = express.Router();
 const loadStories = () => hotRequire('stories');
 
+function resolveGuests(guests) {
+  if (!guests || guests.length === 0) return null;
+  return guests.map(g => {
+    const char = db.prepare('SELECT name, rarity, element, origin, image_url, image_bust FROM characters WHERE id = ?').get(g.charId);
+    return { ...g, ...(char || {}) };
+  });
+}
+
 // 튜토리얼 스크립트 로드
 router.get('/tutorial', authMiddleware, (req, res) => {
   const nodes = loadStories();
@@ -59,7 +67,7 @@ router.get('/list', authMiddleware, (req, res) => {
       hasRewards: !!n.rewards,
       rewards: n.rewards || null,
       fixedParty: n.fixed_party || null,
-      requiredGuests: n.required_guests || null,
+      requiredGuests: resolveGuests(n.required_guests),
     });
   }
 
@@ -91,7 +99,7 @@ router.get('/node/:id', authMiddleware, (req, res) => {
     recommendedLevel: node.recommended_level,
     rewards: node.rewards || null,
     fixedParty: node.fixed_party || null,
-    requiredGuests: node.required_guests || null,
+    requiredGuests: resolveGuests(node.required_guests),
     bgm: node.bgm || null,
     cleared,
   });
@@ -136,13 +144,19 @@ router.post('/read', authMiddleware, (req, res) => {
 function createRentalUnit(spec, idx) {
   const char = db.prepare('SELECT * FROM characters WHERE id = ?').get(spec.charId);
   if (!char) return null;
-  const skills = db.prepare(`
-    SELECT s.* FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
-    WHERE cs.character_id = ? AND cs.is_default = 1
-  `).all(spec.charId);
+  let skills;
+  if (spec.skillIds && spec.skillIds.length > 0) {
+    const placeholders = spec.skillIds.map(() => '?').join(',');
+    skills = db.prepare(`SELECT * FROM skills WHERE id IN (${placeholders})`).all(...spec.skillIds);
+  } else {
+    skills = db.prepare(`
+      SELECT s.* FROM character_skills cs JOIN skills s ON cs.skill_id = s.id
+      WHERE cs.character_id = ? AND cs.is_default = 1
+    `).all(spec.charId);
+  }
   const talentData = require('../../data/talents');
   const charTalents = talentData[spec.charId];
-  const activeTalent = charTalents?.talents?.[0] || null;
+  const activeTalent = spec.noTalent ? null : (charTalents?.talents?.[0] || null);
   const charData = {
     ...char, base_hp: char.base_hp, base_atk: char.base_atk,
     base_def: char.base_def, base_spd: char.base_spd,
@@ -155,7 +169,7 @@ function createRentalUnit(spec, idx) {
 
 // 스토리 인라인 전투 셋업 (스크립트 내 battle 항목에서 호출)
 router.post('/battle-start', authMiddleware, (req, res) => {
-  const { nodeId, partyIds, enemies, party } = req.body;
+  const { nodeId, partyIds, enemies, party, initialBuffs, initialStacks } = req.body;
 
   if (!enemies || enemies.length === 0) {
     return res.status(400).json({ error: '적 데이터가 필요합니다' });
@@ -211,6 +225,8 @@ router.post('/battle-start', authMiddleware, (req, res) => {
   setup.stageName = `${node.chapter}-${node.node_number} ${node.title}`;
   if (node.max_cycles) setup.maxCycles = node.max_cycles;
   if (node.bg_image) setup.bgImage = `/uploads/bg/${node.bg_image}`;
+  if (initialBuffs) setup.initialBuffs = initialBuffs;
+  if (initialStacks) setup.initialStacks = initialStacks;
 
   res.json({ setup });
 });

@@ -2233,7 +2233,7 @@ const promotions = {
   "35": {
     "tiers": [
       {
-        "gold": 5000,
+        "gold": 3000,
         "items": [
           {
             "itemId": "windcodesmall",
@@ -2242,6 +2242,64 @@ const promotions = {
           {
             "itemId": "lifestonelow",
             "quantity": 15
+          }
+        ],
+        "attackSlots": 1,
+        "defenseSlots": 0,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 8000,
+        "items": [
+          {
+            "itemId": "windcodebig",
+            "quantity": 3
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 15
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 20
+          }
+        ],
+        "attackSlots": 0,
+        "defenseSlots": 1,
+        "unlockTalent": true,
+        "bonusNotes": 2
+      },
+      {
+        "gold": 15000,
+        "items": [
+          {
+            "itemId": "windcodemax",
+            "quantity": 5
+          },
+          {
+            "itemId": "windcodebig",
+            "quantity": 25
+          },
+          {
+            "itemId": "windcodemedium",
+            "quantity": 40
+          },
+          {
+            "itemId": "lifestonemax",
+            "quantity": 10
+          },
+          {
+            "itemId": "lifestonebig",
+            "quantity": 40
+          },
+          {
+            "itemId": "lifestonemedium",
+            "quantity": 60
           }
         ],
         "attackSlots": 1,

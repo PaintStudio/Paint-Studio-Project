@@ -34,6 +34,25 @@
       "endDate": "2026-08-27",
       "showTitle": false,
       "showRates": false
+    },
+    {
+      "id": "kanna_pickup",
+      "name": "밤산책으로 얻는 삶의 행복",
+      "type": "limited",
+      "description": "",
+      "image": null,
+      "characterPool": "all",
+      "featuredCharIds": [
+        35,
+        3
+      ],
+      "rates": null,
+      "featuredRateUp": 0.5,
+      "active": false,
+      "startDate": "2026-08-13",
+      "endDate": "2026-08-27",
+      "showTitle": false,
+      "showRates": false
     }
   ]
 }

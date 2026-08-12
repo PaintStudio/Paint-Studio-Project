@@ -125,6 +125,8 @@
   width: 100%; height: 100%;
 }
 .mobile-main { flex: 1; min-height: 0; overflow: hidden; }
+.mobile-app:has(.dialogue-overlay) .mobile-tab-bar { display: none; }
+.mobile-app:has(.dialogue-overlay) .mobile-main { flex: 1; }
 
 /* 모바일 탭바 */
 .mobile-tab-bar {
@@ -221,6 +223,11 @@
 .app:has(.battle-page) .tab-bar { display: none; }
 .app:has(.battle-page) .sub-tabs { display: none; }
 .main-content:has(.battle-page) { padding: 0; padding-bottom: 0; }
+
+/* 스토리 대화 진입 시 탭바 숨김 */
+.app:has(.dialogue-overlay) .tab-bar { display: none; }
+.app:has(.dialogue-overlay) .sub-tabs { display: none; }
+.main-content:has(.dialogue-overlay) { padding-bottom: 0; }
 
 /* 게임식 중앙 알림 */
 .gnotify {

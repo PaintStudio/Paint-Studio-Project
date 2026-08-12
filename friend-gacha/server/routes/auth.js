@@ -27,7 +27,9 @@ router.post('/register', (req, res) => {
 
   // 기본 지급 캐릭터: 프림 (charId 22)
   const STARTER_CHAR_ID = 22;
-  const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening) VALUES (?, ?, 1, 0, 0)').run(userId, STARTER_CHAR_ID);
+  const starterChar = db.prepare('SELECT rarity FROM characters WHERE id = ?').get(STARTER_CHAR_ID);
+  const starterLock = (starterChar?.rarity === 'SSR' || starterChar?.rarity === 'CR') ? 1 : 0;
+  const inv = db.prepare('INSERT INTO inventory (user_id, character_id, level, exp, awakening, is_locked) VALUES (?, ?, 1, 0, 0, ?)').run(userId, STARTER_CHAR_ID, starterLock);
   try { initCharacterSkills(userId, inv.lastInsertRowid, STARTER_CHAR_ID); } catch (e) {
     console.error('[회원가입] 스킬 초기화 실패:', e.message);
   }
